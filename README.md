@@ -1,4 +1,4 @@
-# Proyecto-Sistema-ERP SH-Servicios-Modulo-Ventas
+# Proyecto: Sistema ERP - SH Servicios (Modulo-Ventas)
 Sistema de Gestión
 
 El presente proyecto consiste en el desarrollo de un sistema ERP especializado en la Gestión de Ventas e Inventario para la empresa SH Servicios. La organización, dedicada a la provisión de insumos y soluciones técnicas, requiere de una herramienta digital que centralice sus operaciones comerciales. El sistema busca sustituir procesos manuales por una plataforma automatizada que garantice el control total sobre el flujo de mercadería y la transparencia financiera.
