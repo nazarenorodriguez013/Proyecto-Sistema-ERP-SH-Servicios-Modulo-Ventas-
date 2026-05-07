@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Layout from './components/Layout';
 import PuntoDeVenta from './pages/PuntoDeVenta';
+import Articulos from './pages/Articulos';
 import { PageId } from './types';
 
 function AppContent() {
@@ -20,6 +21,7 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case 'punto-de-venta': return <PuntoDeVenta />;
+      case 'articulos':      return <Articulos />;
       default: return (
         <div className="flex-1 flex items-center justify-center text-gray-400 p-8">
           Módulo en desarrollo...
