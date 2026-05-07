@@ -7,6 +7,9 @@ import PuntoDeVenta from './pages/PuntoDeVenta';
 import Facturacion from './pages/Facturacion';
 import Articulos from './pages/Articulos';
 import StockListado from './pages/StockListado';
+import Alquiler from './pages/Alquiler';
+import ServiciosTecnicos from './pages/ServiciosTecnicos';
+import Configuracion from './pages/Configuracion';
 import { PageId } from './types';
 
 function AppContent() {
@@ -22,15 +25,13 @@ function AppContent() {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'punto-de-venta': return <PuntoDeVenta />;
-      case 'facturacion':    return <Facturacion />;
-      case 'articulos':      return <Articulos />;
-      case 'stock-listado':  return <StockListado />;
-      default: return (
-        <div className="flex-1 flex items-center justify-center text-gray-400 p-8">
-          Módulo en desarrollo...
-        </div>
-      );
+      case 'punto-de-venta':    return <PuntoDeVenta />;
+      case 'facturacion':       return <Facturacion />;
+      case 'articulos':         return <Articulos />;
+      case 'stock-listado':     return <StockListado />;
+      case 'alquiler':          return <Alquiler />;
+      case 'servicios-tecnicos': return <ServiciosTecnicos />;
+      case 'configuracion':     return <Configuracion />;
     }
   };
 
