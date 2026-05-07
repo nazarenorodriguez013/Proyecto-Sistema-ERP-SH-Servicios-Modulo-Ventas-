@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Layout from './components/Layout';
+import PuntoDeVenta from './pages/PuntoDeVenta';
 import { PageId } from './types';
 
 function AppContent() {
@@ -16,11 +17,20 @@ function AppContent() {
       : <Login onToggle={() => setShowRegister(true)} />;
   }
 
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'punto-de-venta': return <PuntoDeVenta />;
+      default: return (
+        <div className="flex-1 flex items-center justify-center text-gray-400 p-8">
+          Módulo en desarrollo...
+        </div>
+      );
+    }
+  };
+
   return (
     <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
-      <div className="flex-1 flex items-center justify-center text-gray-400 p-8">
-        Módulos en desarrollo...
-      </div>
+      {renderPage()}
     </Layout>
   );
 }
