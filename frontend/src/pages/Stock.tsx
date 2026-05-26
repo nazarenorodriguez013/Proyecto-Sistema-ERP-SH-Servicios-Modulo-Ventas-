@@ -120,7 +120,7 @@ export default function Stock({ user }: { user: User }) {
                     <span style={{ fontWeight: '800', fontSize: '18px', color: stockColor }}>{p.stock}</span>
                   )}
                 </span>
-                <span style={{ ...s.td, width: '100px', justifyContent: 'center', color: '#475569', fontWeight: '600' }}>
+                <span style={{ ...s.td, width: '100px', justifyContent: 'center', color: '#cbd5e1', fontWeight: '600' }}>
                   {p.stockMinimo}
                 </span>
                 <span style={{ ...s.td, width: '100px', justifyContent: 'center' }}>
@@ -149,25 +149,25 @@ export default function Stock({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   container:  { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
-  loading:    { color: '#64748b', padding: '40px', textAlign: 'center' },
+  loading:    { color: '#94a3b8', padding: '40px', textAlign: 'center' },
   header:     { display: 'flex', flexDirection: 'column', gap: '2px' },
   title:      { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:   { color: '#475569', fontSize: '13px' },
+  subtitle:   { color: '#cbd5e1', fontSize: '13px' },
   cards:      { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' },
   card:       { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '18px 20px' },
   cardVal:    { fontSize: '30px', fontWeight: '800', margin: 0 },
-  cardLbl:    { color: '#475569', fontSize: '12px', margin: '4px 0 0', fontWeight: '500' },
+  cardLbl:    { color: '#cbd5e1', fontSize: '12px', margin: '4px 0 0', fontWeight: '500' },
   tabs:       { display: 'flex', gap: '6px' },
-  tab:        { background: 'transparent', border: '1px solid #334155', borderRadius: '8px', padding: '7px 14px', color: '#64748b', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
+  tab:        { background: 'transparent', border: '1px solid #334155', borderRadius: '8px', padding: '7px 14px', color: '#94a3b8', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
   tabActive:  { background: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.3)', color: '#eab308', fontWeight: '600' },
   tableWrap:  { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden' },
   thead:      { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#0f172a', borderBottom: '1px solid #334155' },
-  th:         { color: '#475569', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
+  th:         { color: '#cbd5e1', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
   row:        { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #1e293b', background: '#1e293b' },
   td:         { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#cbd5e1' },
-  empty:      { padding: '40px', textAlign: 'center', color: '#475569', fontSize: '14px' },
+  empty:      { padding: '40px', textAlign: 'center', color: '#cbd5e1', fontSize: '14px' },
   name:       { color: '#f1f5f9', fontWeight: '600' },
-  catBadge:   { background: '#0f172a', color: '#64748b', border: '1px solid #334155', padding: '2px 9px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' as const },
+  catBadge:   { background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '2px 9px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' as const },
   badgeOut:   { background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
   badgeLow:   { background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
   badgeOk:    { background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
