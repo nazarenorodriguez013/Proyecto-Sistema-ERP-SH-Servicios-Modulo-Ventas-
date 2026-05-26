@@ -315,7 +315,7 @@ export default function Articulos({ user }: { user: User }) {
                 </div>
                 {form.precioCosto && form.precio && (
                   <div style={s.margenPreview}>
-                    <span style={{ color: '#64748b', fontSize: '13px' }}>Ganancia por unidad:</span>
+                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>Ganancia por unidad:</span>
                     <span style={{ color: '#eab308', fontWeight: '700', fontSize: '15px' }}>
                       ${fmt(Number(form.precio) - Number(form.precioCosto))}
                     </span>
@@ -380,19 +380,19 @@ export default function Articulos({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
-  loading:      { color: '#64748b', padding: '40px', textAlign: 'center' },
+  loading:      { color: '#94a3b8', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   title:        { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:     { color: '#475569', fontSize: '13px', margin: '3px 0 0' },
+  subtitle:     { color: '#cbd5e1', fontSize: '13px', margin: '3px 0 0' },
 
   filterBar:    { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
   searchInput:  { flex: 1, minWidth: '200px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '9px 14px', color: '#f1f5f9', fontSize: '14px', outline: 'none' },
   select:       { background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '9px 14px', color: '#cbd5e1', fontSize: '13px', outline: 'none', cursor: 'pointer' },
   tabs:         { display: 'flex', gap: '4px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '3px' },
-  tab:          { background: 'transparent', border: 'none', borderRadius: '6px', padding: '5px 12px', color: '#64748b', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
+  tab:          { background: 'transparent', border: 'none', borderRadius: '6px', padding: '5px 12px', color: '#94a3b8', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
   tabActive:    { background: '#334155', color: '#f1f5f9', fontWeight: '600' },
 
-  empty:        { color: '#475569', textAlign: 'center', padding: '60px 20px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', fontSize: '14px' },
+  empty:        { color: '#cbd5e1', textAlign: 'center', padding: '60px 20px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', fontSize: '14px' },
 
   grid:         { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: '16px' },
 
@@ -401,32 +401,32 @@ const s: Record<string, React.CSSProperties> = {
   code:         { fontFamily: 'monospace', background: '#0f172a', color: '#eab308', border: '1px solid #334155', borderRadius: '6px', padding: '3px 9px', fontSize: '12px', fontWeight: '700', letterSpacing: '1px' },
   statusDot:    { fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px' },
   dotActive:    { background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
-  dotInactive:  { background: 'rgba(100,116,139,0.1)', color: '#64748b', border: '1px solid rgba(100,116,139,0.2)' },
+  dotInactive:  { background: 'rgba(100,116,139,0.1)', color: '#94a3b8', border: '1px solid rgba(100,116,139,0.2)' },
 
   cardBody:     { display: 'flex', flexDirection: 'column', gap: '6px' },
   productName:  { color: '#f1f5f9', fontSize: '15px', fontWeight: '700', margin: 0, lineHeight: '1.3' },
-  catBadge:     { display: 'inline-block', background: '#0f172a', color: '#64748b', border: '1px solid #334155', padding: '2px 9px', borderRadius: '20px', fontSize: '11px' },
+  catBadge:     { display: 'inline-block', background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '2px 9px', borderRadius: '20px', fontSize: '11px' },
 
-  descToggle:   { background: 'transparent', border: 'none', color: '#475569', fontSize: '11px', cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: '500' },
+  descToggle:   { background: 'transparent', border: 'none', color: '#cbd5e1', fontSize: '11px', cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: '500' },
   descText:     { color: '#94a3b8', fontSize: '12px', lineHeight: '1.6', background: '#0f172a', borderRadius: '8px', padding: '10px 12px' },
 
   divider:      { height: '1px', background: '#334155' },
 
   priceRow:     { display: 'flex', alignItems: 'center', gap: '8px' },
   priceItem:    { display: 'flex', flexDirection: 'column', gap: '1px' },
-  priceLabel:   { color: '#475569', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
+  priceLabel:   { color: '#cbd5e1', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
   priceCost:    { color: '#94a3b8', fontWeight: '600', fontSize: '14px' },
   priceSale:    { color: '#eab308', fontWeight: '800', fontSize: '17px' },
-  priceArrow:   { color: '#334155', fontSize: '14px', margin: '0 2px', alignSelf: 'flex-end', paddingBottom: '2px' },
+  priceArrow:   { color: '#94a3b8', fontSize: '14px', margin: '0 2px', alignSelf: 'flex-end', paddingBottom: '2px' },
   margenBadge:  { padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', marginLeft: 'auto' },
   margenPos:    { background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
   margenNeg:    { background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' },
 
   stockRow:     { display: 'flex', flexDirection: 'column', gap: '6px' },
   stockInfo:    { display: 'flex', alignItems: 'center', gap: '6px' },
-  stockLabel:   { color: '#475569', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
+  stockLabel:   { color: '#cbd5e1', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
   stockNum:     { fontWeight: '800', fontSize: '16px' },
-  stockMin:     { color: '#475569', fontSize: '11px' },
+  stockMin:     { color: '#cbd5e1', fontSize: '11px' },
   badgeOut:     { background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)', padding: '1px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' as const },
   badgeLow:     { background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', padding: '1px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' as const },
   stockBarWrap: { height: '4px', background: '#0f172a', borderRadius: '2px', overflow: 'hidden' },
@@ -434,7 +434,7 @@ const s: Record<string, React.CSSProperties> = {
 
   cardActions:  { display: 'flex', gap: '6px', marginTop: '2px' },
   btnEdit:      { flex: 1, background: '#334155', border: 'none', borderRadius: '7px', padding: '7px 10px', color: '#cbd5e1', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
-  btnToggle:    { flex: 1, background: 'transparent', border: '1px solid #334155', borderRadius: '7px', padding: '7px 10px', color: '#64748b', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
+  btnToggle:    { flex: 1, background: 'transparent', border: '1px solid #334155', borderRadius: '7px', padding: '7px 10px', color: '#94a3b8', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
   btnDelete:    { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: '7px', padding: '7px 10px', color: '#f87171', fontSize: '12px', cursor: 'pointer' },
 
   btnPrimary:   { background: '#eab308', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
@@ -445,17 +445,17 @@ const s: Record<string, React.CSSProperties> = {
   modal:        { background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' },
   modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
   modalTitle:   { color: '#f1f5f9', fontSize: '17px', fontWeight: '700', margin: 0 },
-  closeBtn:     { background: 'transparent', border: 'none', color: '#64748b', fontSize: '18px', cursor: 'pointer' },
+  closeBtn:     { background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer' },
   form:         { display: 'flex', flexDirection: 'column', gap: '16px' },
   section:      { display: 'flex', flexDirection: 'column', gap: '12px', background: '#0f172a', borderRadius: '10px', padding: '14px' },
-  sectionTitle: { color: '#475569', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
+  sectionTitle: { color: '#cbd5e1', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
   row:          { display: 'flex', gap: '10px' },
   field:        { display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 },
-  label:        { color: '#64748b', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
+  label:        { color: '#94a3b8', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
   input:        { background: '#1e293b', border: '1px solid #334155', borderRadius: '7px', padding: '9px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
   inputGroup:   { display: 'flex', alignItems: 'center', background: '#1e293b', border: '1px solid #334155', borderRadius: '7px', overflow: 'hidden' },
   inputPrefix:  { color: '#eab308', fontWeight: '700', padding: '0 8px', fontSize: '13px', flexShrink: 0 },
-  inputSuffix:  { color: '#64748b', fontWeight: '600', padding: '0 8px', fontSize: '13px', flexShrink: 0 },
+  inputSuffix:  { color: '#94a3b8', fontWeight: '600', padding: '0 8px', fontSize: '13px', flexShrink: 0 },
   inputInner:   { flex: 1, background: 'transparent', border: 'none', padding: '9px 8px 9px 0', color: '#f1f5f9', fontSize: '13px', outline: 'none', width: '100%' },
   margenPreview:{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'rgba(234,179,8,0.05)', border: '1px solid rgba(234,179,8,0.15)', borderRadius: '7px' },
   checkLabel:   { display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' },
