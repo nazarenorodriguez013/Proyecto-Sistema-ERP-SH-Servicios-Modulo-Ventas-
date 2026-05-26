@@ -56,3 +56,82 @@ La aplicación será desplegada en entornos cloud para garantizar su acceso remo
 ## Conclusión
 
 Este sistema proporciona a SH Servicios una herramienta técnica avanzada para el control de su activo más importante: el stock. La integración de WebSockets y la arquitectura en TypeScript aseguran una plataforma escalable, rápida y libre de errores de sincronización, cumpliendo con los estándares actuales de desarrollo de software.
+
+---
+
+## Guía de instalación y ejecución local
+
+### Requisitos previos
+
+- [Node.js](https://nodejs.org/) v18 o superior
+- npm v9 o superior
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/nazarenorodriguez013/Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
+cd Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
+```
+
+### 2. Instalar dependencias del backend
+
+```bash
+npm install
+```
+
+### 3. Instalar dependencias del frontend
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### 4. Configurar variables de entorno
+
+```bash
+cp .env.example .env
+```
+
+El `.env` ya viene configurado para usar la base de datos local (`prisma/dev.db`).
+
+### 5. Correr el proyecto
+
+Abrir **dos terminales** en la carpeta raíz del proyecto.
+
+**Terminal 1 — Backend:**
+```bash
+npm run dev
+```
+El servidor se levanta en `http://localhost:3000`
+
+**Terminal 2 — Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+El frontend se levanta en `http://localhost:5173`
+
+Abrir el navegador en **http://localhost:5173**
+
+### Usuarios de prueba
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| Administrador | admin@shservicios.com | admin123 |
+| Vendedor | vendedor@shservicios.com | vendedor123 |
+
+### Base de datos
+
+La base de datos SQLite ya viene incluida en el repositorio (`prisma/dev.db`) con datos de prueba listos para usar.
+
+Si se necesita resetear o re-sembrar los datos:
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+Para abrir la interfaz visual de la base de datos:
+```bash
+npm run db:studio
+```
