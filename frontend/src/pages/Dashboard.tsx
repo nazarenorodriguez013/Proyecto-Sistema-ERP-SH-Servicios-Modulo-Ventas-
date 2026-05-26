@@ -3,6 +3,7 @@ import type { User } from '../types'
 import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
+import Ventas from './Ventas'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
@@ -12,6 +13,7 @@ const allSections: Section[] = [
   {
     id: 'ventas', label: 'Ventas', icon: '🛒', roles: ['ADMIN', 'VENDEDOR'],
     children: [
+      { id: 'punto-venta', label: 'Punto de Venta', icon: '🧾' },
       {
         id: 'inventario', label: 'Inventario', icon: '📦',
         children: [
@@ -27,15 +29,16 @@ const allSections: Section[] = [
 ]
 
 const pageLabels: Record<string, string> = {
+  'punto-venta': 'Punto de Venta',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
   alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['categorias', 'articulos', 'stock']
+const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock']
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   const sections = allSections.filter(s => s.roles.includes(user.rol))
-  const [activePage, setActivePage] = useState('articulos')
+  const [activePage, setActivePage] = useState('punto-venta')
   const [expanded, setExpanded] = useState<string[]>(['ventas', 'inventario'])
 
   const toggle = (id: string) =>
@@ -45,6 +48,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     sub.children?.some(p => p.id === activePage) ?? false
 
   const renderContent = () => {
+    if (activePage === 'punto-venta') return <Ventas    user={user} />
     if (activePage === 'categorias') return <Categorias user={user} />
     if (activePage === 'articulos')  return <Articulos  user={user} />
     if (activePage === 'stock')      return <Stock      user={user} />
@@ -195,34 +199,34 @@ const st: Record<string, React.CSSProperties> = {
   userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#0f172a', borderRadius: '10px', border: '1px solid #334155' },
   avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
   userName:     { color: '#f1f5f9', fontSize: '13px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  userRole:     { color: '#64748b', fontSize: '11px', margin: 0, marginTop: '1px' },
+  userRole:     { color: '#94a3b8', fontSize: '11px', margin: 0, marginTop: '1px' },
 
   navSection:   { display: 'flex', flexDirection: 'column', gap: '6px' },
-  navLabel:     { color: '#475569', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', margin: '0 0 2px 8px' },
+  navLabel:     { color: '#cbd5e1', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', margin: '0 0 2px 8px' },
   nav:          { display: 'flex', flexDirection: 'column', gap: '1px' },
 
-  navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#64748b', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
   navItemActive:{ background: 'rgba(234,179,8,0.1)', color: '#eab308', fontWeight: '600' },
   navIcon:      { fontSize: '16px', width: '20px', textAlign: 'center' },
-  arrow:        { fontSize: '10px', color: '#475569', display: 'inline-block', transition: 'transform 0.2s' },
+  arrow:        { fontSize: '10px', color: '#cbd5e1', display: 'inline-block', transition: 'transform 0.2s' },
 
   subMenuWrap:  { marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid #334155' },
-  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#64748b', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#94a3b8', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
   subItemActive:{ background: 'rgba(234,179,8,0.08)', color: '#eab308', fontWeight: '600' },
   subIcon:      { fontSize: '14px', width: '18px', textAlign: 'center' },
 
   pageMenuWrap: { marginLeft: '8px', paddingLeft: '8px', borderLeft: '1px solid #1e293b' },
-  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#475569', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
+  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#cbd5e1', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
   pageItemActive:{ background: 'rgba(234,179,8,0.06)', color: '#eab308', fontWeight: '600' },
   pageIcon:     { fontSize: '12px' },
   pageDot:      { position: 'absolute', right: '8px', width: '5px', height: '5px', borderRadius: '50%', background: '#eab308' },
 
-  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#64748b', fontSize: '13px', cursor: 'pointer', width: '100%', transition: 'all 0.15s' },
+  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', width: '100%', transition: 'all 0.15s' },
 
   main:         { flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#0f172a' },
   topBar:       { padding: '20px 28px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a' },
   pageTitle:    { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
-  pagePath:     { color: '#475569', fontSize: '12px', margin: '3px 0 0' },
+  pagePath:     { color: '#cbd5e1', fontSize: '12px', margin: '3px 0 0' },
   topBarRight:  { display: 'flex', alignItems: 'center', gap: '12px' },
   topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '6px 12px' },
   topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
@@ -233,6 +237,6 @@ const st: Record<string, React.CSSProperties> = {
   devCard:      { background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '48px 56px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '420px' },
   devIcon:      { fontSize: '48px' },
   devTitle:     { color: '#f1f5f9', fontSize: '22px', fontWeight: '700', margin: 0 },
-  devText:      { color: '#64748b', fontSize: '15px', lineHeight: '1.6', margin: 0 },
+  devText:      { color: '#94a3b8', fontSize: '15px', lineHeight: '1.6', margin: 0 },
   devBadge:     { background: 'rgba(234,179,8,0.1)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
 }
