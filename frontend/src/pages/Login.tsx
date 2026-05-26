@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { User } from '../types'
+import { API } from '../config'
 
 interface Props { onLogin: (user: User) => void }
 
@@ -14,7 +15,7 @@ export default function Login({ onLogin }: Props) {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('http://localhost:3000/api/auth/login', {
+      const res = await fetch(`${API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo: email, contrasena: password }),

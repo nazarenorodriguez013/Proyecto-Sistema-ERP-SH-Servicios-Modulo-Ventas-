@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { User } from '../types'
+import { API } from '../config'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -22,7 +23,6 @@ interface ComprobanteData {
 }
 
 const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia']
-const API = 'http://localhost:3000/api'
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
