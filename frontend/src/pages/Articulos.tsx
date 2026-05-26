@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
+import { API } from '../config'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -28,7 +29,6 @@ const calcVenta = (costo: number, margen: number) =>
 const fmt = (n: number) =>
   n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
-const API = 'http://localhost:3000/api'
 
 export default function Articulos({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])

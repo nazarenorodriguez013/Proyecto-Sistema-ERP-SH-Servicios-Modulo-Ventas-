@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { API_BASE } from '../config';
 
-// Singleton: una sola conexión para toda la app
-const socket = io('http://localhost:3000');
+const socket = io(API_BASE || window.location.origin);
 
 export const useSocket = (event: string, handler: (data: unknown) => void) => {
   useEffect(() => {

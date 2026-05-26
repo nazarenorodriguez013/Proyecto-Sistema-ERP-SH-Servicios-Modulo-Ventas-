@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
+import { API } from '../config'
 
 interface Categoria { id: number; nombre: string; creadoEn: string }
 
-const API = 'http://localhost:3000/api'
 
 export default function Categorias({ user }: { user: User }) {
   const [categorias, setCategorias] = useState<Categoria[]>([])

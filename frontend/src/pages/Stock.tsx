@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
+import { API } from '../config'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -7,7 +8,6 @@ interface Producto {
   activo: boolean; categoria: Categoria
 }
 
-const API = 'http://localhost:3000/api'
 
 export default function Stock({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])

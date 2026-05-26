@@ -1,4 +1,7 @@
 node_modules
 .env
+frontend/.env
 /generated/prisma
 .claude/
+prisma/dev.db
+prisma/dev.db-journal

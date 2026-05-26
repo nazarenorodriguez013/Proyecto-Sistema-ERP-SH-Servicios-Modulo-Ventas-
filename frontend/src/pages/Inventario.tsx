@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import type { User } from '../types'
+import { API, API_BASE } from '../config'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -14,7 +15,6 @@ interface ProductoForm {
 }
 
 const EMPTY_FORM: ProductoForm = { nombre: '', descripcion: '', precio: '', stock: '', stockMinimo: '5', categoriaId: '', activo: true }
-const API = 'http://localhost:3000/api'
 
 export default function Inventario({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])
@@ -48,7 +48,7 @@ export default function Inventario({ user }: { user: User }) {
 
   useEffect(() => {
     fetchAll()
-    socketRef.current = io('http://localhost:3000')
+    socketRef.current = io(API_BASE || window.location.origin)
     socketRef.current.on('low-stock', (producto: Producto) => {
       setLowStockAlerts(prev => prev.find(p => p.id === producto.id) ? prev : [...prev, producto])
     })
