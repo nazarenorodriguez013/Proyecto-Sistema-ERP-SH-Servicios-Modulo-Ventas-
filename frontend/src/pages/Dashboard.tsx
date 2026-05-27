@@ -4,6 +4,7 @@ import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
+import Comprobantes from './Comprobantes'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
@@ -13,7 +14,8 @@ const allSections: Section[] = [
   {
     id: 'ventas', label: 'Ventas', icon: '🛒', roles: ['ADMIN', 'VENDEDOR'],
     children: [
-      { id: 'punto-venta', label: 'Punto de Venta', icon: '🧾' },
+      { id: 'punto-venta',  label: 'Punto de Venta',  icon: '🧾' },
+      { id: 'comprobantes', label: 'Comprobantes',     icon: '📄' },
       {
         id: 'inventario', label: 'Inventario', icon: '📦',
         children: [
@@ -30,11 +32,12 @@ const allSections: Section[] = [
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
+  comprobantes: 'Comprobantes',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
   alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock']
+const contentPages = ['punto-venta', 'comprobantes', 'categorias', 'articulos', 'stock']
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   const sections = allSections.filter(s => s.roles.includes(user.rol))
@@ -48,10 +51,11 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     sub.children?.some(p => p.id === activePage) ?? false
 
   const renderContent = () => {
-    if (activePage === 'punto-venta') return <Ventas    user={user} />
-    if (activePage === 'categorias') return <Categorias user={user} />
-    if (activePage === 'articulos')  return <Articulos  user={user} />
-    if (activePage === 'stock')      return <Stock      user={user} />
+    if (activePage === 'punto-venta')  return <Ventas       user={user} />
+    if (activePage === 'comprobantes') return <Comprobantes user={user} />
+    if (activePage === 'categorias')   return <Categorias   user={user} />
+    if (activePage === 'articulos')    return <Articulos    user={user} />
+    if (activePage === 'stock')        return <Stock        user={user} />
     return (
       <div style={st.contentArea}>
         <div style={st.devCard}>

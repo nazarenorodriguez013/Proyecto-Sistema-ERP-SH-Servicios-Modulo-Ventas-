@@ -5,7 +5,7 @@ generator client {
   provider = "prisma-client-js"
 }
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -59,10 +59,12 @@ model Producto {
 }
 
 model Venta {
-  id        Int      @id @default(autoincrement())
-  total     Float
-  usuarioId Int      @map("usuario_id")
-  creadoEn  DateTime @default(now()) @map("creado_en")
+  id             Int      @id @default(autoincrement())
+  total          Float
+  medioPago      String   @default("Efectivo") @map("medio_pago")
+  montoRecibido  Float?   @map("monto_recibido")
+  usuarioId      Int      @map("usuario_id")
+  creadoEn       DateTime @default(now()) @map("creado_en")
 
   usuario       Usuario        @relation(fields: [usuarioId], references: [id])
   detallesVenta DetalleVenta[]
