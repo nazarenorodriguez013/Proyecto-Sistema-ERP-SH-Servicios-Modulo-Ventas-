@@ -97,7 +97,11 @@ export default function Ventas({ user }: { user: User }) {
     try {
       const res = await fetch(`${API}/sales`, {
         method: 'POST', headers,
-        body: JSON.stringify({ items: carrito.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, precioUnitario: i.precioUnitario })) })
+        body: JSON.stringify({
+          items: carrito.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, precioUnitario: i.precioUnitario })),
+          medioPago,
+          montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
+        })
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
       const venta = await res.json()
