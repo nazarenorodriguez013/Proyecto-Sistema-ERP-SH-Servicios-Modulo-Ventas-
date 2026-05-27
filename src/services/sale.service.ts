@@ -5,7 +5,9 @@ const prisma = new PrismaClient();
 
 export const createSale = async (
   usuarioId: number,
-  items: { productoId: number; cantidad: number; precioUnitario: number }[]
+  items: { productoId: number; cantidad: number; precioUnitario: number }[],
+  medioPago: string,
+  montoRecibido?: number | null,
 ) => {
   return prisma.$transaction(async (tx) => {
     for (const item of items) {
@@ -20,6 +22,8 @@ export const createSale = async (
     const venta = await tx.venta.create({
       data: {
         total,
+        medioPago,
+        montoRecibido: montoRecibido ?? null,
         usuarioId,
         detallesVenta: {
           create: items.map(i => ({
@@ -29,7 +33,7 @@ export const createSale = async (
           })),
         },
       },
-      include: { detallesVenta: { include: { producto: true } }, usuario: true },
+      include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true },
     });
 
     for (const item of items) {
@@ -49,6 +53,6 @@ export const createSale = async (
 
 export const getAll = () =>
   prisma.venta.findMany({
-    include: { detallesVenta: { include: { producto: true } }, usuario: true },
+    include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true },
     orderBy: { creadoEn: 'desc' },
   });
