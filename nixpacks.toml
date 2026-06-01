@@ -1,0 +1,12 @@
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = [
+  "npx prisma generate",
+  "cd frontend && npm install && npm run build && cd ..",
+  "npx tsc"
+]
+
+[start]
+cmd = "NODE_ENV=production node dist/index.js"
