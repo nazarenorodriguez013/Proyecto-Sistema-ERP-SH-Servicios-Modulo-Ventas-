@@ -137,14 +137,14 @@ export default function Categorias({ user }: { user: User }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }, /* legacy */
+  container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' },
   loading:      { color: '#94a3b8', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   title:        { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
   subtitle:     { color: '#cbd5e1', fontSize: '13px', margin: '3px 0 0' },
   errorBanner:  { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
   empty:        { color: '#cbd5e1', textAlign: 'center', padding: '60px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' },
-  grid:         { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }, /* replaced by className */
+  grid:         { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' },
   card:         { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' },
   cardIcon:     { fontSize: '26px', flexShrink: 0, width: '44px', height: '44px', background: '#0f172a', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardBody:     { flex: 1, minWidth: 0 },
