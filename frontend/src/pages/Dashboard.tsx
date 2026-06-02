@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
+import Comprobantes from './Comprobantes'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
@@ -14,6 +15,7 @@ const allSections: Section[] = [
     id: 'ventas', label: 'Ventas', icon: '🛒', roles: ['ADMIN', 'VENDEDOR'],
     children: [
       { id: 'punto-venta',  label: 'Punto de Venta',  icon: '🧾' },
+      { id: 'comprobantes', label: 'Comprobantes',     icon: '📄' },
       {
         id: 'inventario', label: 'Inventario', icon: '📦',
         children: [
@@ -30,16 +32,25 @@ const allSections: Section[] = [
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
+  comprobantes: 'Comprobantes',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
   alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock']
+const contentPages = ['punto-venta', 'comprobantes', 'categorias', 'articulos', 'stock']
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   const sections = allSections.filter(s => s.roles.includes(user.rol))
-  const [activePage, setActivePage] = useState('punto-venta')
-  const [expanded, setExpanded] = useState<string[]>(['ventas', 'inventario'])
+  const [activePage, setActivePage]   = useState('punto-venta')
+  const [expanded, setExpanded]       = useState<string[]>(['ventas', 'inventario'])
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile]       = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const toggle = (id: string) =>
     setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -47,9 +58,15 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const isAnyPageActive = (sub: SubSection) =>
     sub.children?.some(p => p.id === activePage) ?? false
 
+  const navigate = (id: string) => {
+    setActivePage(id)
+    if (isMobile) setSidebarOpen(false)
+  }
+
   const renderContent = () => {
-    if (activePage === 'punto-venta')  return <Ventas     user={user} />
-    if (activePage === 'categorias')   return <Categorias user={user} />
+    if (activePage === 'punto-venta')  return <Ventas       user={user} />
+    if (activePage === 'comprobantes') return <Comprobantes user={user} />
+    if (activePage === 'categorias')   return <Categorias   user={user} />
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
     return (
@@ -64,10 +81,26 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     )
   }
 
+  const sidebarStyle: React.CSSProperties = isMobile
+    ? {
+        ...st.sidebar,
+        position: 'fixed', top: 0, left: 0, zIndex: 300,
+        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+        height: '100dvh',
+      }
+    : st.sidebar
+
   return (
     <div style={st.layout}>
+
+      {/* Backdrop móvil */}
+      {isMobile && sidebarOpen && (
+        <div style={st.backdrop} onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside style={st.sidebar}>
+      <aside style={sidebarStyle}>
         <div style={st.sidebarTop}>
 
           {/* Logo */}
@@ -77,6 +110,9 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
               <p style={st.logoName}>SH Servicios</p>
               <p style={st.logoTag}>ERP</p>
             </div>
+            {isMobile && (
+              <button style={st.closeBtn} onClick={() => setSidebarOpen(false)}>✕</button>
+            )}
           </div>
 
           {/* Usuario */}
@@ -103,7 +139,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                   <div key={section.id}>
                     <button
                       style={{ ...st.navItem, ...(secHasActive ? st.navItemActive : {}) }}
-                      onClick={() => hasChildren ? toggle(section.id) : setActivePage(section.id)}
+                      onClick={() => hasChildren ? toggle(section.id) : navigate(section.id)}
                     >
                       <span style={st.navIcon}>{section.icon}</span>
                       <span style={{ flex: 1, textAlign: 'left' }}>{section.label}</span>
@@ -121,7 +157,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                         <div key={sub.id} style={st.subMenuWrap}>
                           <button
                             style={{ ...st.subItem, ...(subActive ? st.subItemActive : {}) }}
-                            onClick={() => subHasChildren ? toggle(sub.id) : setActivePage(sub.id)}
+                            onClick={() => subHasChildren ? toggle(sub.id) : navigate(sub.id)}
                           >
                             <span style={st.subIcon}>{sub.icon}</span>
                             <span style={{ flex: 1, textAlign: 'left' }}>{sub.label}</span>
@@ -136,7 +172,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                                 <button
                                   key={page.id}
                                   style={{ ...st.pageItem, ...(activePage === page.id ? st.pageItemActive : {}) }}
-                                  onClick={() => setActivePage(page.id)}
+                                  onClick={() => navigate(page.id)}
                                 >
                                   <span style={st.pageIcon}>{page.icon}</span>
                                   <span>{page.label}</span>
@@ -163,16 +199,27 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
       {/* Contenido principal */}
       <main style={st.main}>
         <div style={st.topBar}>
-          <div>
-            <h2 style={st.pageTitle}>{pageLabels[activePage] ?? ''}</h2>
-            <p style={st.pagePath}>
-              SH Servicios &rsaquo; Ventas &rsaquo; {pageLabels[activePage] ?? ''}
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isMobile && (
+              <button style={st.hamburger} onClick={() => setSidebarOpen(true)}>
+                <span style={st.hamburgerLine} />
+                <span style={st.hamburgerLine} />
+                <span style={st.hamburgerLine} />
+              </button>
+            )}
+            <div>
+              <h2 style={st.pageTitle}>{pageLabels[activePage] ?? ''}</h2>
+              {!isMobile && (
+                <p style={st.pagePath}>
+                  SH Servicios &rsaquo; Ventas &rsaquo; {pageLabels[activePage] ?? ''}
+                </p>
+              )}
+            </div>
           </div>
           <div style={st.topBarRight}>
             <div style={st.topBarUser}>
               <span style={st.topBarAvatar}>{user.nombre.charAt(0).toUpperCase()}</span>
-              <span style={st.topBarName}>{user.nombre}</span>
+              {!isMobile && <span style={st.topBarName}>{user.nombre}</span>}
             </div>
           </div>
         </div>
@@ -187,6 +234,8 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 const st: Record<string, React.CSSProperties> = {
   layout:       { display: 'flex', width: '100%', minHeight: '100vh', background: '#0f172a' },
 
+  backdrop:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 299 },
+
   sidebar:      { width: '256px', height: '100vh', position: 'sticky', top: 0, background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px 12px', flexShrink: 0, overflow: 'hidden' },
   sidebarTop:   { display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
@@ -195,6 +244,7 @@ const st: Record<string, React.CSSProperties> = {
   logoLetters:  { color: '#0f172a', fontWeight: '900', fontSize: '15px' },
   logoName:     { color: '#f1f5f9', fontSize: '14px', fontWeight: '700', margin: 0 },
   logoTag:      { color: '#eab308', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
+  closeBtn:     { marginLeft: 'auto', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' },
 
   userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#0f172a', borderRadius: '10px', border: '1px solid #334155' },
   avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
@@ -221,11 +271,14 @@ const st: Record<string, React.CSSProperties> = {
   pageIcon:     { fontSize: '12px' },
   pageDot:      { position: 'absolute', right: '8px', width: '5px', height: '5px', borderRadius: '50%', background: '#eab308' },
 
-  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', width: '100%', transition: 'all 0.15s' },
+  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', width: '100%' },
+
+  hamburger:    { display: 'flex', flexDirection: 'column', gap: '5px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '8px' },
+  hamburgerLine:{ display: 'block', width: '22px', height: '2px', background: '#94a3b8', borderRadius: '2px' },
 
   main:         { flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#0f172a' },
-  topBar:       { padding: '20px 28px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a' },
-  pageTitle:    { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
+  topBar:       { padding: '16px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a' },
+  pageTitle:    { color: '#f1f5f9', fontSize: '18px', fontWeight: '700', margin: 0 },
   pagePath:     { color: '#cbd5e1', fontSize: '12px', margin: '3px 0 0' },
   topBarRight:  { display: 'flex', alignItems: 'center', gap: '12px' },
   topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '6px 12px' },
