@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "npx prisma generate && cd frontend && npm install && npm run build && cd .. && npx tsc",
-    "start": "npx prisma migrate deploy && NODE_ENV=production node dist/index.js",
+    "start": "NODE_ENV=production node dist/index.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
