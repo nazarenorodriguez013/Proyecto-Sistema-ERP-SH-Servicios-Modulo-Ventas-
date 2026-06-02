@@ -59,8 +59,8 @@ export default function Categorias({ user }: { user: User }) {
   if (loading) return <div style={s.loading}>Cargando categorías...</div>
 
   return (
-    <div style={s.container}>
-      <div style={s.header}>
+    <div className="page-container">
+      <div className="page-header">
         <div>
           <h2 style={s.title}>Categorías</h2>
           <p style={s.subtitle}>{categorias.length} categorías registradas</p>
@@ -73,7 +73,7 @@ export default function Categorias({ user }: { user: User }) {
       {categorias.length === 0
         ? <div style={s.empty}>No hay categorías. Creá la primera.</div>
         : (
-          <div style={s.grid}>
+          <div className="page-grid-2">
             {categorias.map(c => (
               <div key={c.id} style={s.card}>
                 <div style={s.cardIcon}>🏷️</div>
@@ -95,7 +95,7 @@ export default function Categorias({ user }: { user: User }) {
 
       {modal.open && (
         <div style={s.overlay}>
-          <div style={s.modal}>
+          <div className="page-modal">
             <div style={s.modalHeader}>
               <h3 style={s.modalTitle}>{modal.editing ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
               <button style={s.closeBtn} onClick={closeModal}>✕</button>
@@ -137,14 +137,14 @@ export default function Categorias({ user }: { user: User }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' },
+  container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }, /* legacy */
   loading:      { color: '#94a3b8', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   title:        { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
   subtitle:     { color: '#cbd5e1', fontSize: '13px', margin: '3px 0 0' },
   errorBanner:  { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
   empty:        { color: '#cbd5e1', textAlign: 'center', padding: '60px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' },
-  grid:         { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' },
+  grid:         { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }, /* replaced by className */
   card:         { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' },
   cardIcon:     { fontSize: '26px', flexShrink: 0, width: '44px', height: '44px', background: '#0f172a', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardBody:     { flex: 1, minWidth: 0 },
