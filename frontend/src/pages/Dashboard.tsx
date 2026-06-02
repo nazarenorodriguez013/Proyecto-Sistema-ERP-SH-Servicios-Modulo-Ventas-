@@ -19,7 +19,7 @@ const allSections: Section[] = [
         children: [
           { id: 'categorias', label: 'Categorías', icon: '🏷️' },
           { id: 'articulos',  label: 'Artículos',  icon: '📋' },
-          { id: 'stock',      label: 'Existencias',  icon: '📊' },
+          { id: 'stock',      label: 'Stock',        icon: '📊' },
         ],
       },
     ],
@@ -30,7 +30,7 @@ const allSections: Section[] = [
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
-  categorias: 'Categorías', articulos: 'Artículos', stock: 'Existencias',
+  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
   alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
 }
 
