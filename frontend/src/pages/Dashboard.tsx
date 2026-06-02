@@ -14,13 +14,12 @@ const allSections: Section[] = [
     id: 'ventas', label: 'Ventas', icon: '🛒', roles: ['ADMIN', 'VENDEDOR'],
     children: [
       { id: 'punto-venta',  label: 'Punto de Venta',  icon: '🧾' },
-      { id: 'comprobantes', label: 'Comprobantes',     icon: '📄' },
       {
         id: 'inventario', label: 'Inventario', icon: '📦',
         children: [
           { id: 'categorias', label: 'Categorías', icon: '🏷️' },
           { id: 'articulos',  label: 'Artículos',  icon: '📋' },
-          { id: 'stock',      label: 'Stock',       icon: '📊' },
+          { id: 'stock',      label: 'Existencias',  icon: '📊' },
         ],
       },
     ],
@@ -31,8 +30,7 @@ const allSections: Section[] = [
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
-  comprobantes: 'Comprobantes',
-  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
+  categorias: 'Categorías', articulos: 'Artículos', stock: 'Existencias',
   alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
 }
 

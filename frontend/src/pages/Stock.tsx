@@ -45,14 +45,14 @@ export default function Stock({ user }: { user: User }) {
   if (loading) return <div style={s.loading}>Cargando stock...</div>
 
   return (
-    <div style={s.container}>
+    <div className="page-container">
       <div style={s.header}>
-        <h2 style={s.title}>Stock</h2>
+        <h2 style={s.title}>Existencias</h2>
         <p style={s.subtitle}>{productos.length} productos en inventario</p>
       </div>
 
       {/* Tarjetas resumen */}
-      <div style={s.cards}>
+      <div className="stock-cards">
         {[
           { label: 'Total', value: productos.length, color: '#f1f5f9', bg: '#1e293b', border: '#334155' },
           { label: 'Normal', value: okCount, color: '#4ade80', bg: 'rgba(74,222,128,0.05)', border: 'rgba(74,222,128,0.2)' },
@@ -82,12 +82,12 @@ export default function Stock({ user }: { user: User }) {
       </div>
 
       {/* Tabla */}
-      <div style={s.tableWrap}>
+      <div className="stock-table-wrap">
         <div style={s.thead}>
           <span style={{ ...s.th, flex: 1 }}>Producto</span>
-          <span style={{ ...s.th, width: '140px' }}>Categoría</span>
-          <span style={{ ...s.th, width: '110px', textAlign: 'center' }}>Stock actual</span>
-          <span style={{ ...s.th, width: '100px', textAlign: 'center' }}>Stock mínimo</span>
+          <span className="stock-cat-col" style={{ ...s.th, width: '140px' }}>Categoría</span>
+          <span style={{ ...s.th, width: '110px', textAlign: 'center' }}>Existencias</span>
+          <span className="stock-min-col" style={{ ...s.th, width: '100px', textAlign: 'center' }}>Mínimo</span>
           <span style={{ ...s.th, width: '100px', textAlign: 'center' }}>Estado</span>
           {isAdmin && <span style={{ ...s.th, width: '120px', textAlign: 'center' }}>Ajustar</span>}
         </div>
@@ -103,7 +103,7 @@ export default function Stock({ user }: { user: User }) {
                 <span style={{ ...s.td, flex: 1 }}>
                   <span style={s.name}>{p.nombre}</span>
                 </span>
-                <span style={{ ...s.td, width: '140px' }}>
+                <span className="stock-cat-col" style={{ ...s.td, width: '140px' }}>
                   <span style={s.catBadge}>{p.categoria.nombre}</span>
                 </span>
                 <span style={{ ...s.td, width: '110px', justifyContent: 'center' }}>
@@ -120,7 +120,7 @@ export default function Stock({ user }: { user: User }) {
                     <span style={{ fontWeight: '800', fontSize: '18px', color: stockColor }}>{p.stock}</span>
                   )}
                 </span>
-                <span style={{ ...s.td, width: '100px', justifyContent: 'center', color: '#cbd5e1', fontWeight: '600' }}>
+                <span className="stock-min-col" style={{ ...s.td, width: '100px', justifyContent: 'center', color: '#cbd5e1', fontWeight: '600' }}>
                   {p.stockMinimo}
                 </span>
                 <span style={{ ...s.td, width: '100px', justifyContent: 'center' }}>

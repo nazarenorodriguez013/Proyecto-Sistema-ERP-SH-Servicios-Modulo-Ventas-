@@ -27,6 +27,25 @@ body {
 .login-card  { width: 100%; max-width: 420px; background: #1e293b; border-radius: 20px; padding: 40px; border: 1px solid #334155; }
 .login-mobile-logo { display: none; }
 
+/* ── Páginas internas responsive ────────────────── */
+.page-container  { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+.page-header     { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.page-grid-2     { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.page-modal      { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; }
+.stock-cards     { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stock-table-wrap{ background: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow-x: auto; }
+
+@media (max-width: 767px) {
+  .page-container  { padding: 16px; gap: 14px; }
+  .page-header     { flex-wrap: wrap; }
+  .page-grid-2     { grid-template-columns: 1fr; }
+  .page-modal      { margin: 16px; padding: 20px; border-radius: 12px; }
+  .stock-cards     { grid-template-columns: repeat(2, 1fr); }
+  .stock-table-wrap{ border-radius: 10px; }
+  .stock-table-wrap .stock-min-col,
+  .stock-table-wrap .stock-cat-col { display: none; }
+}
+
 @media (max-width: 767px) {
   .login-left  { display: none; }
   .login-right { padding: 24px 16px; align-items: flex-start; overflow-y: auto; }
