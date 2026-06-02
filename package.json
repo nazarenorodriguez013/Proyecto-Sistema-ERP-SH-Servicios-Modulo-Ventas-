@@ -12,9 +12,6 @@
     "db:studio": "prisma studio",
     "db:seed": "ts-node --transpile-only prisma/seed.ts"
   },
-  "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed.ts"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
