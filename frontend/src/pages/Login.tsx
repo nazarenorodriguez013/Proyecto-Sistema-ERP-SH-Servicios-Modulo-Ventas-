@@ -118,6 +118,15 @@ export default function Login({ onLogin }: Props) {
               {loading ? 'Ingresando...' : 'Ingresar al sistema'}
             </button>
           </form>
+
+          <div style={s.footer}>
+            <p style={s.footerText}>
+              Proyecto desarrollado por
+            </p>
+            <p style={s.footerNames}>
+              Rodríguez Nazareno · Jacobo Santiago · Mover Leonardo
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -155,4 +164,8 @@ const s: Record<string, React.CSSProperties> = {
   input:       { background: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '12px 16px', color: '#f1f5f9', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
   errorBox:    { background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' },
   btn:         { background: '#eab308', color: '#0f172a', border: 'none', borderRadius: '10px', padding: '13px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', marginTop: '4px', width: '100%' },
+
+  footer:      { marginTop: '28px', paddingTop: '20px', borderTop: '1px solid #1e293b', textAlign: 'center' as const },
+  footerText:  { color: '#475569', fontSize: '11px', margin: '0 0 4px', letterSpacing: '0.5px', textTransform: 'uppercase' as const },
+  footerNames: { color: '#64748b', fontSize: '12px', fontWeight: '500', margin: 0 },
 }

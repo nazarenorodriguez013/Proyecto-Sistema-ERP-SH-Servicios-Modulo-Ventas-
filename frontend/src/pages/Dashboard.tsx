@@ -226,6 +226,12 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
         <div style={contentPages.includes(activePage) ? st.contentFull : undefined}>
           {renderContent()}
         </div>
+        <footer style={st.footer}>
+          <span style={st.footerText}>
+            Proyecto desarrollado por&nbsp;&nbsp;
+            <strong>Rodríguez Nazareno</strong> · <strong>Jacobo Santiago</strong> · <strong>Mover Leonardo</strong>
+          </span>
+        </footer>
       </main>
     </div>
   )
@@ -284,6 +290,9 @@ const st: Record<string, React.CSSProperties> = {
   topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '6px 12px' },
   topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
   topBarName:   { color: '#94a3b8', fontSize: '13px', fontWeight: '500' },
+
+  footer:       { padding: '10px 20px', borderTop: '1px solid #1e293b', textAlign: 'center' as const, flexShrink: 0 },
+  footerText:   { color: '#334155', fontSize: '11px' },
 
   contentFull:  { flex: 1, overflowY: 'auto' },
   contentArea:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' },
