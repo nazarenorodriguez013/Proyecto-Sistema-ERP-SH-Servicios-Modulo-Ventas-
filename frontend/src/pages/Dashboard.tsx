@@ -4,7 +4,6 @@ import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
-import Comprobantes from './Comprobantes'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
@@ -58,7 +57,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
   const renderContent = () => {
     if (activePage === 'punto-venta')  return <Ventas       user={user} />
-    if (activePage === 'comprobantes') return <Comprobantes user={user} />
+    if (activePage === 'comprobantes') return null
     if (activePage === 'categorias')   return <Categorias   user={user} />
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
