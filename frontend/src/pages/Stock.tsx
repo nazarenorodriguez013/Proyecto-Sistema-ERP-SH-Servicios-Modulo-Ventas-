@@ -47,7 +47,7 @@ export default function Stock({ user }: { user: User }) {
   return (
     <div className="page-container">
       <div style={s.header}>
-        <h2 style={s.title}>Existencias</h2>
+        <h2 style={s.title}>Stock</h2>
         <p style={s.subtitle}>{productos.length} productos en inventario</p>
       </div>
 
@@ -86,7 +86,7 @@ export default function Stock({ user }: { user: User }) {
         <div style={s.thead}>
           <span style={{ ...s.th, flex: 1 }}>Producto</span>
           <span className="stock-cat-col" style={{ ...s.th, width: '140px' }}>Categoría</span>
-          <span style={{ ...s.th, width: '110px', textAlign: 'center' }}>Existencias</span>
+          <span style={{ ...s.th, width: '110px', textAlign: 'center' }}>Stock</span>
           <span className="stock-min-col" style={{ ...s.th, width: '100px', textAlign: 'center' }}>Mínimo</span>
           <span style={{ ...s.th, width: '100px', textAlign: 'center' }}>Estado</span>
           {isAdmin && <span style={{ ...s.th, width: '120px', textAlign: 'center' }}>Ajustar</span>}
