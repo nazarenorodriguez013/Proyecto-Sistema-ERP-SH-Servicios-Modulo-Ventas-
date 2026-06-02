@@ -1,3 +1,6 @@
+[variables]
+DATABASE_URL = "file:./prisma/dev.db"
+
 [phases.install]
 cmds = ["npm install"]
 
@@ -9,4 +12,4 @@ cmds = [
 ]
 
 [start]
-cmd = "NODE_ENV=production node dist/index.js"
+cmd = "npm run start"
