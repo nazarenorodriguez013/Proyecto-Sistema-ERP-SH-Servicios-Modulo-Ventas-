@@ -327,23 +327,23 @@ export default function Ventas({ user }: { user: User }) {
 
               {/* Encabezado items */}
               <div style={s.ticketItemHead}>
-                <span style={{ flex: 1 }}>Descripción</span>
-                <span style={{ width: '40px', textAlign: 'center' }}>Cant</span>
-                <span style={{ width: '70px', textAlign: 'right' }}>P.U.</span>
-                <span style={{ width: '80px', textAlign: 'right' }}>Subtotal</span>
+                <span style={{ flex: 1, minWidth: 0 }}>Descripción</span>
+                <span style={s.ticketCol1}>Cant</span>
+                <span style={{ ...s.ticketColNum, textAlign: 'right' }}>P.U.</span>
+                <span style={{ ...s.ticketColNum, textAlign: 'right' }}>Subtotal</span>
               </div>
               <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
 
               {/* Items */}
               {comprobante.items.map((item, i) => (
                 <div key={i} style={s.ticketItem}>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                     <p style={s.ticketItemNombre}>{item.producto.nombre}</p>
                     {item.producto.codigo && <p style={s.ticketItemCod}>Cód: {item.producto.codigo}</p>}
                   </div>
-                  <span style={{ width: '40px', textAlign: 'center', color: '#1e293b' }}>{item.cantidad}</span>
-                  <span style={{ width: '70px', textAlign: 'right', color: '#1e293b' }}>${fmt(item.precioUnitario)}</span>
-                  <span style={{ width: '80px', textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>${fmt(item.cantidad * item.precioUnitario)}</span>
+                  <span style={{ ...s.ticketCol1, textAlign: 'center', color: '#1e293b' }}>{item.cantidad}</span>
+                  <span style={{ ...s.ticketColNum, textAlign: 'right', color: '#1e293b' }}>${fmt(item.precioUnitario)}</span>
+                  <span style={{ ...s.ticketColNum, textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>${fmt(item.cantidad * item.precioUnitario)}</span>
                 </div>
               ))}
 
@@ -475,9 +475,11 @@ const s: Record<string, React.CSSProperties> = {
   ticketMetaVal:    { color: '#0f172a', fontWeight: '600' },
 
   ticketItemHead:   { display: 'flex', fontSize: '11px', fontWeight: '700', color: '#64748b', margin: '4px 0' },
-  ticketItem:       { display: 'flex', alignItems: 'flex-start', margin: '5px 0' },
-  ticketItemNombre: { fontSize: '12px', fontWeight: '700', color: '#0f172a', margin: 0 },
+  ticketItem:       { display: 'flex', alignItems: 'flex-start', margin: '5px 0', gap: '2px' },
+  ticketItemNombre: { fontSize: '11px', fontWeight: '700', color: '#0f172a', margin: 0, wordBreak: 'break-word' as const },
   ticketItemCod:    { fontSize: '10px', color: '#94a3b8', margin: '1px 0 0' },
+  ticketCol1:       { width: '32px', flexShrink: 0, fontSize: '11px' },
+  ticketColNum:     { width: '88px', flexShrink: 0, fontSize: '11px', whiteSpace: 'nowrap' as const },
 
   ticketTotal:      { display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '900', color: '#0f172a', margin: '4px 0' },
   ticketPago:       { margin: '4px 0' },
