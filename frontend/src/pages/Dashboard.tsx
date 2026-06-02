@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { User } from '../types'
 import Categorias from './Categorias'
 import Articulos from './Articulos'
@@ -44,13 +44,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const [activePage, setActivePage]   = useState('punto-venta')
   const [expanded, setExpanded]       = useState<string[]>(['ventas', 'inventario'])
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isMobile, setIsMobile]       = useState(window.innerWidth < 768)
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
 
   const toggle = (id: string) =>
     setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -60,7 +53,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
   const navigate = (id: string) => {
     setActivePage(id)
-    if (isMobile) setSidebarOpen(false)
+    setSidebarOpen(false)
   }
 
   const renderContent = () => {
@@ -81,41 +74,25 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     )
   }
 
-  const sidebarStyle: React.CSSProperties = isMobile
-    ? {
-        ...st.sidebar,
-        position: 'fixed', top: 0, left: 0, zIndex: 300,
-        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.25s ease',
-        height: '100dvh',
-      }
-    : st.sidebar
-
   return (
-    <div style={st.layout}>
+    <div className="db-layout">
 
       {/* Backdrop móvil */}
-      {isMobile && sidebarOpen && (
-        <div style={st.backdrop} onClick={() => setSidebarOpen(false)} />
-      )}
+      {sidebarOpen && <div className="db-backdrop" onClick={() => setSidebarOpen(false)} />}
 
       {/* Sidebar */}
-      <aside style={sidebarStyle}>
+      <aside className={`db-sidebar${sidebarOpen ? ' open' : ''}`}>
         <div style={st.sidebarTop}>
 
-          {/* Logo */}
           <div style={st.logoArea}>
             <div style={st.logoBox}><span style={st.logoLetters}>SH</span></div>
             <div>
               <p style={st.logoName}>SH Servicios</p>
               <p style={st.logoTag}>ERP</p>
             </div>
-            {isMobile && (
-              <button style={st.closeBtn} onClick={() => setSidebarOpen(false)}>✕</button>
-            )}
+            <button className="db-close-btn" onClick={() => setSidebarOpen(false)}>✕</button>
           </div>
 
-          {/* Usuario */}
           <div style={st.userCard}>
             <div style={st.avatar}>{user.nombre.charAt(0).toUpperCase()}</div>
             <div style={{ minWidth: 0 }}>
@@ -124,7 +101,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
             </div>
           </div>
 
-          {/* Nav */}
           <div style={st.navSection}>
             <p style={st.navLabel}>MENÚ PRINCIPAL</p>
             <nav style={st.nav}>
@@ -134,7 +110,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                 const secHasActive = section.children?.some(sub =>
                   sub.id === activePage || sub.children?.some(p => p.id === activePage)
                 )
-
                 return (
                   <div key={section.id}>
                     <button
@@ -152,7 +127,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                       const subExpanded = expanded.includes(sub.id)
                       const subHasChildren = !!sub.children?.length
                       const subActive = isAnyPageActive(sub)
-
                       return (
                         <div key={sub.id} style={st.subMenuWrap}>
                           <button
@@ -165,7 +139,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                               <span style={{ ...st.arrow, fontSize: '10px', transform: subExpanded ? 'rotate(180deg)' : 'none' }}>▼</span>
                             )}
                           </button>
-
                           {subHasChildren && subExpanded && (
                             <div style={st.pageMenuWrap}>
                               {sub.children!.map(page => (
@@ -197,35 +170,33 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
       </aside>
 
       {/* Contenido principal */}
-      <main style={st.main}>
+      <main className="db-main">
         <div style={st.topBar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {isMobile && (
-              <button style={st.hamburger} onClick={() => setSidebarOpen(true)}>
-                <span style={st.hamburgerLine} />
-                <span style={st.hamburgerLine} />
-                <span style={st.hamburgerLine} />
-              </button>
-            )}
+            <button className="db-hamburger" onClick={() => setSidebarOpen(true)}>
+              <span style={st.hLine} />
+              <span style={st.hLine} />
+              <span style={st.hLine} />
+            </button>
             <div>
               <h2 style={st.pageTitle}>{pageLabels[activePage] ?? ''}</h2>
-              {!isMobile && (
-                <p style={st.pagePath}>
-                  SH Servicios &rsaquo; Ventas &rsaquo; {pageLabels[activePage] ?? ''}
-                </p>
-              )}
+              <p className="db-topbar-path" style={st.pagePath}>
+                SH Servicios &rsaquo; {pageLabels[activePage] ?? ''}
+              </p>
             </div>
           </div>
           <div style={st.topBarRight}>
             <div style={st.topBarUser}>
               <span style={st.topBarAvatar}>{user.nombre.charAt(0).toUpperCase()}</span>
-              {!isMobile && <span style={st.topBarName}>{user.nombre}</span>}
+              <span className="db-topbar-name" style={st.topBarName}>{user.nombre}</span>
             </div>
           </div>
         </div>
+
         <div style={contentPages.includes(activePage) ? st.contentFull : undefined}>
           {renderContent()}
         </div>
+
         <footer style={st.footer}>
           <span style={st.footerText}>
             Proyecto desarrollado por&nbsp;&nbsp;
@@ -238,11 +209,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 }
 
 const st: Record<string, React.CSSProperties> = {
-  layout:       { display: 'flex', width: '100%', minHeight: '100vh', background: '#0f172a' },
-
-  backdrop:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 299 },
-
-  sidebar:      { width: '256px', height: '100vh', position: 'sticky', top: 0, background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px 12px', flexShrink: 0, overflow: 'hidden' },
   sidebarTop:   { display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
   logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #334155' },
@@ -250,7 +216,6 @@ const st: Record<string, React.CSSProperties> = {
   logoLetters:  { color: '#0f172a', fontWeight: '900', fontSize: '15px' },
   logoName:     { color: '#f1f5f9', fontSize: '14px', fontWeight: '700', margin: 0 },
   logoTag:      { color: '#eab308', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
-  closeBtn:     { marginLeft: 'auto', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' },
 
   userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#0f172a', borderRadius: '10px', border: '1px solid #334155' },
   avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
@@ -279,11 +244,9 @@ const st: Record<string, React.CSSProperties> = {
 
   logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', width: '100%' },
 
-  hamburger:    { display: 'flex', flexDirection: 'column', gap: '5px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '8px' },
-  hamburgerLine:{ display: 'block', width: '22px', height: '2px', background: '#94a3b8', borderRadius: '2px' },
+  hLine:        { display: 'block', width: '22px', height: '2px', background: '#94a3b8', borderRadius: '2px' },
 
-  main:         { flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#0f172a' },
-  topBar:       { padding: '16px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a' },
+  topBar:       { padding: '16px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', flexShrink: 0 },
   pageTitle:    { color: '#f1f5f9', fontSize: '18px', fontWeight: '700', margin: 0 },
   pagePath:     { color: '#cbd5e1', fontSize: '12px', margin: '3px 0 0' },
   topBarRight:  { display: 'flex', alignItems: 'center', gap: '12px' },
@@ -291,14 +254,14 @@ const st: Record<string, React.CSSProperties> = {
   topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
   topBarName:   { color: '#94a3b8', fontSize: '13px', fontWeight: '500' },
 
-  footer:       { padding: '10px 20px', borderTop: '1px solid #1e293b', textAlign: 'center' as const, flexShrink: 0 },
-  footerText:   { color: '#334155', fontSize: '11px' },
-
   contentFull:  { flex: 1, overflowY: 'auto' },
   contentArea:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' },
-  devCard:      { background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '48px 56px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '420px' },
+  devCard:      { background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '400px' },
   devIcon:      { fontSize: '48px' },
   devTitle:     { color: '#f1f5f9', fontSize: '22px', fontWeight: '700', margin: 0 },
   devText:      { color: '#94a3b8', fontSize: '15px', lineHeight: '1.6', margin: 0 },
   devBadge:     { background: 'rgba(234,179,8,0.1)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
+
+  footer:       { padding: '10px 20px', borderTop: '1px solid #1e293b', textAlign: 'center', flexShrink: 0 },
+  footerText:   { color: '#334155', fontSize: '11px' },
 }
