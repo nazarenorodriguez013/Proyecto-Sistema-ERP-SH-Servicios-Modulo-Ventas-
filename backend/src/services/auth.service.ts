@@ -17,6 +17,6 @@ export const login = async (email: string, password: string) => {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw new Error('Contraseña incorrecta');
 
-  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
   return { token, user: { id: user.id, email: user.email, role: user.role } };
 };
