@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 
+// Registra un nuevo usuario y devuelve sus datos sin contraseña
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, role } = req.body;
@@ -11,6 +12,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// Autentica al usuario y devuelve un JWT + datos del usuario
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
