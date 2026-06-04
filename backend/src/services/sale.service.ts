@@ -8,6 +8,8 @@ interface SaleItem {
   quantity: number;
 }
 
+// Crea una venta completa dentro de una transacción atómica:
+// valida stock, descuenta unidades, persiste la venta y notifica por WebSocket
 export const createSale = async (userId: number, items: SaleItem[]) => {
   return prisma.$transaction(async (tx) => {
     let total = 0;
@@ -16,12 +18,15 @@ export const createSale = async (userId: number, items: SaleItem[]) => {
     for (const item of items) {
       const product = await tx.product.findUnique({ where: { id: item.productId } });
       if (!product) throw new Error(`Producto ${item.productId} no encontrado`);
+
+      // Falla la transacción completa si cualquier ítem no tiene stock suficiente
       if (product.stock < item.quantity)
         throw new Error(`Stock insuficiente para "${product.name}" (disponible: ${product.stock})`);
 
       total += product.price * item.quantity;
       details.push({ productId: item.productId, quantity: item.quantity, unitPrice: product.price });
 
+      // Descuenta el stock del producto vendido
       await tx.product.update({
         where: { id: item.productId },
         data: { stock: { decrement: item.quantity } },
@@ -33,7 +38,7 @@ export const createSale = async (userId: number, items: SaleItem[]) => {
       include: { details: { include: { product: true } }, user: { select: { email: true } } },
     });
 
-    // Emitir stock actualizado a todos los clientes conectados
+    // Emite el stock actualizado a todos los clientes conectados por WebSocket
     const updatedProducts = await tx.product.findMany({ include: { category: true }, orderBy: { name: 'asc' } });
     getIO().emit('stock-update', updatedProducts);
 
@@ -41,6 +46,7 @@ export const createSale = async (userId: number, items: SaleItem[]) => {
   });
 };
 
+// Devuelve todas las ventas ordenadas de más reciente a más antigua
 export const getAll = () =>
   prisma.sale.findMany({
     include: {

@@ -9,17 +9,19 @@ import productRoutes from './routes/product.routes';
 import saleRoutes from './routes/sale.routes';
 
 const app = express();
-const httpServer = createServer(app);
 
+// Socket.io requiere el servidor HTTP nativo, no la app de Express directamente
+const httpServer = createServer(app);
 initSocket(httpServer);
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
+// Montaje de rutas bajo el prefijo /api
+app.use('/api/auth',       authRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/sales', saleRoutes);
+app.use('/api/products',   productRoutes);
+app.use('/api/sales',      saleRoutes);
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
