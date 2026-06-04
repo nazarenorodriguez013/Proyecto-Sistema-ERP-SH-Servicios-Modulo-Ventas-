@@ -82,7 +82,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
         <div style={st.sidebarTop}>
 
           <div style={st.logoArea}>
-            <div style={st.logoBox}><span style={st.logoLetters}>SH</span></div>
+            <img src="/logosh.png" alt="SH Servicios" style={st.logoImg} />
             <div>
               <p style={st.logoName}>SH Servicios</p>
               <p style={st.logoTag}>ERP</p>
@@ -209,8 +209,7 @@ const st: Record<string, React.CSSProperties> = {
   sidebarTop:   { display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
   logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #334155' },
-  logoBox:      { width: '38px', height: '38px', background: '#eab308', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  logoLetters:  { color: '#0f172a', fontWeight: '900', fontSize: '15px' },
+  logoImg:      { width: '38px', height: '38px', objectFit: 'contain', flexShrink: 0, borderRadius: '6px' },
   logoName:     { color: '#f1f5f9', fontSize: '14px', fontWeight: '700', margin: 0 },
   logoTag:      { color: '#eab308', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
 

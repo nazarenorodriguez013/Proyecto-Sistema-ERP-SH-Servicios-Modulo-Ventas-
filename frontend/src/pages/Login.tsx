@@ -37,7 +37,7 @@ export default function Login({ onLogin }: Props) {
       {/* Panel izquierdo — se oculta en móvil vía CSS */}
       <div className="login-left">
         <div style={s.brand}>
-          <div style={s.logoWrap}><span style={s.logoText}>SH</span></div>
+          <img src="/logosh.png" alt="SH Servicios" style={s.logoImg} />
           <h1 style={s.brandName}>SH Servicios</h1>
           <p style={s.brandSub}>Sistema ERP — Módulo de Ventas</p>
         </div>
@@ -61,9 +61,7 @@ export default function Login({ onLogin }: Props) {
 
           {/* Logo compacto — solo visible en móvil vía CSS */}
           <div className="login-mobile-logo">
-            <div style={{ ...s.logoWrap, width: '48px', height: '48px' }}>
-              <span style={{ ...s.logoText, fontSize: '20px' }}>SH</span>
-            </div>
+            <img src="/logosh.png" alt="SH Servicios" style={{ ...s.logoImg, width: '48px', height: '48px' }} />
             <div>
               <p style={{ ...s.brandName, fontSize: '20px' }}>SH Servicios</p>
               <p style={s.brandSub}>Sistema ERP — Módulo de Ventas</p>
@@ -122,8 +120,7 @@ export default function Login({ onLogin }: Props) {
 
 const s: Record<string, React.CSSProperties> = {
   brand:       { display: 'flex', flexDirection: 'column', gap: '16px' },
-  logoWrap:    { width: '64px', height: '64px', background: '#eab308', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  logoText:    { color: '#0f172a', fontWeight: '900', fontSize: '26px', letterSpacing: '-1px' },
+  logoImg:     { width: '64px', height: '64px', objectFit: 'contain', borderRadius: '10px' },
   brandName:   { color: '#f1f5f9', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 },
   brandSub:    { color: '#64748b', fontSize: '14px', margin: 0 },
   features:    { display: 'flex', flexDirection: 'column', gap: '16px' },
