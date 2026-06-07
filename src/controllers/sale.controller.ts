@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as saleService from '../services/sale.service';
 
+// Registra una venta a nombre del usuario logueado (sale del token, no del body)
 export const create = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const usuarioId = req.user!.id;

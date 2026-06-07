@@ -9,11 +9,13 @@ export const getAll = () =>
 export const getById = (id: number) =>
   prisma.producto.findUniqueOrThrow({ where: { id }, include: { categoria: true } });
 
+// Solo considera productos activos: uno descontinuado no debería disparar alertas de reposición
 export const getLowStock = async () => {
   const productos = await prisma.producto.findMany({ where: { activo: true }, include: { categoria: true } });
   return productos.filter(p => p.stock <= p.stockMinimo);
 };
 
+// Genera un código incremental de 4 dígitos basado en el último código asignado
 const generateCode = async (): Promise<string> => {
   const last = await prisma.producto.findFirst({
     where: { codigo: { not: null } },
@@ -34,6 +36,7 @@ export const create = async (data: {
   categoriaId: number;
   activo?: boolean;
 }) => {
+  // El código se genera acá, no lo manda el cliente, para garantizar unicidad y orden
   const codigo = await generateCode();
   return prisma.producto.create({ data: { ...data, codigo }, include: { categoria: true } });
 };
@@ -49,6 +52,7 @@ export const update = async (id: number, data: {
   activo?: boolean;
 }) => {
   const producto = await prisma.producto.update({ where: { id }, data, include: { categoria: true } });
+  // Avisa por websocket en tiempo real si la edición dejó el producto en stock bajo
   if (producto.activo && producto.stock <= producto.stockMinimo) {
     getIO()?.emit('low-stock', producto);
   }
