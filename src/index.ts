@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
+// Carga también prisma/.env por si Prisma define ahí su propia DATABASE_URL
 dotenv.config({ path: 'prisma/.env' });
 import express from 'express';
 import cors from 'cors';
@@ -16,6 +17,7 @@ import { setIO } from './socket';
 
 const prisma = new PrismaClient();
 
+// Solo siembra datos de ejemplo si la base está vacía (primer arranque), nunca pisa datos existentes
 async function seedIfEmpty() {
   const count = await prisma.usuario.count();
   if (count > 0) return;
@@ -71,6 +73,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// En producción el mismo servidor sirve el build del frontend (no hace falta otro servicio aparte)
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'frontend', 'dist');
   app.use(express.static(distPath));
@@ -79,6 +82,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Guarda la instancia para que los services puedan emitir eventos (ej. low-stock) sin importar Express
 setIO(io);
 
 io.on('connection', (socket) => {

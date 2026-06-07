@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 
+// Crea un usuario nuevo; nunca devuelve la contraseña en la respuesta
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { nombre, correo, contrasena } = req.body;
@@ -11,6 +12,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// Verifica credenciales y devuelve el token JWT junto con los datos del usuario
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { correo, contrasena } = req.body;

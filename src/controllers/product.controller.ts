@@ -13,6 +13,7 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// Usado por el dashboard para mostrar alertas de stock bajo
 export const getLowStock = async (_req: Request, res: Response): Promise<void> => {
   res.json(await productService.getLowStock());
 };

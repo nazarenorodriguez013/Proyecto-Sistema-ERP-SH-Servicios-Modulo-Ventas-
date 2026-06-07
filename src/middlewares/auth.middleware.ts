@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../types';
 
+// Valida el token JWT del header "Authorization: Bearer <token>" y cuelga el usuario en req.user
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
@@ -17,6 +18,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
+// Debe ir siempre después de authenticate, ya que depende de req.user
 export const authorizeAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (req.user?.rol !== 'ADMIN') {
     res.status(403).json({ message: 'Acceso solo para administradores' });

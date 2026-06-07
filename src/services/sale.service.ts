@@ -9,7 +9,9 @@ export const createSale = async (
   medioPago: string,
   montoRecibido?: number | null,
 ) => {
+  // Todo en una transacción: si falla el descuento de stock de cualquier ítem, se revierte la venta entera
   return prisma.$transaction(async (tx) => {
+    // Verifica stock de todos los ítems ANTES de crear la venta, para no dejar registros a medias
     for (const item of items) {
       const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
       if (!producto) throw new Error(`Producto no encontrado`);
@@ -36,6 +38,7 @@ export const createSale = async (
       include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true },
     });
 
+    // Descuenta stock recién después de crear la venta y avisa por websocket si quedó bajo
     for (const item of items) {
       const updated = await tx.producto.update({
         where: { id: item.productoId },

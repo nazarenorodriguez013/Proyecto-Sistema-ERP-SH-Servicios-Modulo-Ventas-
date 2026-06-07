@@ -4,11 +4,14 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Hashea la contraseña antes de guardarla; nunca se almacena en texto plano
 export const register = async (nombre: string, correo: string, contrasena: string) => {
   const hashed = await bcrypt.hash(contrasena, 10);
   return prisma.usuario.create({ data: { nombre, correo, contrasena: hashed } });
 };
 
+// Mismo mensaje de error tanto si el correo no existe como si la contraseña es incorrecta,
+// para no revelar a un atacante cuál de los dos datos está mal
 export const login = async (correo: string, contrasena: string) => {
   const usuario = await prisma.usuario.findUnique({ where: { correo } });
   if (!usuario) throw new Error('Credenciales inválidas');
