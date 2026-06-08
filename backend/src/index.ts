@@ -75,7 +75,7 @@ app.get('/health', (_req, res) => {
 
 // En producción el mismo servidor sirve el build del frontend (no hace falta otro servicio aparte)
 if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '..', 'frontend', 'dist');
+  const distPath = path.join(__dirname, '../..', 'frontend', 'dist');
   app.use(express.static(distPath));
   app.use((_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
