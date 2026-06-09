@@ -68,7 +68,11 @@ Este sistema proporciona a SH Servicios una herramienta técnica avanzada para e
 ### Rodriguez Nazareno
 Desarrolló el módulo de **Ventas**: registro de comprobantes con múltiples productos, cálculo automático de totales, validación de stock antes de confirmar y descuento automático de unidades al completar la transacción.
 
-> _(plus individual — completar)_
+**Plus individual — Comprobantes, documentos fiscales y configuración de empresa:**
+
+- **Listado de comprobantes** (`Comprobantes.tsx`): historial completo de ventas con modal de detalle y reimpresión. Consume `GET /sales` que trae ventas con sus ítems desde Prisma.
+- **Selector Factura / Remito en Punto de Venta** (`print.ts`): antes de confirmar la venta el usuario elige el tipo de comprobante. La **Factura** genera un documento A4 con formato ARCA/AFIP (CUIT, razón social, IVA 21%, CAE, totales). El **Remito** genera un A5 simplificado sin datos fiscales. El tipo queda persistido en la base de datos (campo `tipo_comprobante` en la tabla `ventas`) para poder reimprimir correctamente desde Comprobantes.
+- **Configuración de empresa** (`Configuracion.tsx`): pantalla exclusiva para ADMIN donde se cargan los datos que aparecen en las facturas (razón social, CUIT, condición IVA, domicilio, punto de venta, letra de factura, etc.). Los datos se persisten en `localStorage` bajo la clave `sh_config` y los lee `print.ts` al generar cada documento.
 
 ---
 
