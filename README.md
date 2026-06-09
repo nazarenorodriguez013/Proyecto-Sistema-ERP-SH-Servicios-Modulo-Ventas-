@@ -192,40 +192,40 @@ Las rutas marcadas con 👑 requieren además rol **ADMIN**.
 
 ### Autenticación — `/api/auth`
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Crea un nuevo usuario |
-| POST | `/api/auth/login` | Inicia sesión y devuelve el token JWT |
+| Método | URL completa | Descripción |
+|--------|-------------|-------------|
+| POST | `https://sh-servicios-erp-production.up.railway.app/api/auth/register` | Crea un nuevo usuario |
+| POST | `https://sh-servicios-erp-production.up.railway.app/api/auth/login` | Inicia sesión y devuelve el token JWT |
 
 ### Categorías — `/api/categories`
 
-| Método | Endpoint | Auth | Descripción |
-|--------|----------|------|-------------|
-| GET | `/api/categories` | 🔒 | Lista todas las categorías |
-| POST | `/api/categories` | 🔒 👑 | Crea una nueva categoría |
-| PUT | `/api/categories/:id` | 🔒 👑 | Edita el nombre de una categoría |
-| DELETE | `/api/categories/:id` | 🔒 👑 | Elimina una categoría (falla si tiene productos asignados) |
+| Método | URL completa | Auth | Descripción |
+|--------|-------------|------|-------------|
+| GET | `https://sh-servicios-erp-production.up.railway.app/api/categories` | 🔒 | Lista todas las categorías |
+| POST | `https://sh-servicios-erp-production.up.railway.app/api/categories` | 🔒 👑 | Crea una nueva categoría |
+| PUT | `https://sh-servicios-erp-production.up.railway.app/api/categories/:id` | 🔒 👑 | Edita el nombre de una categoría |
+| DELETE | `https://sh-servicios-erp-production.up.railway.app/api/categories/:id` | 🔒 👑 | Elimina una categoría (falla si tiene productos asignados) |
 
 ### Productos — `/api/products`
 
-| Método | Endpoint | Auth | Descripción |
-|--------|----------|------|-------------|
-| GET | `/api/products` | 🔒 | Lista todos los productos con su categoría |
-| GET | `/api/products/low-stock` | 🔒 | Lista productos activos con stock ≤ stock mínimo |
-| GET | `/api/products/:id` | 🔒 | Obtiene un producto por ID |
-| POST | `/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
-| PUT | `/api/products/:id` | 🔒 👑 | Edita un producto |
-| DELETE | `/api/products/:id` | 🔒 👑 | Elimina un producto |
+| Método | URL completa | Auth | Descripción |
+|--------|-------------|------|-------------|
+| GET | `https://sh-servicios-erp-production.up.railway.app/api/products` | 🔒 | Lista todos los productos con su categoría |
+| GET | `https://sh-servicios-erp-production.up.railway.app/api/products/low-stock` | 🔒 | Lista productos activos con stock ≤ stock mínimo |
+| GET | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 | Obtiene un producto por ID |
+| POST | `https://sh-servicios-erp-production.up.railway.app/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
+| PUT | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Edita un producto |
+| DELETE | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto |
 
 ### Ventas — `/api/sales`
 
-| Método | Endpoint | Auth | Descripción |
-|--------|----------|------|-------------|
-| GET | `/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
-| POST | `/api/sales` | 🔒 | Registra una venta y descuenta el stock |
+| Método | URL completa | Auth | Descripción |
+|--------|-------------|------|-------------|
+| GET | `https://sh-servicios-erp-production.up.railway.app/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
+| POST | `https://sh-servicios-erp-production.up.railway.app/api/sales` | 🔒 | Registra una venta y descuenta el stock |
 
 ### Health check
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/health` | Confirma que el servidor está corriendo |
+| Método | URL completa | Descripción |
+|--------|-------------|-------------|
+| GET | `https://sh-servicios-erp-production.up.railway.app/health` | Confirma que el servidor está corriendo |
