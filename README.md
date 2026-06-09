@@ -36,7 +36,11 @@ Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se ut
 - **Frontend:** React con TypeScript, orientado a una experiencia de usuario ágil y responsiva.
 - **Comunicación en Tiempo Real:** Uso de WebSockets con Socket.io para notificar instantáneamente la actualización de stock en todos los terminales cuando se realiza una venta.
 
-## 5. Estructura de la Base de Datos
+## 5. Diagrama Entidad-Relación (DER)
+
+![Diagrama Entidad-Relación](diagrama_Prog3_sh.png)
+
+## 6. Estructura de la Base de Datos
 
 El sistema se apoya en una estructura relacional de 5 tablas principales:
 
@@ -48,14 +52,26 @@ El sistema se apoya en una estructura relacional de 5 tablas principales:
 
 ## 6. Despliegue en la Nube
 
-La aplicación será desplegada en entornos cloud para garantizar su acceso remoto:
-
 - **Infraestructura:** Railway.
 - **Persistencia:** SQLite.
+- **URL en producción:** https://sh-servicios-erp-production.up.railway.app
 
 ## Conclusión
 
 Este sistema proporciona a SH Servicios una herramienta técnica avanzada para el control de su activo más importante: el stock. La integración de WebSockets y la arquitectura en TypeScript aseguran una plataforma escalable, rápida y libre de errores de sincronización, cumpliendo con los estándares actuales de desarrollo de software.
+
+---
+
+## Contribuciones Individuales (Plus de Promoción)
+
+### Rodriguez Nazareno
+> _(completar)_
+
+### Mover Leonardo
+> _(completar)_
+
+### Jacobo Santiago
+> _(completar)_
 
 ---
 
