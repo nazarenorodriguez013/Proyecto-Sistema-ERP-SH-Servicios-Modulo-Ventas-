@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import type { User } from '../types'
 import Categorias from './Categorias'
 import Articulos from './Articulos'
@@ -36,11 +37,29 @@ const pageLabels: Record<string, string> = {
 
 const contentPages = ['punto-venta', 'comprobantes', 'categorias', 'articulos', 'stock']
 
+// Mapeo entre ID de página y segmento de URL
+const pageToPath: Record<string, string> = {
+  'punto-venta': '/', categorias: '/categorias', articulos: '/articulos',
+  stock: '/stock', comprobantes: '/comprobantes', alquiler: '/alquiler', servicios: '/servicios',
+}
+const pathToPage: Record<string, string> = Object.fromEntries(
+  Object.entries(pageToPath).map(([k, v]) => [v, k])
+)
+
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const sections = allSections.filter(s => s.roles.includes(user.rol))
-  const [activePage, setActivePage]   = useState('punto-venta')
+  const sections      = allSections.filter(s => s.roles.includes(user.rol))
+  const routerNav     = useNavigate()
+  const { pathname }  = useLocation()
+
+  const [activePage, setActivePage]   = useState(() => pathToPage[pathname] ?? 'punto-venta')
   const [expanded, setExpanded]       = useState<string[]>(['ventas', 'inventario'])
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Sincroniza activePage cuando el usuario usa el botón atrás/adelante del navegador
+  useEffect(() => {
+    const page = pathToPage[pathname] ?? 'punto-venta'
+    setActivePage(page)
+  }, [pathname])
 
   const toggle = (id: string) =>
     setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -51,6 +70,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const navigate = (id: string) => {
     setActivePage(id)
     setSidebarOpen(false)
+    routerNav(pageToPath[id] ?? '/')
   }
 
   const renderContent = () => {
