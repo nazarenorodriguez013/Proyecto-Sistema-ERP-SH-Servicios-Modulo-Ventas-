@@ -55,6 +55,7 @@ El sistema se apoya en una estructura relacional de 5 tablas principales:
 - **Infraestructura:** Railway.
 - **Persistencia:** SQLite.
 - **URL en producción:** https://sh-servicios-erp-production.up.railway.app
+- **Video demostrativo:** https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing
 
 ## Conclusión
 
