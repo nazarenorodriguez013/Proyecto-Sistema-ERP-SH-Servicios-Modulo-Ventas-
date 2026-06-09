@@ -32,7 +32,7 @@ El sistema se centra en dos pilares críticos para el funcionamiento de SH Servi
 Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se utilizó el siguiente stack:
 
 - **Backend:** Node.js con Express y TypeScript (arquitectura en capas: Controladores, Servicios, Rutas).
-- **Base de Datos:** PostgreSQL gestionado a través de Prisma ORM para asegurar un tipado estricto de los modelos de datos.
+- **Base de Datos:** SQLite gestionado a través de Prisma ORM para asegurar un tipado estricto de los modelos de datos.
 - **Frontend:** React con TypeScript, orientado a una experiencia de usuario ágil y responsiva.
 - **Comunicación en Tiempo Real:** Uso de WebSockets con Socket.io para notificar instantáneamente la actualización de stock en todos los terminales cuando se realiza una venta.
 
@@ -50,8 +50,8 @@ El sistema se apoya en una estructura relacional de 5 tablas principales:
 
 La aplicación será desplegada en entornos cloud para garantizar su acceso remoto:
 
-- **Infraestructura:** Render / Vercel.
-- **Persistencia:** PostgreSQL.
+- **Infraestructura:** Railway.
+- **Persistencia:** SQLite.
 
 ## Conclusión
 
@@ -76,7 +76,9 @@ cd Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
 ### 2. Instalar dependencias del backend
 
 ```bash
+cd backend
 npm install
+cd ..
 ```
 
 ### 3. Instalar dependencias del frontend
@@ -101,6 +103,7 @@ Abrir **dos terminales** en la carpeta raíz del proyecto.
 
 **Terminal 1 — Backend:**
 ```bash
+cd backend
 npm run dev
 ```
 El servidor se levanta en `http://localhost:3000`
@@ -123,15 +126,67 @@ Abrir el navegador en **http://localhost:5173**
 
 ### Base de datos
 
-La base de datos SQLite ya viene incluida en el repositorio (`prisma/dev.db`) con datos de prueba listos para usar.
+La base de datos SQLite ya viene incluida en el repositorio (`backend/prisma/dev.db`) con datos de prueba listos para usar.
 
 Si se necesita resetear o re-sembrar los datos:
 ```bash
+cd backend
 npm run db:migrate
 npm run db:seed
 ```
 
 Para abrir la interfaz visual de la base de datos:
 ```bash
+cd backend
 npm run db:studio
 ```
+
+---
+
+## API — Listado de Endpoints
+
+Base URL en producción: `https://<dominio>.railway.app`  
+Base URL en desarrollo: `http://localhost:3000`
+
+Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.  
+Las rutas marcadas con 👑 requieren además rol **ADMIN**.
+
+### Autenticación — `/api/auth`
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Crea un nuevo usuario |
+| POST | `/api/auth/login` | Inicia sesión y devuelve el token JWT |
+
+### Categorías — `/api/categories`
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| GET | `/api/categories` | 🔒 | Lista todas las categorías |
+| POST | `/api/categories` | 🔒 👑 | Crea una nueva categoría |
+| PUT | `/api/categories/:id` | 🔒 👑 | Edita el nombre de una categoría |
+| DELETE | `/api/categories/:id` | 🔒 👑 | Elimina una categoría (falla si tiene productos asignados) |
+
+### Productos — `/api/products`
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| GET | `/api/products` | 🔒 | Lista todos los productos con su categoría |
+| GET | `/api/products/low-stock` | 🔒 | Lista productos activos con stock ≤ stock mínimo |
+| GET | `/api/products/:id` | 🔒 | Obtiene un producto por ID |
+| POST | `/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
+| PUT | `/api/products/:id` | 🔒 👑 | Edita un producto |
+| DELETE | `/api/products/:id` | 🔒 👑 | Elimina un producto |
+
+### Ventas — `/api/sales`
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| GET | `/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
+| POST | `/api/sales` | 🔒 | Registra una venta y descuenta el stock |
+
+### Health check
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/health` | Confirma que el servidor está corriendo |
