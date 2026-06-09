@@ -65,13 +65,31 @@ Este sistema proporciona a SH Servicios una herramienta técnica avanzada para e
 ## Contribuciones Individuales (Plus de Promoción)
 
 ### Rodriguez Nazareno
-> _(completar)_
+Desarrolló el módulo de **Ventas**: registro de comprobantes con múltiples productos, cálculo automático de totales, validación de stock antes de confirmar y descuento automático de unidades al completar la transacción.
+
+> _(plus individual — completar)_
+
+---
 
 ### Mover Leonardo
-> _(completar)_
+Desarrolló los módulos de **Inventario y Artículos**: ABM completo de productos y categorías, control de stock mínimo y visualización del inventario desde el frontend.
+
+> _(plus individual — completar)_
+
+---
 
 ### Jacobo Santiago
-> _(completar)_
+Desarrolló el sistema de **Login y autenticación JWT**: registro de usuarios, inicio de sesión con contraseñas encriptadas (Bcrypt), generación y validación de tokens JWT, y protección de rutas por rol (ADMIN / VENDEDOR).
+
+**Plus individual — Mejoras de Frontend** (`frontend/src/mejoras_individuales/`):
+
+- **Toast notifications** (`01_toast/`): sistema global de notificaciones emergentes via React Context. Soporta 4 tipos (éxito, error, advertencia, info), cierre automático a los 5s con barra de progreso y botón de acción opcional.
+- **Modo oscuro/claro** (`02_dark_mode/`): tema visual persistido en la base de datos (campo `color_sistema` de `usuarios`), restaurado automáticamente al iniciar sesión. Implementado con CSS variables y atributo `data-theme` en el `<body>`.
+- **Dashboard home** (`03_dashboard_home/`): panel de resumen con métricas del negocio (ventas del día, recaudación, stock bajo/sin stock) obtenidas en paralelo con `Promise.all`. Incluye tabla de últimas ventas y accesos directos.
+- **Alertas de stock en tiempo real** (`04_stock_alerts/`): notificaciones push via WebSocket (Socket.io). Campana animada con contador de no leídas; panel lateral con detalle por producto y botón que navega y hace scroll hasta la fila afectada en Stock.tsx. Solo visible para ADMIN.
+- **Exportación PDF y Excel** (`05_export/`): descarga del inventario filtrado en pantalla usando `jsPDF + jspdf-autotable` (PDF) y `xlsx` (Excel), sin intervención del servidor.
+- **Estado vacío ilustrado** (`07_empty_state/`): reemplaza tablas vacías con bloque visual contextual (ícono, título, mensaje y acción opcional según si hay búsqueda activa o tabla sin datos).
+- **Navegación con URLs únicas** (`09_router/`): migración a React Router v6 con rutas reales (`/ventas`, `/inventario/articulos`, etc.), habilitando botón atrás, links compartibles y recarga correcta de página.
 
 ---
 
