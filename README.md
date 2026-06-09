@@ -44,13 +44,13 @@ Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se ut
 
 El sistema se apoya en una estructura relacional de 5 tablas principales:
 
-- **users:** Gestión de credenciales y perfiles de acceso de los empleados.
-- **categories:** Clasificación organizada de los productos de SH Servicios.
-- **products:** Registro maestro de artículos (precios, descripción, código único y stock).
-- **sales:** Registro de cabecera de cada venta (fecha, total y usuario que la realizó).
-- **sale_details:** Detalle de los artículos y cantidades incluidas en cada venta.
+- **usuarios:** Gestión de credenciales y perfiles de acceso de los empleados.
+- **categorias:** Clasificación organizada de los productos de SH Servicios.
+- **productos:** Registro maestro de artículos (precios, descripción, código único y stock).
+- **ventas:** Registro de cabecera de cada venta (fecha, total y usuario que la realizó).
+- **detalles_venta:** Detalle de los artículos y cantidades incluidas en cada venta.
 
-## 6. Despliegue en la Nube
+## 7. Despliegue en la Nube
 
 - **Infraestructura:** Railway.
 - **Persistencia:** SQLite.
@@ -70,8 +70,8 @@ Desarrolló el módulo de **Ventas**: registro de comprobantes con múltiples pr
 
 **Plus individual — Comprobantes, documentos fiscales y configuración de empresa:**
 
-- **Listado de comprobantes** (`Comprobantes.tsx`): historial completo de ventas con modal de detalle y reimpresión. Consume `GET /sales` que trae ventas con sus ítems desde Prisma.
-- **Selector Factura / Remito en Punto de Venta** (`print.ts`): antes de confirmar la venta el usuario elige el tipo de comprobante. La **Factura** genera un documento A4 con formato ARCA/AFIP (CUIT, razón social, IVA 21%, CAE, totales). El **Remito** genera un A5 simplificado sin datos fiscales. El tipo queda persistido en la base de datos (campo `tipo_comprobante` en la tabla `ventas`) para poder reimprimir correctamente desde Comprobantes.
+- **Listado de comprobantes** (`frontend/src/pages/Comprobantes.tsx`): historial completo de ventas con modal de detalle y reimpresión. Consume `GET /sales` que trae ventas con sus ítems (tabla `detalles_venta`) via `backend/src/services/sale.service.ts`.
+- **Selector Factura / Remito en Punto de Venta** (`frontend/src/utils/print.ts`): antes de confirmar la venta el usuario elige el tipo de comprobante. La **Factura** genera un documento A4 con formato ARCA/AFIP (CUIT, razón social, IVA 21%, CAE, totales). El **Remito** genera un A5 simplificado sin datos fiscales. El tipo queda persistido en la base de datos (campo `tipo_comprobante` en la tabla `ventas`, agregado via `backend/prisma/migrations/`) para poder reimprimir correctamente desde Comprobantes.
 - **Configuración de empresa** (`Configuracion.tsx`): pantalla exclusiva para ADMIN donde se cargan los datos que aparecen en las facturas (razón social, CUIT, condición IVA, domicilio, punto de venta, letra de factura, etc.). Los datos se persisten en `localStorage` bajo la clave `sh_config` y los lee `print.ts` al generar cada documento.
 
 ---
@@ -102,7 +102,7 @@ Desarrolló el sistema de **Login y autenticación JWT**: registro de usuarios, 
 
 ### Requisitos previos
 
-- [Node.js](https://nodejs.org/) v18 o superior
+- [Node.js](https://nodejs.org/) v20 o superior
 - npm v9 o superior
 
 ### 1. Clonar el repositorio
@@ -184,7 +184,7 @@ npm run db:studio
 
 ## API — Listado de Endpoints
 
-Base URL en producción: `https://<dominio>.railway.app`  
+Base URL en producción: `https://sh-servicios-erp-production.up.railway.app`  
 Base URL en desarrollo: `http://localhost:3000`
 
 Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.  
