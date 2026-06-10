@@ -88,14 +88,20 @@ Desarrolló el sistema de **Login y autenticación JWT**: registro de usuarios, 
 
 **Plus individual — Mejoras de Frontend** (`frontend/src/mejoras_individuales/`):
 
-- **Toast notifications** (`01_toast/`): sistema global de notificaciones emergentes via React Context. Soporta 4 tipos (éxito, error, advertencia, info), cierre automático a los 5s con barra de progreso y botón de acción opcional.
-- **Modo oscuro/claro** (`02_dark_mode/`): tema visual persistido en la base de datos (campo `color_sistema` de `usuarios`), restaurado automáticamente al iniciar sesión. Implementado con CSS variables y atributo `data-theme` en el `<body>`.
-- **Dashboard home** (`03_dashboard_home/`): panel de resumen con métricas del negocio (ventas del día, recaudación, stock bajo/sin stock) obtenidas en paralelo con `Promise.all`. Incluye tabla de últimas ventas y accesos directos.
-- **Alertas de stock en tiempo real** (`04_stock_alerts/`): notificaciones push via WebSocket (Socket.io). Campana animada con contador de no leídas; panel lateral con detalle por producto y botón que navega y hace scroll hasta la fila afectada en Stock.tsx. Solo visible para ADMIN.
-- **Exportación PDF y Excel** (`05_export/`): descarga del inventario filtrado en pantalla usando `jsPDF + jspdf-autotable` (PDF) y `xlsx` (Excel), sin intervención del servidor.
-- **Estado vacío ilustrado** (`07_empty_state/`): reemplaza tablas vacías con bloque visual contextual (ícono, título, mensaje y acción opcional según si hay búsqueda activa o tabla sin datos).
-- **Navegación con URLs únicas** (`09_router/`): migración a React Router v6 con rutas reales (`/ventas`, `/inventario/articulos`, etc.), habilitando botón atrás, links compartibles y recarga correcta de página.
+1. Sistema de Mensajería Interna en Tiempo Real
+Tabla mensajes en PostgreSQL, API REST completa (GET /users, GET /:userId, POST /, GET /unread) y WebSocket con Socket.io para notificaciones instantáneas. Panel de chat con conversaciones por usuario, badge de no leídos que persiste entre sesiones y se actualiza sin recargar la página.
 
+2. Alertas de Stock con Navegación Directa
+Hook useStockAlerts conectado al socket del backend que recibe eventos low-stock en tiempo real. El panel lista los productos con stock crítico y al hacer clic en "Ver Stock" navega automáticamente a la página Stock desplazándose hasta la fila exacta del producto afectado.
+
+3. Sistema de Temas con Variables CSS
+Modo oscuro/claro implementado con variables CSS (:root y [data-theme="light"]) en lugar de clases por componente. Todos los colores del sistema (--c-bg, --c-text-1..4, --c-border) cambian instantáneamente al alternar el tema, incluyendo estilos inline de React que resuelven las variables en tiempo de render del navegador.
+
+4. Dashboard Home con Estadísticas del Día
+Pantalla de inicio con tarjetas de métricas en tiempo real (ventas del día, recaudación, productos con stock bajo/sin stock), tabla de últimas ventas y accesos rápidos a secciones. Consume tres endpoints en paralelo con Promise.all y es navegable desde las tarjetas.
+
+5. Navegación SPA con React Router
+Integración de React Router v6 con URLs reales por página (/stock, /articulos, etc.). El estado de la URL persiste al recargar, el botón Atrás del navegador funciona, y el sidebar resalta la sección activa leyendo useLocation. Incluye mapeo bidireccional PAGE_TO_URL / getActivePage.
 ---
 
 ## Guía de instalación y ejecución local
