@@ -86,22 +86,11 @@ Desarrolló los módulos de **Inventario y Artículos**: ABM completo de product
 ### Jacobo Santiago
 Desarrolló el sistema de **Login y autenticación JWT**: registro de usuarios, inicio de sesión con contraseñas encriptadas (Bcrypt), generación y validación de tokens JWT, y protección de rutas por rol (ADMIN / VENDEDOR).
 
-**Plus individual — Mejoras de Frontend** (`frontend/src/mejoras_individuales/`):
+Plus individual — Temas visuales, mensajería en tiempo real y alertas de stock:
 
-1. Sistema de Mensajería Interna en Tiempo Real
-Tabla mensajes en PostgreSQL, API REST completa (GET /users, GET /:userId, POST /, GET /unread) y WebSocket con Socket.io para notificaciones instantáneas. Panel de chat con conversaciones por usuario, badge de no leídos que persiste entre sesiones y se actualiza sin recargar la página.
-
-2. Alertas de Stock con Navegación Directa
-Hook useStockAlerts conectado al socket del backend que recibe eventos low-stock en tiempo real. El panel lista los productos con stock crítico y al hacer clic en "Ver Stock" navega automáticamente a la página Stock desplazándose hasta la fila exacta del producto afectado.
-
-3. Sistema de Temas con Variables CSS
-Modo oscuro/claro implementado con variables CSS (:root y [data-theme="light"]) en lugar de clases por componente. Todos los colores del sistema (--c-bg, --c-text-1..4, --c-border) cambian instantáneamente al alternar el tema, incluyendo estilos inline de React que resuelven las variables en tiempo de render del navegador.
-
-4. Dashboard Home con Estadísticas del Día
-Pantalla de inicio con tarjetas de métricas en tiempo real (ventas del día, recaudación, productos con stock bajo/sin stock), tabla de últimas ventas y accesos rápidos a secciones. Consume tres endpoints en paralelo con Promise.all y es navegable desde las tarjetas.
-
-5. Navegación SPA con React Router
-Integración de React Router v6 con URLs reales por página (/stock, /articulos, etc.). El estado de la URL persiste al recargar, el botón Atrás del navegador funciona, y el sidebar resalta la sección activa leyendo useLocation. Incluye mapeo bidireccional PAGE_TO_URL / getActivePage.
+Sistema de Temas Claro/Oscuro (frontend/src/mejoras_individuales/02_dark_mode/ThemeContext.tsx): implementación de un sistema global de temas mediante React Context y variables CSS. Permite alternar entre modo oscuro y claro desde Configuración, aplicando los cambios en toda la interfaz y persistiendo la preferencia en localStorage.
+Mensajería Interna en Tiempo Real (frontend/src/components/MessagePanel.tsx): desarrollo de un sistema completo de mensajes privados entre usuarios. Incluye conversaciones, conteo de mensajes no leídos, notificaciones instantáneas mediante Socket.io y actualización en tiempo real sin necesidad de recargar la aplicación.
+Alertas de Stock Bajo en Tiempo Real (frontend/src/components/AlertBell.tsx): implementación de alertas automáticas cuando un producto alcanza o supera su stock mínimo. Las notificaciones se envían mediante Socket.io, se visualizan desde una campana de alertas exclusiva para administradores y permiten navegar directamente al producto afectado dentro del módulo de Stock.
 ---
 
 ## Guía de instalación y ejecución local
