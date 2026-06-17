@@ -89,7 +89,8 @@ Desarrolló el sistema de **Login y autenticación JWT**: registro de usuarios, 
 Plus individual — Temas visuales, mensajería en tiempo real y alertas de stock:
 
 Sistema de Temas Claro/Oscuro (frontend/src/mejoras_individuales/02_dark_mode/ThemeContext.tsx): implementación de un sistema global de temas mediante React Context y variables CSS. Permite alternar entre modo oscuro y claro desde Configuración, aplicando los cambios en toda la interfaz y persistiendo la preferencia en localStorage.
-Mensajería Interna en Tiempo Real (frontend/src/components/MessagePanel.tsx): desarrollo de un sistema completo de mensajes privados entre usuarios. Incluye conversaciones, conteo de mensajes no leídos, notificaciones instantáneas mediante Socket.io y actualización en tiempo real sin necesidad de recargar la aplicación.
+Tablón de Avisos con Imágenes (frontend/src/pages/Avisos.tsx): desarrollo de una nueva sección de noticias internas accesible desde el sidebar. Permite visualizar publicaciones con título, contenido, imagen, autor y rol. Los administradores pueden crear, editar y eliminar avisos mediante una interfaz dedicada, mientras que el resto de los usuarios dispone de acceso de solo lectura.
+Alertas
 Alertas de Stock Bajo en Tiempo Real (frontend/src/components/AlertBell.tsx): implementación de alertas automáticas cuando un producto alcanza o supera su stock mínimo. Las notificaciones se envían mediante Socket.io, se visualizan desde una campana de alertas exclusiva para administradores y permiten navegar directamente al producto afectado dentro del módulo de Stock.
 ---
 
