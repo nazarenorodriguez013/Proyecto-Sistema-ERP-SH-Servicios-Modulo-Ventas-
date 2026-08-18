@@ -13,6 +13,8 @@ export const createSale = async (
   return prisma.$transaction(async (tx) => {
     // Verifica stock de todos los ítems ANTES de crear la venta, para no dejar registros a medias
     for (const item of items) {
+      if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
+        throw new Error('La cantidad de cada ítem debe ser un número entero mayor a 0');
       const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
       if (!producto) throw new Error(`Producto no encontrado`);
       if (producto.stock < item.cantidad)
