@@ -14,6 +14,7 @@ export default function Stock({ user }: { user: User }) {
   const [loading, setLoading] = useState(true)
   const [adjusting, setAdjusting] = useState<{ id: number; value: string } | null>(null)
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all')
+  const [error, setError] = useState('')
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
@@ -28,7 +29,16 @@ export default function Stock({ user }: { user: User }) {
   useEffect(() => { fetchAll() }, [])
 
   const handleAdjust = async (id: number, stock: number) => {
-    await fetch(`${API}/products/${id}`, { method: 'PUT', headers, body: JSON.stringify({ stock }) })
+    if (!Number.isInteger(stock) || stock < 0) {
+      setError('El stock debe ser un número entero mayor o igual a 0')
+      return
+    }
+    setError('')
+    const res = await fetch(`${API}/products/${id}`, { method: 'PUT', headers, body: JSON.stringify({ stock }) })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo ajustar el stock')
+    }
     setAdjusting(null); fetchAll()
   }
 
@@ -50,6 +60,8 @@ export default function Stock({ user }: { user: User }) {
         <h2 style={s.title}>Stock</h2>
         <p style={s.subtitle}>{productos.length} productos en inventario</p>
       </div>
+
+      {error && <div style={s.errorBanner}>⚠ {error}</div>}
 
       {/* Tarjetas resumen */}
       <div className="stock-cards">
@@ -132,7 +144,7 @@ export default function Stock({ user }: { user: User }) {
                   <span style={{ ...s.td, width: '120px', justifyContent: 'center' }}>
                     {adjusting?.id !== p.id && (
                       <button style={s.btnEdit}
-                        onClick={() => setAdjusting({ id: p.id, value: String(p.stock) })}>
+                        onClick={() => { setError(''); setAdjusting({ id: p.id, value: String(p.stock) }) }}>
                         Ajustar stock
                       </button>
                     )}
@@ -153,6 +165,7 @@ const s: Record<string, React.CSSProperties> = {
   header:     { display: 'flex', flexDirection: 'column', gap: '2px' },
   title:      { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
   subtitle:   { color: '#cbd5e1', fontSize: '13px' },
+  errorBanner:{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
   cards:      { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' },
   card:       { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '18px 20px' },
   cardVal:    { fontSize: '30px', fontWeight: '800', margin: 0 },

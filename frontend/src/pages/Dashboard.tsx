@@ -35,12 +35,12 @@ const pageLabels: Record<string, string> = {
   alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['punto-venta', 'comprobantes', 'categorias', 'articulos', 'stock']
+const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock']
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
   'punto-venta': '/', categorias: '/categorias', articulos: '/articulos',
-  stock: '/stock', comprobantes: '/comprobantes', alquiler: '/alquiler', servicios: '/servicios',
+  stock: '/stock', alquiler: '/alquiler', servicios: '/servicios',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
@@ -75,7 +75,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
   const renderContent = () => {
     if (activePage === 'punto-venta')  return <Ventas       user={user} />
-    if (activePage === 'comprobantes') return null
     if (activePage === 'categorias')   return <Categorias   user={user} />
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />

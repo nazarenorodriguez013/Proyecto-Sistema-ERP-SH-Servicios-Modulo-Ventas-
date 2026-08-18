@@ -41,6 +41,7 @@ export default function Articulos({ user }: { user: User }) {
   const [modal, setModal] = useState<{ open: boolean; editing: Producto | null }>({ open: false, editing: null })
   const [form, setForm] = useState<ProductoForm>(EMPTY_FORM)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [error, setError] = useState('')
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
@@ -58,7 +59,7 @@ export default function Articulos({ user }: { user: User }) {
 
   useEffect(() => { fetchAll() }, [])
 
-  const openCreate = () => { setForm(EMPTY_FORM); setModal({ open: true, editing: null }) }
+  const openCreate = () => { setForm(EMPTY_FORM); setError(''); setModal({ open: true, editing: null }) }
   const openEdit = (p: Producto) => {
     setForm({
       nombre: p.nombre, descripcion: p.descripcion ?? '', categoriaId: String(p.categoriaId),
@@ -66,7 +67,7 @@ export default function Articulos({ user }: { user: User }) {
       margen: calcMargen(p.precioCosto, p.precio),
       stock: String(p.stock), stockMinimo: String(p.stockMinimo), activo: p.activo,
     })
-    setModal({ open: true, editing: p })
+    setError(''); setModal({ open: true, editing: p })
   }
   const closeModal = () => setModal({ open: false, editing: null })
 
@@ -86,27 +87,39 @@ export default function Articulos({ user }: { user: User }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     const body = {
       nombre: form.nombre, descripcion: form.descripcion || undefined,
       categoriaId: Number(form.categoriaId),
       precioCosto: Number(form.precioCosto) || 0, precio: Number(form.precio) || 0,
       stock: Number(form.stock), stockMinimo: Number(form.stockMinimo), activo: form.activo,
     }
-    if (modal.editing) {
-      await fetch(`${API}/products/${modal.editing.id}`, { method: 'PUT', headers, body: JSON.stringify(body) })
-    } else {
-      await fetch(`${API}/products`, { method: 'POST', headers, body: JSON.stringify(body) })
+    const res = modal.editing
+      ? await fetch(`${API}/products/${modal.editing.id}`, { method: 'PUT', headers, body: JSON.stringify(body) })
+      : await fetch(`${API}/products`, { method: 'POST', headers, body: JSON.stringify(body) })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'Error al guardar el artículo')
+      return
     }
     closeModal(); fetchAll()
   }
 
   const handleDelete = async (id: number) => {
-    await fetch(`${API}/products/${id}`, { method: 'DELETE', headers })
+    const res = await fetch(`${API}/products/${id}`, { method: 'DELETE', headers })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo eliminar el artículo')
+    }
     setDeleteConfirm(null); fetchAll()
   }
 
   const handleToggle = async (p: Producto) => {
-    await fetch(`${API}/products/${p.id}`, { method: 'PUT', headers, body: JSON.stringify({ activo: !p.activo }) })
+    const res = await fetch(`${API}/products/${p.id}`, { method: 'PUT', headers, body: JSON.stringify({ activo: !p.activo }) })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo cambiar el estado del artículo')
+    }
     fetchAll()
   }
 
@@ -133,6 +146,8 @@ export default function Articulos({ user }: { user: User }) {
         </div>
         {isAdmin && <button style={s.btnPrimary} onClick={openCreate}>+ Nuevo Artículo</button>}
       </div>
+
+      {error && !modal.open && <div style={s.errorBanner}>⚠ {error}</div>}
 
       {/* Filtros */}
       <div style={s.filterBar}>
@@ -240,7 +255,7 @@ export default function Articulos({ user }: { user: User }) {
                       <button style={s.btnToggle} onClick={() => handleToggle(p)}>
                         {p.activo ? '🔒 Desactivar' : '🔓 Activar'}
                       </button>
-                      <button style={s.btnDelete} onClick={() => setDeleteConfirm(p.id)}>🗑️</button>
+                      <button style={s.btnDelete} onClick={() => { setError(''); setDeleteConfirm(p.id) }}>🗑️</button>
                     </div>
                   )}
                 </div>
@@ -259,6 +274,7 @@ export default function Articulos({ user }: { user: User }) {
               <button style={s.closeBtn} onClick={closeModal}>✕</button>
             </div>
             <form onSubmit={handleSubmit} style={s.form}>
+              {error && <div style={s.errorBanner}>⚠ {error}</div>}
 
               <div style={s.section}>
                 <p style={s.sectionTitle}>Datos generales</p>
@@ -384,6 +400,7 @@ const s: Record<string, React.CSSProperties> = {
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   title:        { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
   subtitle:     { color: '#cbd5e1', fontSize: '13px', margin: '3px 0 0' },
+  errorBanner:  { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
 
   filterBar:    { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
   searchInput:  { flex: 1, minWidth: '200px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '9px 14px', color: '#f1f5f9', fontSize: '14px', outline: 'none' },
