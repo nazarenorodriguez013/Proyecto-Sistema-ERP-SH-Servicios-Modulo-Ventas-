@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.routes';
 import categoryRoutes from './routes/category.routes';
 import productRoutes from './routes/product.routes';
 import saleRoutes from './routes/sale.routes';
+import clientRoutes from './routes/client.routes';
 import { setIO } from './socket';
 
 const prisma = new PrismaClient();
@@ -68,6 +69,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/clients', clientRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
