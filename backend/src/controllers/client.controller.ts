@@ -33,7 +33,7 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
   try {
     await clientService.remove(Number(req.params.id));
     res.status(204).send();
-  } catch {
-    res.status(404).json({ message: 'Cliente no encontrado' });
+  } catch (err: any) {
+    res.status(err.message === 'Cliente no encontrado' ? 404 : 400).json({ message: err.message });
   }
 };

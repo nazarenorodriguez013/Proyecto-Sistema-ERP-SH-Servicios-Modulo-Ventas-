@@ -1,6 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// Traduce errores conocidos de Prisma a mensajes legibles para el usuario
+const traducirError = (err: unknown): never => {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === 'P2002') throw new Error('Ya existe un cliente con ese documento');
+    if (err.code === 'P2025') throw new Error('Cliente no encontrado');
+    if (err.code === 'P2003') throw new Error('No se puede eliminar: el cliente tiene ventas o movimientos registrados');
+  }
+  throw err;
+};
 
 // Los pagos restan de la deuda, el resto de movimientos (venta/alquiler/servicio) suma
 const calcularSaldo = (movimientos: { tipo: string; monto: number }[]) =>
@@ -37,7 +47,7 @@ export const create = async (data: {
   activo?: boolean;
 }) => {
   validateFields(data);
-  return prisma.cliente.create({ data });
+  return prisma.cliente.create({ data }).catch(traducirError);
 };
 
 export const update = async (id: number, data: {
@@ -49,7 +59,7 @@ export const update = async (id: number, data: {
   activo?: boolean;
 }) => {
   validateFields(data);
-  return prisma.cliente.update({ where: { id }, data });
+  return prisma.cliente.update({ where: { id }, data }).catch(traducirError);
 };
 
-export const remove = (id: number) => prisma.cliente.delete({ where: { id } });
+export const remove = (id: number) => prisma.cliente.delete({ where: { id } }).catch(traducirError);
