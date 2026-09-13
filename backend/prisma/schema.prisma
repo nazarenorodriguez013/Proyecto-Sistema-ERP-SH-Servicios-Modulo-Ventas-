@@ -72,6 +72,20 @@ model Venta {
   @@map("ventas")
 }
 
+model Cliente {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  documento     String?  @unique
+  telefono      String?
+  email         String?
+  direccion     String?
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())  @map("creado_en")
+  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
+
+  @@map("clientes")
+}
+
 model DetalleVenta {
   id             Int   @id @default(autoincrement())
   ventaId        Int   @map("venta_id")
