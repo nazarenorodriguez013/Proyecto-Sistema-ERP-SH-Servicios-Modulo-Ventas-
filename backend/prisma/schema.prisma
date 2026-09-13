@@ -66,8 +66,9 @@ model Venta {
   usuarioId      Int      @map("usuario_id")
   creadoEn       DateTime @default(now()) @map("creado_en")
 
-  usuario       Usuario        @relation(fields: [usuarioId], references: [id])
-  detallesVenta DetalleVenta[]
+  usuario            Usuario            @relation(fields: [usuarioId], references: [id])
+  detallesVenta      DetalleVenta[]
+  movimientosCuenta  MovimientoCuenta[]
 
   @@map("ventas")
 }
@@ -83,7 +84,32 @@ model Cliente {
   creadoEn      DateTime @default(now())  @map("creado_en")
   actualizadoEn DateTime @updatedAt       @map("actualizado_en")
 
+  movimientos MovimientoCuenta[]
+
   @@map("clientes")
+}
+
+// Cuenta corriente del cliente: cada consumo (venta/alquiler/servicio) suma deuda y cada pago la resta
+enum TipoMovimiento {
+  VENTA
+  ALQUILER
+  SERVICIO
+  PAGO
+}
+
+model MovimientoCuenta {
+  id        Int            @id @default(autoincrement())
+  clienteId Int            @map("cliente_id")
+  tipo      TipoMovimiento
+  concepto  String
+  monto     Float
+  ventaId   Int?           @map("venta_id")
+  creadoEn  DateTime       @default(now()) @map("creado_en")
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  venta   Venta?  @relation(fields: [ventaId], references: [id])
+
+  @@map("movimientos_cuenta")
 }
 
 model DetalleVenta {
