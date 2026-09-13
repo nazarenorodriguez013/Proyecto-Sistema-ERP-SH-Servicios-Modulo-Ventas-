@@ -5,7 +5,7 @@ generator client {
   provider = "prisma-client-js"
 }
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -65,12 +65,55 @@ model Venta {
   medioPago      String   @default("Efectivo") @map("medio_pago")
   montoRecibido  Float?   @map("monto_recibido")
   usuarioId      Int      @map("usuario_id")
+  clienteId      Int?     @map("cliente_id")
   creadoEn       DateTime @default(now()) @map("creado_en")
 
-  usuario       Usuario        @relation(fields: [usuarioId], references: [id])
-  detallesVenta DetalleVenta[]
+  usuario            Usuario            @relation(fields: [usuarioId], references: [id])
+  cliente            Cliente?           @relation(fields: [clienteId], references: [id])
+  detallesVenta      DetalleVenta[]
+  movimientosCuenta  MovimientoCuenta[]
 
   @@map("ventas")
+}
+
+model Cliente {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  documento     String?  @unique
+  telefono      String?
+  email         String?
+  direccion     String?
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())  @map("creado_en")
+  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
+
+  movimientos MovimientoCuenta[]
+  ventas      Venta[]
+
+  @@map("clientes")
+}
+
+// Cuenta corriente del cliente: cada consumo (venta/alquiler/servicio) suma deuda y cada pago la resta
+enum TipoMovimiento {
+  VENTA
+  ALQUILER
+  SERVICIO
+  PAGO
+}
+
+model MovimientoCuenta {
+  id        Int            @id @default(autoincrement())
+  clienteId Int            @map("cliente_id")
+  tipo      TipoMovimiento
+  concepto  String
+  monto     Float
+  ventaId   Int?           @map("venta_id")
+  creadoEn  DateTime       @default(now()) @map("creado_en")
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  venta   Venta?  @relation(fields: [ventaId], references: [id])
+
+  @@map("movimientos_cuenta")
 }
 
 model DetalleVenta {
