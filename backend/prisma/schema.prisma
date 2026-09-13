@@ -89,6 +89,7 @@ model Cliente {
 
   movimientos MovimientoCuenta[]
   ventas      Venta[]
+  alquileres  Alquiler[]
 
   @@map("clientes")
 }
@@ -150,7 +151,7 @@ model Maquina {
 model Alquiler {
   id          Int            @id @default(autoincrement())
   maquinaId   Int            @map("maquina_id")
-  cliente     String
+  clienteId   Int?           @map("cliente_id")
   fechaInicio DateTime       @map("fecha_inicio")
   fechaFin    DateTime       @map("fecha_fin")
   total       Float
@@ -158,8 +159,9 @@ model Alquiler {
   usuarioId   Int            @map("usuario_id")
   creadoEn    DateTime       @default(now()) @map("creado_en")
 
-  maquina Maquina @relation(fields: [maquinaId], references: [id])
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  maquina Maquina  @relation(fields: [maquinaId], references: [id])
+  cliente Cliente? @relation(fields: [clienteId], references: [id])
+  usuario Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@map("alquileres")
 }

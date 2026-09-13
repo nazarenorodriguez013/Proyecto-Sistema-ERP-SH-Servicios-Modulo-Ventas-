@@ -3,17 +3,18 @@ import type { User } from '../types'
 import { API } from '../config'
 
 interface Maquina { id: number; nombre: string; tarifaDiaria: number; stock: number; activo: boolean }
+interface Cliente { id: number; nombre: string }
 interface Alquiler {
-  id: number; cliente: string
+  id: number; cliente: Cliente | null
   fechaInicio: string; fechaFin: string; total: number
   estado: 'ACTIVO' | 'FINALIZADO' | 'CANCELADO'
   maquina: Maquina
   usuario: { nombre: string }
   creadoEn: string
 }
-interface AlquilerForm { maquinaId: string; cliente: string; fechaInicio: string; fechaFin: string }
+interface AlquilerForm { maquinaId: string; clienteId: string; fechaInicio: string; fechaFin: string }
 
-const EMPTY_FORM: AlquilerForm = { maquinaId: '', cliente: '', fechaInicio: '', fechaFin: '' }
+const EMPTY_FORM: AlquilerForm = { maquinaId: '', clienteId: '', fechaInicio: '', fechaFin: '' }
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 // Son fechas de calendario (sin hora): se formatean en UTC para que no varíen según la zona horaria del navegador
@@ -26,6 +27,7 @@ const ESTADO_LABEL: Record<Alquiler['estado'], string> = {
 export default function Alquileres({ user }: { user: User }) {
   const [alquileres, setAlquileres] = useState<Alquiler[]>([])
   const [maquinas, setMaquinas] = useState<Maquina[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'ACTIVO' | 'FINALIZADO' | 'CANCELADO'>('all')
   const [modal, setModal] = useState(false)
@@ -38,12 +40,14 @@ export default function Alquileres({ user }: { user: User }) {
   const isAdmin = user.rol === 'ADMIN'
 
   const fetchAll = async () => {
-    const [aRes, mRes] = await Promise.all([
+    const [aRes, mRes, cRes] = await Promise.all([
       fetch(`${API}/rentals`, { headers }),
       fetch(`${API}/machines`, { headers }),
+      fetch(`${API}/clients`, { headers }),
     ])
     setAlquileres(await aRes.json())
     setMaquinas(await mRes.json())
+    setClientes(await cRes.json())
     setLoading(false)
   }
 
@@ -66,7 +70,7 @@ export default function Alquileres({ user }: { user: User }) {
         method: 'POST', headers,
         body: JSON.stringify({
           maquinaId: Number(form.maquinaId),
-          cliente: form.cliente,
+          clienteId: form.clienteId ? Number(form.clienteId) : null,
           fechaInicio: form.fechaInicio,
           fechaFin: form.fechaFin,
         }),
@@ -138,7 +142,7 @@ export default function Alquileres({ user }: { user: User }) {
               <span style={{ ...s.td, flex: 1 }}>
                 <span style={s.name}>{a.maquina.nombre}</span>
               </span>
-              <span style={{ ...s.td, width: '160px' }}>{a.cliente}</span>
+              <span style={{ ...s.td, width: '160px' }}>{a.cliente?.nombre ?? '—'}</span>
               <span style={{ ...s.td, width: '100px' }}>{fmtFecha(a.fechaInicio)}</span>
               <span style={{ ...s.td, width: '100px' }}>{fmtFecha(a.fechaFin)}</span>
               <span style={{ ...s.td, width: '110px', justifyContent: 'flex-end', color: '#eab308', fontWeight: 700 }}>
@@ -192,9 +196,12 @@ export default function Alquileres({ user }: { user: User }) {
               </div>
 
               <div style={s.field}>
-                <label style={s.label}>Cliente *</label>
-                <input style={s.input} value={form.cliente}
-                  onChange={e => setForm(f => ({ ...f, cliente: e.target.value }))} required />
+                <label style={s.label}>Cliente</label>
+                <select style={s.input} value={form.clienteId}
+                  onChange={e => setForm(f => ({ ...f, clienteId: e.target.value }))}>
+                  <option value="">Sin cliente</option>
+                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
               </div>
 
               <div style={s.formRow}>

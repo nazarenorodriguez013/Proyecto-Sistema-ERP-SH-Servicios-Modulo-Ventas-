@@ -4,16 +4,14 @@ const prisma = new PrismaClient();
 
 export const getAll = () =>
   prisma.alquiler.findMany({
-    include: { maquina: true, usuario: true },
+    include: { maquina: true, usuario: true, cliente: true },
     orderBy: { creadoEn: 'desc' },
   });
 
 export const create = async (
   usuarioId: number,
-  data: { maquinaId: number; cliente: string; fechaInicio: string; fechaFin: string },
+  data: { maquinaId: number; clienteId?: number | null; fechaInicio: string; fechaFin: string },
 ) => {
-  if (!data.cliente?.trim()) throw new Error('El nombre del cliente es obligatorio');
-
   const fechaInicio = new Date(data.fechaInicio);
   const fechaFin = new Date(data.fechaFin);
   if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime()))
@@ -28,20 +26,37 @@ export const create = async (
     if (!maquina.activo) throw new Error('La máquina no está disponible para alquiler');
     if (maquina.stock < 1) throw new Error(`Sin unidades disponibles de "${maquina.nombre}"`);
 
+    if (data.clienteId) {
+      const cliente = await tx.cliente.findUnique({ where: { id: data.clienteId } });
+      if (!cliente) throw new Error('Cliente no encontrado');
+    }
+
     const dias = Math.max(1, Math.ceil((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)));
     const total = dias * maquina.tarifaDiaria;
 
     const alquiler = await tx.alquiler.create({
       data: {
         maquinaId: data.maquinaId,
-        cliente: data.cliente.trim(),
+        clienteId: data.clienteId ?? null,
         fechaInicio,
         fechaFin,
         total,
         usuarioId,
       },
-      include: { maquina: true, usuario: true },
+      include: { maquina: true, usuario: true, cliente: true },
     });
+
+    // El alquiler queda como deuda en la cuenta corriente del cliente (registro de cobro)
+    if (data.clienteId) {
+      await tx.movimientoCuenta.create({
+        data: {
+          clienteId: data.clienteId,
+          tipo: 'ALQUILER',
+          concepto: `Alquiler ${maquina.nombre} (#${alquiler.id})`,
+          monto: total,
+        },
+      });
+    }
 
     // Descuenta una unidad de la flota disponible recién después de crear el alquiler
     await tx.maquina.update({ where: { id: data.maquinaId }, data: { stock: { decrement: 1 } } });
@@ -60,7 +75,7 @@ export const updateEstado = async (id: number, estado: 'FINALIZADO' | 'CANCELADO
     const updated = await tx.alquiler.update({
       where: { id },
       data: { estado },
-      include: { maquina: true, usuario: true },
+      include: { maquina: true, usuario: true, cliente: true },
     });
 
     await tx.maquina.update({ where: { id: alquiler.maquinaId }, data: { stock: { increment: 1 } } });
