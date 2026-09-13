@@ -3,12 +3,18 @@ import { getIO } from '../socket';
 
 const prisma = new PrismaClient();
 
+const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
+
 export const createSale = async (
   usuarioId: number,
   items: { productoId: number; cantidad: number; precioUnitario: number }[],
   medioPago: string,
   montoRecibido?: number | null,
+  clienteId?: number | null,
 ) => {
+  if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId)
+    throw new Error('Para vender a cuenta corriente hay que seleccionar un cliente');
+
   // Todo en una transacción: si falla el descuento de stock de cualquier ítem, se revierte la venta entera
   return prisma.$transaction(async (tx) => {
     // Verifica stock de todos los ítems ANTES de crear la venta, para no dejar registros a medias
@@ -29,6 +35,7 @@ export const createSale = async (
         medioPago,
         montoRecibido: montoRecibido ?? null,
         usuarioId,
+        clienteId: clienteId ?? null,
         detallesVenta: {
           create: items.map(i => ({
             productoId: i.productoId,
@@ -37,8 +44,15 @@ export const createSale = async (
           })),
         },
       },
-      include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true },
+      include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true, cliente: true },
     });
+
+    // Venta a cuenta corriente: la deuda queda registrada en la cuenta del cliente
+    if (medioPago === MEDIO_CUENTA_CORRIENTE && clienteId) {
+      await tx.movimientoCuenta.create({
+        data: { clienteId, tipo: 'VENTA', concepto: `Venta #${venta.id}`, monto: total, ventaId: venta.id },
+      });
+    }
 
     // Descuenta stock recién después de crear la venta y avisa por websocket si quedó bajo
     for (const item of items) {
@@ -58,6 +72,6 @@ export const createSale = async (
 
 export const getAll = () =>
   prisma.venta.findMany({
-    include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true },
+    include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true, cliente: true },
     orderBy: { creadoEn: 'desc' },
   });
