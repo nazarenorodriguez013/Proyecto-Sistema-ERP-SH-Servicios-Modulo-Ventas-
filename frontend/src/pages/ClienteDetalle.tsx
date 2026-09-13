@@ -10,20 +10,17 @@ interface ClienteFicha {
   email: string | null; direccion: string | null; activo: boolean
   movimientos: Movimiento[]; saldo: number
 }
-interface NuevoMovimientoForm { tipo: TipoMovimiento; concepto: string; monto: string }
 
 const TIPO_LABEL: Record<TipoMovimiento, string> = {
-  VENTA: 'Venta', ALQUILER: 'Alquiler', SERVICIO: 'Servicio Técnico', PAGO: 'Pago',
+  VENTA: 'Compra', ALQUILER: 'Alquiler', SERVICIO: 'Servicio Técnico', PAGO: 'Pago',
 }
-const TIPOS_CARGABLES: TipoMovimiento[] = ['ALQUILER', 'SERVICIO', 'PAGO']
-const EMPTY_FORM: NuevoMovimientoForm = { tipo: 'ALQUILER', concepto: '', monto: '' }
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { clienteId: number; isAdmin: boolean; onBack: () => void }) {
   const [cliente, setCliente] = useState<ClienteFicha | null>(null)
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState<NuevoMovimientoForm>(EMPTY_FORM)
+  const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
 
   const token = localStorage.getItem('token') ?? ''
@@ -42,14 +39,14 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
     setError('')
     const res = await fetch(`${API}/clients/${clienteId}/movements`, {
       method: 'POST', headers,
-      body: JSON.stringify({ tipo: form.tipo, concepto: form.concepto, monto: Number(form.monto) }),
+      body: JSON.stringify({ tipo: 'PAGO', concepto: 'Pago', monto: Number(montoPago) }),
     })
     if (!res.ok) {
       const data = await res.json()
-      setError(data.message || 'No se pudo registrar el movimiento')
+      setError(data.message || 'No se pudo registrar el pago')
       return
     }
-    setForm(EMPTY_FORM); fetchCliente()
+    setMontoPago(''); fetchCliente()
   }
 
   if (loading || !cliente) return <div style={s.loading}>Cargando cliente...</div>
@@ -76,23 +73,18 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
 
       {isAdmin && (
         <div style={s.formCard}>
-          <p style={s.sectionTitle}>Registrar movimiento</p>
+          <p style={s.sectionTitle}>Registrar pago</p>
           <form onSubmit={handleSubmit} style={s.form}>
-            <select style={s.select} value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value as TipoMovimiento }))}>
-              {TIPOS_CARGABLES.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
-            </select>
-            <input style={s.inputConcepto} placeholder="Concepto" value={form.concepto}
-              onChange={e => setForm(f => ({ ...f, concepto: e.target.value }))} required />
-            <input style={s.inputMonto} type="number" min="0.01" step="0.01" placeholder="Monto" value={form.monto}
-              onChange={e => setForm(f => ({ ...f, monto: e.target.value }))} required />
-            <button type="submit" style={s.btnPrimary}>Registrar</button>
+            <input style={s.inputMonto} type="number" min="0.01" step="0.01" placeholder="Monto" value={montoPago}
+              onChange={e => setMontoPago(e.target.value)} required />
+            <button type="submit" style={s.btnPrimary}>Registrar Pago</button>
           </form>
           {error && <p style={s.errorText}>⚠ {error}</p>}
         </div>
       )}
 
       <div style={s.histCard}>
-        <p style={s.sectionTitle}>Historial de movimientos</p>
+        <p style={s.sectionTitle}>Historial de compras y pagos</p>
         {cliente.movimientos.length === 0
           ? <div style={s.empty}>Sin movimientos registrados</div>
           : cliente.movimientos.map(m => (
@@ -127,9 +119,7 @@ const s: Record<string, React.CSSProperties> = {
   formCard:     { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' },
   sectionTitle: { color: '#94a3b8', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
   form:         { display: 'flex', gap: '8px', flexWrap: 'wrap' as const },
-  select:       { background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '9px 10px', color: '#f1f5f9', fontSize: '13px', outline: 'none' },
-  inputConcepto:{ flex: 1, minWidth: '160px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '9px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none' },
-  inputMonto:   { width: '130px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '9px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none' },
+  inputMonto:   { width: '160px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '9px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none' },
   btnPrimary:   { background: '#eab308', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
   errorText:    { color: '#f87171', fontSize: '13px', margin: 0 },
 
