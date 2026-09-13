@@ -64,9 +64,11 @@ model Venta {
   medioPago      String   @default("Efectivo") @map("medio_pago")
   montoRecibido  Float?   @map("monto_recibido")
   usuarioId      Int      @map("usuario_id")
+  clienteId      Int?     @map("cliente_id")
   creadoEn       DateTime @default(now()) @map("creado_en")
 
   usuario            Usuario            @relation(fields: [usuarioId], references: [id])
+  cliente            Cliente?           @relation(fields: [clienteId], references: [id])
   detallesVenta      DetalleVenta[]
   movimientosCuenta  MovimientoCuenta[]
 
@@ -85,6 +87,7 @@ model Cliente {
   actualizadoEn DateTime @updatedAt       @map("actualizado_en")
 
   movimientos MovimientoCuenta[]
+  ventas      Venta[]
 
   @@map("clientes")
 }
