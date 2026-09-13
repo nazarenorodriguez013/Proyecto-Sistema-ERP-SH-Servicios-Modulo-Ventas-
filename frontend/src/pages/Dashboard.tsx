@@ -5,6 +5,8 @@ import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
+import Maquinas from './Maquinas'
+import Alquileres from './Alquileres'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
@@ -25,22 +27,28 @@ const allSections: Section[] = [
       },
     ],
   },
-  { id: 'alquiler',   label: 'Alquiler',           icon: '🏠', roles: ['ADMIN'] },
+  {
+    id: 'alquiler', label: 'Alquiler', icon: '🏠', roles: ['ADMIN'],
+    children: [
+      { id: 'maquinas',   label: 'Máquinas',   icon: '🚜' },
+      { id: 'alquileres', label: 'Alquileres', icon: '📅' },
+    ],
+  },
   { id: 'servicios',  label: 'Servicios Técnicos',  icon: '🔧', roles: ['ADMIN'] },
 ]
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
-  alquiler: 'Alquiler', servicios: 'Servicios Técnicos',
+  maquinas: 'Máquinas', alquileres: 'Alquileres', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock']
+const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock', 'maquinas', 'alquileres']
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
   'punto-venta': '/', categorias: '/categorias', articulos: '/articulos',
-  stock: '/stock', alquiler: '/alquiler', servicios: '/servicios',
+  stock: '/stock', maquinas: '/maquinas', alquileres: '/alquileres', servicios: '/servicios',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
@@ -78,6 +86,8 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     if (activePage === 'categorias')   return <Categorias   user={user} />
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
+    if (activePage === 'maquinas')     return <Maquinas     user={user} />
+    if (activePage === 'alquileres')   return <Alquileres   user={user} />
     return (
       <div style={st.contentArea}>
         <div style={st.devCard}>

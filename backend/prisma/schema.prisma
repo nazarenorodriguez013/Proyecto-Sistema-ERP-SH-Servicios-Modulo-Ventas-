@@ -18,7 +18,8 @@ model Usuario {
   creadoEn      DateTime @default(now())  @map("creado_en")
   actualizadoEn DateTime @updatedAt       @map("actualizado_en")
 
-  ventas Venta[]
+  ventas     Venta[]
+  alquileres Alquiler[]
 
   @@map("usuarios")
 }
@@ -83,4 +84,45 @@ model DetalleVenta {
   producto Producto @relation(fields: [productoId], references: [id])
 
   @@map("detalles_venta")
+}
+
+model Maquina {
+  id            Int      @id @default(autoincrement())
+  codigo        String?  @unique
+  nombre        String
+  marca         String?
+  tipo          String?
+  tarifaDiaria  Float    @map("tarifa_diaria")
+  stock         Int      @default(0)
+  stockMinimo   Int      @default(1)  @map("stock_minimo")
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())  @map("creado_en")
+  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
+
+  alquileres Alquiler[]
+
+  @@map("maquinas")
+}
+
+model Alquiler {
+  id          Int            @id @default(autoincrement())
+  maquinaId   Int            @map("maquina_id")
+  cliente     String
+  fechaInicio DateTime       @map("fecha_inicio")
+  fechaFin    DateTime       @map("fecha_fin")
+  total       Float
+  estado      EstadoAlquiler @default(ACTIVO)
+  usuarioId   Int            @map("usuario_id")
+  creadoEn    DateTime       @default(now()) @map("creado_en")
+
+  maquina Maquina @relation(fields: [maquinaId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("alquileres")
+}
+
+enum EstadoAlquiler {
+  ACTIVO
+  FINALIZADO
+  CANCELADO
 }
