@@ -16,29 +16,29 @@ interface Section    { id: string; label: string; icon: string; roles: string[];
 
 const allSections: Section[] = [
   {
-    id: 'ventas', label: 'Ventas', icon: '🛒', roles: ['ADMIN', 'VENDEDOR'],
+    id: 'ventas', label: 'Ventas', icon: 'bi-cart3', roles: ['ADMIN', 'VENDEDOR'],
     children: [
-      { id: 'punto-venta',  label: 'Punto de Venta',  icon: '🧾' },
+      { id: 'punto-venta',  label: 'Punto de Venta',  icon: 'bi-receipt' },
       {
-        id: 'inventario', label: 'Inventario', icon: '📦',
+        id: 'inventario', label: 'Inventario', icon: 'bi-box-seam',
         children: [
-          { id: 'categorias', label: 'Categorías', icon: '🏷️' },
-          { id: 'articulos',  label: 'Artículos',  icon: '📋' },
-          { id: 'stock',      label: 'Stock',        icon: '📊' },
+          { id: 'categorias', label: 'Categorías', icon: 'bi-tag' },
+          { id: 'articulos',  label: 'Artículos',  icon: 'bi-clipboard' },
+          { id: 'stock',      label: 'Stock',        icon: 'bi-bar-chart' },
         ],
       },
     ],
   },
-  { id: 'clientes',   label: 'Clientes',           icon: '👥', roles: ['ADMIN', 'VENDEDOR'] },
+  { id: 'clientes',   label: 'Clientes',           icon: 'bi-people', roles: ['ADMIN', 'VENDEDOR'] },
   {
-    id: 'alquiler', label: 'Alquiler', icon: '🏠', roles: ['ADMIN'],
+    id: 'alquiler', label: 'Alquiler', icon: 'bi-house-door', roles: ['ADMIN'],
     children: [
-      { id: 'punto-alquiler', label: 'Punto de Alquiler', icon: '🧾' },
-      { id: 'maquinas',       label: 'Máquinas',          icon: '🚜' },
-      { id: 'alquileres',     label: 'Alquileres',        icon: '📅' },
+      { id: 'punto-alquiler', label: 'Punto de Alquiler', icon: 'bi-cart-check' },
+      { id: 'maquinas',       label: 'Máquinas',          icon: 'bi-truck' },
+      { id: 'alquileres',     label: 'Alquileres',        icon: 'bi-calendar3' },
     ],
   },
-  { id: 'servicios',  label: 'Servicios Técnicos',  icon: '🔧', roles: ['ADMIN'] },
+  { id: 'servicios',  label: 'Servicios Técnicos',  icon: 'bi-tools', roles: ['ADMIN'] },
 ]
 
 const pageLabels: Record<string, string> = {
@@ -98,7 +98,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     return (
       <div style={st.contentArea}>
         <div style={st.devCard}>
-          <div style={st.devIcon}>🚧</div>
+          <div style={st.devIcon}><i className="bi bi-cone-striped" /></div>
           <h3 style={st.devTitle}>En Desarrollo</h3>
           <p style={st.devText}>El módulo de <strong>{pageLabels[activePage]}</strong> está siendo construido.</p>
           <div style={st.devBadge}>Próximamente</div>
@@ -123,7 +123,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
               <p style={st.logoName}>SH Servicios</p>
               <p style={st.logoTag}>ERP</p>
             </div>
-            <button className="db-close-btn" onClick={() => setSidebarOpen(false)}>✕</button>
+            <button className="db-close-btn" onClick={() => setSidebarOpen(false)}><i className="bi bi-x-lg" /></button>
           </div>
 
           <div style={st.userCard}>
@@ -149,10 +149,10 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                       style={{ ...st.navItem, ...(secHasActive ? st.navItemActive : {}) }}
                       onClick={() => hasChildren ? toggle(section.id) : navigate(section.id)}
                     >
-                      <span style={st.navIcon}>{section.icon}</span>
+                      <span style={st.navIcon}><i className={`bi ${section.icon}`} /></span>
                       <span style={{ flex: 1, textAlign: 'left' }}>{section.label}</span>
                       {hasChildren && (
-                        <span style={{ ...st.arrow, transform: secExpanded ? 'rotate(180deg)' : 'none' }}>▼</span>
+                        <i className="bi bi-chevron-down" style={{ ...st.arrow, transform: secExpanded ? 'rotate(180deg)' : 'none' }} />
                       )}
                     </button>
 
@@ -166,10 +166,10 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                             style={{ ...st.subItem, ...(subActive ? st.subItemActive : {}) }}
                             onClick={() => subHasChildren ? toggle(sub.id) : navigate(sub.id)}
                           >
-                            <span style={st.subIcon}>{sub.icon}</span>
+                            <span style={st.subIcon}><i className={`bi ${sub.icon}`} /></span>
                             <span style={{ flex: 1, textAlign: 'left' }}>{sub.label}</span>
                             {subHasChildren && (
-                              <span style={{ ...st.arrow, fontSize: '10px', transform: subExpanded ? 'rotate(180deg)' : 'none' }}>▼</span>
+                              <i className="bi bi-chevron-down" style={{ ...st.arrow, fontSize: '10px', transform: subExpanded ? 'rotate(180deg)' : 'none' }} />
                             )}
                           </button>
                           {subHasChildren && subExpanded && (
@@ -180,7 +180,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                                   style={{ ...st.pageItem, ...(activePage === page.id ? st.pageItemActive : {}) }}
                                   onClick={() => navigate(page.id)}
                                 >
-                                  <span style={st.pageIcon}>{page.icon}</span>
+                                  <span style={st.pageIcon}><i className={`bi ${page.icon}`} /></span>
                                   <span>{page.label}</span>
                                   {activePage === page.id && <span style={st.pageDot} />}
                                 </button>
@@ -198,7 +198,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
         </div>
 
         <button style={st.logoutBtn} onClick={onLogout}>
-          <span>🚪</span><span>Cerrar Sesión</span>
+          <i className="bi bi-box-arrow-right" /><span>Cerrar Sesión</span>
         </button>
       </aside>
 
@@ -244,56 +244,56 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 const st: Record<string, React.CSSProperties> = {
   sidebarTop:   { display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
-  logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #2B2B2B' },
+  logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #1D1D1D' },
   logoImg:      { width: '38px', height: '38px', objectFit: 'contain', flexShrink: 0, borderRadius: '6px' },
   logoName:     { color: '#FFFFFF', fontSize: '14px', fontWeight: '700', margin: 0 },
   logoTag:      { color: '#F5C400', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
 
-  userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#111111', borderRadius: '10px', border: '1px solid #2B2B2B' },
+  userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#1B1B1B', borderRadius: '10px', border: '1px solid #1D1D1D' },
   avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#F5C400', color: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
   userName:     { color: '#FFFFFF', fontSize: '13px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  userRole:     { color: '#9A9A9A', fontSize: '11px', margin: 0, marginTop: '1px' },
+  userRole:     { color: '#8C8C8C', fontSize: '11px', margin: 0, marginTop: '1px' },
 
   navSection:   { display: 'flex', flexDirection: 'column', gap: '6px' },
-  navLabel:     { color: '#CFCFCF', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', margin: '0 0 2px 8px' },
+  navLabel:     { color: '#5F5F5F', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', margin: '0 0 2px 8px' },
   nav:          { display: 'flex', flexDirection: 'column', gap: '1px' },
 
-  navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#9A9A9A', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
-  navItemActive:{ background: 'rgba(245,196,0,0.1)', color: '#F5C400', fontWeight: '600' },
+  navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#B7B7B7', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  navItemActive:{ background: '#1E1E1E', color: '#FFFFFF', fontWeight: '600' },
   navIcon:      { fontSize: '16px', width: '20px', textAlign: 'center' },
-  arrow:        { fontSize: '10px', color: '#CFCFCF', display: 'inline-block', transition: 'transform 0.2s' },
+  arrow:        { fontSize: '10px', color: '#7C7C7C', display: 'inline-block', transition: 'transform 0.2s' },
 
-  subMenuWrap:  { marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid #2B2B2B' },
-  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
-  subItemActive:{ background: 'rgba(245,196,0,0.08)', color: '#F5C400', fontWeight: '600' },
+  subMenuWrap:  { marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid #1D1D1D' },
+  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#B7B7B7', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  subItemActive:{ background: '#1E1E1E', color: '#F5C400', fontWeight: '600' },
   subIcon:      { fontSize: '14px', width: '18px', textAlign: 'center' },
 
   pageMenuWrap: { marginLeft: '8px', paddingLeft: '8px', borderLeft: '1px solid #1A1A1A' },
-  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#CFCFCF', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
-  pageItemActive:{ background: 'rgba(245,196,0,0.06)', color: '#F5C400', fontWeight: '600' },
+  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
+  pageItemActive:{ background: '#1E1E1E', color: '#F5C400', fontWeight: '600' },
   pageIcon:     { fontSize: '12px' },
   pageDot:      { position: 'absolute', right: '8px', width: '5px', height: '5px', borderRadius: '50%', background: '#F5C400' },
 
-  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '8px', color: '#9A9A9A', fontSize: '13px', cursor: 'pointer', width: '100%' },
+  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #1D1D1D', borderRadius: '8px', color: '#B7B7B7', fontSize: '13px', cursor: 'pointer', width: '100%' },
 
-  hLine:        { display: 'block', width: '22px', height: '2px', background: '#9A9A9A', borderRadius: '2px' },
+  hLine:        { display: 'block', width: '22px', height: '2px', background: '#111111', borderRadius: '2px' },
 
-  topBar:       { padding: '16px 20px', borderBottom: '1px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111111', flexShrink: 0 },
-  pageTitle:    { color: '#FFFFFF', fontSize: '18px', fontWeight: '700', margin: 0 },
-  pagePath:     { color: '#CFCFCF', fontSize: '12px', margin: '3px 0 0' },
+  topBar:       { padding: '16px 20px', borderBottom: '1px solid #E2E4E8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', flexShrink: 0 },
+  pageTitle:    { color: '#111111', fontSize: '18px', fontWeight: '700', margin: 0 },
+  pagePath:     { color: '#6B6B6B', fontSize: '12px', margin: '3px 0 0' },
   topBarRight:  { display: 'flex', alignItems: 'center', gap: '12px' },
-  topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '6px 12px' },
-  topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#F5C400', color: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
-  topBarName:   { color: '#9A9A9A', fontSize: '13px', fontWeight: '500' },
+  topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '6px 12px' },
+  topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#111111', color: '#F5C400', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
+  topBarName:   { color: '#111111', fontSize: '13px', fontWeight: '500' },
 
   contentFull:  { flex: 1, overflowY: 'auto' },
   contentArea:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' },
-  devCard:      { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '16px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '400px' },
-  devIcon:      { fontSize: '48px' },
-  devTitle:     { color: '#FFFFFF', fontSize: '22px', fontWeight: '700', margin: 0 },
-  devText:      { color: '#9A9A9A', fontSize: '15px', lineHeight: '1.6', margin: 0 },
-  devBadge:     { background: 'rgba(245,196,0,0.1)', color: '#F5C400', border: '1px solid rgba(245,196,0,0.2)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
+  devCard:      { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '400px' },
+  devIcon:      { fontSize: '48px', color: '#D6D6D6' },
+  devTitle:     { color: '#111111', fontSize: '22px', fontWeight: '700', margin: 0 },
+  devText:      { color: '#6B6B6B', fontSize: '15px', lineHeight: '1.6', margin: 0 },
+  devBadge:     { background: 'rgba(245,196,0,0.15)', color: '#8A6D00', border: '1px solid rgba(245,196,0,0.4)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
 
-  footer:       { padding: '10px 20px', borderTop: '1px solid #1A1A1A', textAlign: 'center', flexShrink: 0 },
-  footerText:   { color: '#2B2B2B', fontSize: '11px' },
+  footer:       { padding: '10px 20px', borderTop: '1px solid #E2E4E8', textAlign: 'center', flexShrink: 0, background: '#FFFFFF' },
+  footerText:   { color: '#9A9A9A', fontSize: '11px' },
 }

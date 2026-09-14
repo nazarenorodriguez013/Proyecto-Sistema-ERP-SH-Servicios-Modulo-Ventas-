@@ -54,7 +54,7 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
   return (
     <div className="page-container">
       <div style={s.header}>
-        <button style={s.btnVolver} onClick={onBack}>← Volver</button>
+        <button style={s.btnVolver} onClick={onBack}><i className="bi bi-arrow-left" /> Volver</button>
         <div style={s.saldoBox}>
           <span style={s.saldoLabel}>SALDO</span>
           <span style={{ ...s.saldoValor, color: cliente.saldo > 0 ? '#C6402F' : '#2E9E5B' }}>${fmt(cliente.saldo)}</span>
@@ -64,10 +64,10 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
       <div style={s.datosCard}>
         <h2 style={s.title}>{cliente.nombre}</h2>
         <div style={s.datosGrid}>
-          <span style={s.dato}>📄 {cliente.documento || '—'}</span>
-          <span style={s.dato}>📞 {cliente.telefono || '—'}</span>
-          <span style={s.dato}>✉️ {cliente.email || '—'}</span>
-          <span style={s.dato}>📍 {cliente.direccion || '—'}</span>
+          <span style={s.dato}><i className="bi bi-file-earmark-text" /> {cliente.documento || '—'}</span>
+          <span style={s.dato}><i className="bi bi-telephone" /> {cliente.telefono || '—'}</span>
+          <span style={s.dato}><i className="bi bi-envelope" /> {cliente.email || '—'}</span>
+          <span style={s.dato}><i className="bi bi-geo-alt" /> {cliente.direccion || '—'}</span>
         </div>
       </div>
 
@@ -79,7 +79,7 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
               onChange={e => setMontoPago(e.target.value)} required />
             <button type="submit" style={s.btnPrimary}>Registrar Pago</button>
           </form>
-          {error && <p style={s.errorText}>⚠ {error}</p>}
+          {error && <p style={s.errorText}><i className="bi bi-exclamation-triangle-fill" /> {error}</p>}
         </div>
       )}
 
@@ -104,30 +104,30 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
 }
 
 const s: Record<string, React.CSSProperties> = {
-  loading:      { color: '#9A9A9A', padding: '40px', textAlign: 'center' },
+  loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  btnVolver:    { background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '8px', color: '#CFCFCF', fontSize: '13px', padding: '8px 16px', cursor: 'pointer' },
+  btnVolver:    { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', color: '#333333', fontSize: '13px', padding: '8px 16px', cursor: 'pointer' },
   saldoBox:     { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' },
-  saldoLabel:   { color: '#9A9A9A', fontSize: '11px', fontWeight: '700', letterSpacing: '1.5px' },
+  saldoLabel:   { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1.5px' },
   saldoValor:   { fontSize: '26px', fontWeight: '800' },
 
-  datosCard:    { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' },
-  title:        { color: '#FFFFFF', fontSize: '19px', fontWeight: '700', margin: 0 },
+  datosCard:    { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' },
+  title:        { color: '#111111', fontSize: '19px', fontWeight: '700', margin: 0 },
   datosGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' },
-  dato:         { color: '#CFCFCF', fontSize: '13px' },
+  dato:         { color: '#333333', fontSize: '13px' },
 
-  formCard:     { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' },
-  sectionTitle: { color: '#9A9A9A', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
+  formCard:     { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' },
+  sectionTitle: { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
   form:         { display: 'flex', gap: '8px', flexWrap: 'wrap' as const },
-  inputMonto:   { width: '160px', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '9px 12px', color: '#FFFFFF', fontSize: '13px', outline: 'none' },
+  inputMonto:   { width: '160px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none' },
   btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
   errorText:    { color: '#C6402F', fontSize: '13px', margin: 0 },
 
-  histCard:     { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' },
-  empty:        { color: '#9A9A9A', fontSize: '13px', textAlign: 'center', padding: '20px' },
-  movRow:       { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 4px', borderBottom: '1px solid #111111', flexWrap: 'wrap' as const },
-  movTipo:      { color: '#F5C400', fontSize: '11px', fontWeight: '700', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '20px', padding: '3px 10px', flexShrink: 0 },
-  movConcepto:  { color: '#FFFFFF', fontSize: '13px', flex: 1, minWidth: '120px' },
-  movFecha:     { color: '#9A9A9A', fontSize: '12px', flexShrink: 0 },
+  histCard:     { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' },
+  empty:        { color: '#6B6B6B', fontSize: '13px', textAlign: 'center', padding: '20px' },
+  movRow:       { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 4px', borderBottom: '1px solid #EFF1F4', flexWrap: 'wrap' as const },
+  movTipo:      { color: '#8A6D00', fontSize: '11px', fontWeight: '700', background: '#FFFDF3', border: '1px solid rgba(245,196,0,0.3)', borderRadius: '20px', padding: '3px 10px', flexShrink: 0 },
+  movConcepto:  { color: '#111111', fontSize: '13px', flex: 1, minWidth: '120px' },
+  movFecha:     { color: '#6B6B6B', fontSize: '12px', flexShrink: 0 },
   movMonto:     { fontSize: '14px', fontWeight: '700', flexShrink: 0, minWidth: '90px', textAlign: 'right' as const },
 }

@@ -151,7 +151,7 @@ export default function Ventas({ user }: { user: User }) {
         {/* ── Header ── */}
         <div style={s.header}>
           <div style={s.headerLeft}>
-            <span style={s.headerIcon}>🧾</span>
+            <span style={s.headerIcon}><i className="bi bi-receipt" /></span>
             <div>
               <h2 style={s.title}>Punto de Venta</h2>
               <p style={s.subtitle}>{user.nombre}</p>
@@ -201,7 +201,7 @@ export default function Ventas({ user }: { user: User }) {
                     <span style={s.dropNom}>{p.nombre}</span>
                     <span style={s.dropCat}>{p.categoria.nombre}</span>
                     <span style={s.dropPrecio}>${fmt(p.precio)}</span>
-                    <span style={{ ...s.dropStock, color: p.stock <= 5 ? '#E08A00' : '#2E9E5B' }}>{p.stock} u.</span>
+                    <span style={{ ...s.dropStock, color: p.stock <= 5 ? '#97640B' : '#1E7A45' }}>{p.stock} u.</span>
                   </div>
                 ))}
               </div>
@@ -209,7 +209,7 @@ export default function Ventas({ user }: { user: User }) {
           </div>
         </div>
 
-        {error && <div style={s.errorBanner}>⚠ {error}</div>}
+        {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
 
         <div style={s.divider} />
 
@@ -236,10 +236,10 @@ export default function Ventas({ user }: { user: User }) {
                   value={item.cantidad} onChange={e => cambiarCantidadItem(idx, e.target.value)} />
               </div>
               <span style={{ ...s.cell, width: '110px', textAlign: 'right' }}>${fmt(item.precioUnitario)}</span>
-              <span style={{ ...s.cell, width: '120px', textAlign: 'right', color: '#F5C400', fontWeight: 700 }}>
+              <span style={{ ...s.cell, width: '120px', textAlign: 'right', color: '#111111', fontWeight: 700 }}>
                 ${fmt(item.cantidad * item.precioUnitario)}
               </span>
-              <button style={s.btnX} onClick={() => quitarItem(idx)}>✕</button>
+              <button style={s.btnX} onClick={() => quitarItem(idx)}><i className="bi bi-x-lg" /></button>
             </div>
           ))}
         </div>
@@ -305,7 +305,7 @@ export default function Ventas({ user }: { user: User }) {
           onClick={confirmarVenta}
           disabled={!carrito.length || procesando}
         >
-          {procesando ? 'Procesando...' : '✓  Confirmar Venta'}
+          <i className="bi bi-check-lg" /> {procesando ? 'Procesando...' : 'Confirmar Venta'}
         </button>
 
       </div>
@@ -409,7 +409,7 @@ export default function Ventas({ user }: { user: User }) {
 
             {/* Botones */}
             <div style={s.modalBtns}>
-              <button style={s.btnImprimir} onClick={() => window.print()}>🖨️ Imprimir</button>
+              <button style={s.btnImprimir} onClick={() => window.print()}><i className="bi bi-printer" /> Imprimir</button>
               <button style={s.btnCerrar} onClick={cerrarComprobante}>Nueva venta</button>
             </div>
           </div>
@@ -421,70 +421,70 @@ export default function Ventas({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   wrap:        { padding: '24px 28px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' as const },
-  container:   { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '860px', flex: 1, minHeight: 0, overflow: 'hidden' },
+  container:   { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '860px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
   header:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   headerLeft:  { display: 'flex', alignItems: 'center', gap: '12px' },
-  headerIcon:  { fontSize: '28px', background: '#111111', borderRadius: '10px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  title:       { color: '#FFFFFF', fontSize: '18px', fontWeight: '700', margin: 0 },
-  subtitle:    { color: '#CFCFCF', fontSize: '12px', margin: '2px 0 0' },
-  btnLimpiar:  { background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '7px', color: '#9A9A9A', fontSize: '12px', padding: '6px 14px', cursor: 'pointer' },
+  headerIcon:  { fontSize: '22px', background: '#F5F5F5', color: '#111111', borderRadius: '10px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  title:       { color: '#111111', fontSize: '18px', fontWeight: '700', margin: 0 },
+  subtitle:    { color: '#6B6B6B', fontSize: '12px', margin: '2px 0 0' },
+  btnLimpiar:  { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '7px', color: '#6B6B6B', fontSize: '12px', padding: '6px 14px', cursor: 'pointer' },
 
-  divider:     { height: '1px', background: '#2B2B2B' },
+  divider:     { height: '1px', background: '#EFF1F4' },
 
   inputRow:    { display: 'flex', gap: '12px', alignItems: 'flex-end' },
   inputGroup:  { display: 'flex', flexDirection: 'column', gap: '5px' },
-  label:       { color: '#CFCFCF', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
-  inputCant:   { width: '72px', background: '#111111', border: '2px solid #F5C400', borderRadius: '8px', padding: '10px', color: '#F5C400', fontSize: '18px', fontWeight: '700', outline: 'none', textAlign: 'center' },
-  inputBusqueda: { width: '100%', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '11px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
-  selectCliente: { background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', minWidth: '220px' },
+  label:       { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
+  inputCant:   { width: '72px', background: '#FFFFFF', border: '2px solid #F5C400', borderRadius: '8px', padding: '10px', color: '#8A6D00', fontSize: '18px', fontWeight: '700', outline: 'none', textAlign: 'center' },
+  inputBusqueda: { width: '100%', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '11px 14px', color: '#111111', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
+  selectCliente: { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', minWidth: '220px' },
 
-  dropdown:    { position: 'absolute', top: '100%', left: 0, right: 0, background: '#1A1A1A', border: '1px solid #3A3A3A', borderRadius: '10px', zIndex: 100, marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' },
-  dropItem:    { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #111111' },
-  dropActive:  { background: '#2B2B2B' },
-  dropCod:     { fontFamily: 'monospace', fontSize: '11px', color: '#F5C400', background: '#111111', border: '1px solid #2B2B2B', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 },
-  dropNom:     { flex: 1, color: '#FFFFFF', fontSize: '13px', fontWeight: '600' },
-  dropCat:     { color: '#9A9A9A', fontSize: '11px', flexShrink: 0 },
-  dropPrecio:  { color: '#F5C400', fontWeight: '700', fontSize: '13px', flexShrink: 0 },
+  dropdown:    { position: 'absolute', top: '100%', left: 0, right: 0, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', zIndex: 100, marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(17,17,17,.18)' },
+  dropItem:    { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #EFF1F4' },
+  dropActive:  { background: '#FFFDF3' },
+  dropCod:     { fontFamily: 'monospace', fontSize: '11px', color: '#111111', background: '#F5F5F5', border: '1px solid #E2E4E8', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 },
+  dropNom:     { flex: 1, color: '#111111', fontSize: '13px', fontWeight: '600' },
+  dropCat:     { color: '#6B6B6B', fontSize: '11px', flexShrink: 0 },
+  dropPrecio:  { color: '#8A6D00', fontWeight: '700', fontSize: '13px', flexShrink: 0 },
   dropStock:   { fontSize: '11px', fontWeight: '600', flexShrink: 0 },
 
   errorBanner: { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
 
   comprobanteHead: { display: 'flex', alignItems: 'center', padding: '0 4px' },
-  th:          { color: '#CFCFCF', fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const },
+  th:          { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const },
 
   itemsArea:   { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto' as const },
-  vacio:       { color: '#9A9A9A', fontSize: '13px', textAlign: 'center', padding: '24px' },
-  itemRow:     { display: 'flex', alignItems: 'center', padding: '10px 4px', borderBottom: '1px solid #111111', gap: '8px' },
-  itemNombre:  { color: '#FFFFFF', fontSize: '14px', fontWeight: '600', margin: 0 },
-  itemSub:     { color: '#CFCFCF', fontSize: '11px', margin: '2px 0 0' },
-  cell:        { color: '#CFCFCF', fontSize: '14px', display: 'flex', alignItems: 'center' },
-  cantItem:    { width: '54px', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '6px', padding: '5px', color: '#FFFFFF', fontSize: '13px', outline: 'none', textAlign: 'center' },
-  btnX:        { background: 'transparent', border: 'none', color: '#9A9A9A', cursor: 'pointer', fontSize: '13px', padding: '4px 6px', borderRadius: '4px', width: '32px' },
+  vacio:       { color: '#6B6B6B', fontSize: '13px', textAlign: 'center', padding: '24px' },
+  itemRow:     { display: 'flex', alignItems: 'center', padding: '10px 4px', borderBottom: '1px solid #EFF1F4', gap: '8px' },
+  itemNombre:  { color: '#111111', fontSize: '14px', fontWeight: '600', margin: 0 },
+  itemSub:     { color: '#6B6B6B', fontSize: '11px', margin: '2px 0 0' },
+  cell:        { color: '#333333', fontSize: '14px', display: 'flex', alignItems: 'center' },
+  cantItem:    { width: '54px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '6px', padding: '5px', color: '#111111', fontSize: '13px', outline: 'none', textAlign: 'center' },
+  btnX:        { background: 'transparent', border: 'none', color: '#6B6B6B', cursor: 'pointer', fontSize: '13px', padding: '4px 6px', borderRadius: '4px', width: '32px' },
 
   totalPagoRow:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' as const },
   totalBlock:  { display: 'flex', alignItems: 'flex-end', gap: '16px' },
-  totalLabel:  { color: '#CFCFCF', fontSize: '11px', fontWeight: '700', letterSpacing: '2px' },
-  totalValor:  { color: '#F5C400', fontSize: '30px', fontWeight: '800' },
+  totalLabel:  { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '2px' },
+  totalValor:  { color: '#111111', fontSize: '30px', fontWeight: '800' },
   pagoBlock:   { display: 'flex', flexDirection: 'column', gap: '8px' },
   medios:      { display: 'flex', gap: '6px', flexWrap: 'wrap' as const },
-  medioBtn:    { padding: '7px 16px', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', color: '#9A9A9A', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
-  medioBtnOn:  { background: 'rgba(245,196,0,0.1)', border: '1px solid #F5C400', color: '#F5C400' },
+  medioBtn:    { padding: '7px 16px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  medioBtnOn:  { background: 'rgba(245,196,0,0.15)', border: '1px solid #F5C400', color: '#8A6D00' },
 
-  montoWrap:   { display: 'flex', alignItems: 'center', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', overflow: 'hidden' },
-  montoSign:   { color: '#F5C400', fontWeight: '700', padding: '0 10px', fontSize: '15px' },
-  montoInput:  { background: 'transparent', border: 'none', padding: '10px 10px 10px 0', color: '#FFFFFF', fontSize: '15px', outline: 'none', width: '130px' },
+  montoWrap:   { display: 'flex', alignItems: 'center', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', overflow: 'hidden' },
+  montoSign:   { color: '#8A6D00', fontWeight: '700', padding: '0 10px', fontSize: '15px' },
+  montoInput:  { background: 'transparent', border: 'none', padding: '10px 10px 10px 0', color: '#111111', fontSize: '15px', outline: 'none', width: '130px' },
   vueltoBox:   { padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' },
-  vueltoPos:   { background: 'rgba(46,158,91,0.08)', border: '1px solid rgba(46,158,91,0.2)' },
-  vueltoNeg:   { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)' },
-  vueltoLabel: { fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: '#2E9E5B' },
-  vueltoValor: { fontSize: '18px', fontWeight: '800', color: '#2E9E5B' },
+  vueltoPos:   { background: '#E4F5EA', border: '1px solid #CDEBD9' },
+  vueltoNeg:   { background: '#FBE5E2', border: '1px solid rgba(198,64,47,0.2)' },
+  vueltoLabel: { fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: '#1E7A45' },
+  vueltoValor: { fontSize: '18px', fontWeight: '800', color: '#1E7A45' },
 
   btnConfirmar: { padding: '14px', background: '#F5C400', color: '#111111', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '800', cursor: 'pointer', letterSpacing: '0.5px' },
   btnOff:       { opacity: 0.35, cursor: 'not-allowed' },
 
   // Modal comprobante
-  overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 },
+  overlay:     { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 },
   modal:       { background: '#fff', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' },
 
   // Ticket

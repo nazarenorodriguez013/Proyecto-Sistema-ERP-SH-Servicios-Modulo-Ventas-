@@ -92,10 +92,10 @@ export default function Clientes({ user }: { user: User }) {
           <h2 style={s.title}>Clientes</h2>
           <p style={s.subtitle}>{filtered.length} de {clientes.length} clientes</p>
         </div>
-        {isAdmin && <button style={s.btnPrimary} onClick={openCreate}>+ Nuevo Cliente</button>}
+        {isAdmin && <button style={s.btnPrimary} onClick={openCreate}><i className="bi bi-plus-lg" /> Nuevo Cliente</button>}
       </div>
 
-      {error && !modal.open && <div style={s.errorBanner}>⚠ {error}</div>}
+      {error && !modal.open && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
 
       <input style={s.searchInput} placeholder="Buscar por nombre o documento..."
         value={search} onChange={e => setSearch(e.target.value)} />
@@ -107,7 +107,7 @@ export default function Clientes({ user }: { user: User }) {
             {filtered.map(c => (
               <div key={c.id} style={s.card}>
                 <div style={s.cardTop} onClick={() => setVerCliente(c.id)}>
-                  <div style={s.cardIcon}>👤</div>
+                  <div style={s.cardIcon}><i className="bi bi-person" /></div>
                   <div style={s.cardBody}>
                     <p style={s.cardName}>{c.nombre}</p>
                     <p style={s.cardSub}>{c.documento || c.telefono || 'Sin datos de contacto'}</p>
@@ -118,9 +118,9 @@ export default function Clientes({ user }: { user: User }) {
                 </div>
                 {isAdmin && (
                   <div style={s.cardActions}>
-                    <button style={s.btnIcon} onClick={() => setVerCliente(c.id)} title="Ver cuenta">📋</button>
-                    <button style={s.btnIcon} onClick={() => openEdit(c)} title="Editar">✏️</button>
-                    <button style={s.btnIconDanger} onClick={() => setDeleteConfirm(c.id)} title="Eliminar">🗑️</button>
+                    <button style={s.btnIcon} onClick={() => setVerCliente(c.id)} title="Ver cuenta"><i className="bi bi-journal-text" /></button>
+                    <button style={s.btnIcon} onClick={() => openEdit(c)} title="Editar"><i className="bi bi-pencil" /></button>
+                    <button style={s.btnIconDanger} onClick={() => setDeleteConfirm(c.id)} title="Eliminar"><i className="bi bi-trash" /></button>
                   </div>
                 )}
               </div>
@@ -134,7 +134,7 @@ export default function Clientes({ user }: { user: User }) {
           <div className="page-modal">
             <div style={s.modalHeader}>
               <h3 style={s.modalTitle}>{modal.editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
-              <button style={s.closeBtn} onClick={closeModal}>✕</button>
+              <button style={s.closeBtn} onClick={closeModal}><i className="bi bi-x-lg" /></button>
             </div>
             <form onSubmit={handleSubmit} style={s.form}>
               <div style={s.field}>
@@ -178,7 +178,7 @@ export default function Clientes({ user }: { user: User }) {
         <div style={s.overlay}>
           <div style={{ ...s.modal, maxWidth: '400px' }}>
             <h3 style={{ ...s.modalTitle, marginBottom: '12px' }}>Eliminar cliente</h3>
-            <p style={{ color: '#9A9A9A', fontSize: '14px', margin: '0 0 24px' }}>
+            <p style={{ color: '#6B6B6B', fontSize: '14px', margin: '0 0 24px' }}>
               ¿Estás seguro? Si el cliente tiene ventas o movimientos asociados no se podrá eliminar.
             </p>
             <div style={s.modalActions}>
@@ -193,39 +193,39 @@ export default function Clientes({ user }: { user: User }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  loading:      { color: '#9A9A9A', padding: '40px', textAlign: 'center' },
+  loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  title:        { color: '#FFFFFF', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:     { color: '#CFCFCF', fontSize: '13px', margin: '3px 0 0' },
+  title:        { color: '#111111', fontSize: '20px', fontWeight: '700', margin: 0 },
+  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: '3px 0 0' },
   errorBanner:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
-  searchInput:  { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '9px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const, maxWidth: '340px' },
+  searchInput:  { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const, maxWidth: '340px' },
 
-  empty:        { color: '#CFCFCF', textAlign: 'center', padding: '60px', background: '#1A1A1A', borderRadius: '12px', border: '1px solid #2B2B2B' },
+  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '60px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E4E8' },
   grid:         { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' },
-  card:         { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' },
+  card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' },
   cardTop:      { display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' },
-  cardIcon:     { fontSize: '22px', flexShrink: 0, width: '40px', height: '40px', background: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  cardIcon:     { fontSize: '18px', flexShrink: 0, width: '40px', height: '40px', background: '#F5F5F5', color: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardBody:     { flex: 1, minWidth: 0 },
-  cardName:     { color: '#FFFFFF', fontWeight: '600', fontSize: '14px', margin: 0 },
-  cardSub:      { color: '#CFCFCF', fontSize: '12px', margin: '3px 0 0' },
+  cardName:     { color: '#111111', fontWeight: '600', fontSize: '14px', margin: 0 },
+  cardSub:      { color: '#6B6B6B', fontSize: '12px', margin: '3px 0 0' },
   saldoBadge:   { fontWeight: '800', fontSize: '14px', flexShrink: 0 },
-  cardActions:  { display: 'flex', gap: '6px', borderTop: '1px solid #111111', paddingTop: '10px' },
-  btnIcon:      { flex: 1, background: '#2B2B2B', border: 'none', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '13px' },
-  btnIconDanger:{ background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '13px' },
+  cardActions:  { display: 'flex', gap: '6px', borderTop: '1px solid #EFF1F4', paddingTop: '10px' },
+  btnIcon:      { flex: 1, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '13px', color: '#111111' },
+  btnIconDanger:{ background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '13px', color: '#C6402F' },
 
-  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
-  btnSecondary: { background: 'transparent', color: '#9A9A9A', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
+  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
+  btnSecondary: { background: '#FFFFFF', color: '#6B6B6B', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
   btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
 
-  overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' },
+  overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal:        { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
   modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-  modalTitle:   { color: '#FFFFFF', fontSize: '17px', fontWeight: '700', margin: 0 },
-  closeBtn:     { background: 'transparent', border: 'none', color: '#9A9A9A', fontSize: '18px', cursor: 'pointer' },
+  modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: 0 },
+  closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
   form:         { display: 'flex', flexDirection: 'column', gap: '16px' },
   row:          { display: 'flex', gap: '10px' },
   field:        { display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 },
-  label:        { color: '#9A9A9A', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
-  input:        { background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
+  label:        { color: '#333333', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
+  input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
   modalActions: { display: 'flex', gap: '10px', justifyContent: 'flex-end' },
 }
