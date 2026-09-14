@@ -14,6 +14,8 @@ import categoryRoutes from './routes/category.routes';
 import productRoutes from './routes/product.routes';
 import saleRoutes from './routes/sale.routes';
 import clientRoutes from './routes/client.routes';
+import machineRoutes from './routes/machine.routes';
+import rentalRoutes from './routes/rental.routes';
 import { setIO } from './socket';
 
 const prisma = new PrismaClient();
@@ -55,7 +57,16 @@ async function seedIfEmpty() {
     ],
   });
 
-  console.log('Seed completo: 2 usuarios, 3 categorías, 9 productos.');
+  await prisma.maquina.createMany({
+    data: [
+      { codigo: '0001', nombre: 'Autoelevador Heli 2.5 Ton',        marca: 'Heli',     tipo: 'Autoelevador',    tarifaDiaria: 45000, stock: 4, stockMinimo: 1 },
+      { codigo: '0002', nombre: 'Autoelevador Hyster 3.5 Ton',      marca: 'Hyster',   tipo: 'Autoelevador',    tarifaDiaria: 58000, stock: 2, stockMinimo: 1 },
+      { codigo: '0003', nombre: 'Compresor a Tornillo 30 HP',       marca: 'Hertz',    tipo: 'Compresor',       tarifaDiaria: 32000, stock: 3, stockMinimo: 1 },
+      { codigo: '0004', nombre: 'Grupo Electrógeno 50 kVA',         marca: 'Himoinsa', tipo: 'Grupo Electrógeno', tarifaDiaria: 51000, stock: 1, stockMinimo: 1 },
+    ],
+  });
+
+  console.log('Seed completo: 2 usuarios, 3 categorías, 9 productos, 4 máquinas.');
 }
 
 const app = express();
@@ -70,6 +81,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/machines', machineRoutes);
+app.use('/api/rentals', rentalRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
