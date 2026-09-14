@@ -6,6 +6,7 @@ import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
 import Clientes from './Clientes'
+import PuntoAlquiler from './PuntoAlquiler'
 import Maquinas from './Maquinas'
 import Alquileres from './Alquileres'
 
@@ -32,8 +33,9 @@ const allSections: Section[] = [
   {
     id: 'alquiler', label: 'Alquiler', icon: '🏠', roles: ['ADMIN'],
     children: [
-      { id: 'maquinas',   label: 'Máquinas',   icon: '🚜' },
-      { id: 'alquileres', label: 'Alquileres', icon: '📅' },
+      { id: 'punto-alquiler', label: 'Punto de Alquiler', icon: '🧾' },
+      { id: 'maquinas',       label: 'Máquinas',          icon: '🚜' },
+      { id: 'alquileres',     label: 'Alquileres',        icon: '📅' },
     ],
   },
   { id: 'servicios',  label: 'Servicios Técnicos',  icon: '🔧', roles: ['ADMIN'] },
@@ -42,15 +44,16 @@ const allSections: Section[] = [
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
-  clientes: 'Clientes', maquinas: 'Máquinas', alquileres: 'Alquileres', servicios: 'Servicios Técnicos',
+  clientes: 'Clientes', 'punto-alquiler': 'Punto de Alquiler', maquinas: 'Máquinas', alquileres: 'Alquileres', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock', 'clientes', 'maquinas', 'alquileres']
+const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock', 'clientes', 'punto-alquiler', 'maquinas', 'alquileres']
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
   'punto-venta': '/', categorias: '/categorias', articulos: '/articulos',
-  stock: '/stock', clientes: '/clientes', maquinas: '/maquinas', alquileres: '/alquileres', servicios: '/servicios',
+  stock: '/stock', clientes: '/clientes', 'punto-alquiler': '/punto-alquiler',
+  maquinas: '/maquinas', alquileres: '/alquileres', servicios: '/servicios',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
@@ -89,6 +92,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
     if (activePage === 'clientes')     return <Clientes     user={user} />
+    if (activePage === 'punto-alquiler') return <PuntoAlquiler user={user} />
     if (activePage === 'maquinas')     return <Maquinas     user={user} />
     if (activePage === 'alquileres')   return <Alquileres   user={user} />
     return (
