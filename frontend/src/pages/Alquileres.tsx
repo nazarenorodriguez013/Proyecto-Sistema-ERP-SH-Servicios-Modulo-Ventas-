@@ -102,7 +102,7 @@ export default function Alquileres({ user }: { user: User }) {
               <span style={{ ...s.td, width: '160px' }}>{a.cliente?.nombre ?? '—'}</span>
               <span style={{ ...s.td, width: '100px' }}>{fmtFecha(a.fechaInicio)}</span>
               <span style={{ ...s.td, width: '100px' }}>{fmtFecha(a.fechaFin)}</span>
-              <span style={{ ...s.td, width: '110px', justifyContent: 'flex-end', color: '#eab308', fontWeight: 700 }}>
+              <span style={{ ...s.td, width: '110px', justifyContent: 'flex-end', color: '#F5C400', fontWeight: 700 }}>
                 ${fmt(a.total)}
               </span>
               <span style={{ ...s.td, width: '100px', justifyContent: 'center' }}>
@@ -133,29 +133,29 @@ export default function Alquileres({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   container:   { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
-  loading:     { color: '#94a3b8', padding: '40px', textAlign: 'center' },
+  loading:     { color: '#9A9A9A', padding: '40px', textAlign: 'center' },
   header:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  title:       { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:    { color: '#cbd5e1', fontSize: '13px', margin: '3px 0 0' },
-  errorBanner: { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
+  title:       { color: '#FFFFFF', fontSize: '20px', fontWeight: '700', margin: 0 },
+  subtitle:    { color: '#CFCFCF', fontSize: '13px', margin: '3px 0 0' },
+  errorBanner: { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
 
   tabs:        { display: 'flex', gap: '6px' },
-  tab:         { background: 'transparent', border: '1px solid #334155', borderRadius: '8px', padding: '7px 14px', color: '#94a3b8', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
-  tabActive:   { background: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.3)', color: '#eab308', fontWeight: '600' },
+  tab:         { background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '7px 14px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
+  tabActive:   { background: 'rgba(245,196,0,0.1)', borderColor: 'rgba(245,196,0,0.3)', color: '#F5C400', fontWeight: '600' },
 
-  tableWrap:   { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden' },
-  thead:       { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#0f172a', borderBottom: '1px solid #334155' },
-  th:          { color: '#cbd5e1', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
-  row:         { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #1e293b' },
-  td:          { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#cbd5e1' },
-  empty:       { padding: '40px', textAlign: 'center', color: '#cbd5e1', fontSize: '14px' },
-  name:        { color: '#f1f5f9', fontWeight: '600' },
+  tableWrap:   { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', overflow: 'hidden' },
+  thead:       { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#111111', borderBottom: '1px solid #2B2B2B' },
+  th:          { color: '#CFCFCF', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
+  row:         { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #1A1A1A' },
+  td:          { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#CFCFCF' },
+  empty:       { padding: '40px', textAlign: 'center', color: '#CFCFCF', fontSize: '14px' },
+  name:        { color: '#FFFFFF', fontWeight: '600' },
 
   badge:       { padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
-  badgeActivo:     { background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
-  badgeFinalizado: { background: 'rgba(148,163,184,0.1)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.2)' },
-  badgeCancelado:  { background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' },
+  badgeActivo:     { background: 'rgba(46,158,91,0.1)', color: '#2E9E5B', border: '1px solid rgba(46,158,91,0.2)' },
+  badgeFinalizado: { background: 'rgba(154,154,154,0.1)', color: '#9A9A9A', border: '1px solid rgba(154,154,154,0.2)' },
+  badgeCancelado:  { background: 'rgba(198,64,47,0.1)', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)' },
 
-  btnFinalizar: { background: '#334155', border: 'none', borderRadius: '6px', padding: '5px 10px', color: '#cbd5e1', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
-  btnCancelar:  { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: '6px', padding: '5px 10px', color: '#f87171', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
+  btnFinalizar: { background: '#2B2B2B', border: 'none', borderRadius: '6px', padding: '5px 10px', color: '#CFCFCF', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
+  btnCancelar:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '6px', padding: '5px 10px', color: '#C6402F', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
 }
