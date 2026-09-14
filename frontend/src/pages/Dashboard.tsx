@@ -118,11 +118,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
         <div style={st.sidebarTop}>
 
           <div style={st.logoArea}>
-            <img src="/logosh.png" alt="SH Servicios" style={st.logoImg} />
-            <div>
-              <p style={st.logoName}>SH Servicios</p>
-              <p style={st.logoTag}>ERP</p>
-            </div>
             <button className="db-close-btn" onClick={() => setSidebarOpen(false)}><i className="bi bi-x-lg" /></button>
           </div>
 
@@ -244,10 +239,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 const st: Record<string, React.CSSProperties> = {
   sidebarTop:   { display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
-  logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #1D1D1D' },
-  logoImg:      { width: '38px', height: '38px', objectFit: 'contain', flexShrink: 0, borderRadius: '6px' },
-  logoName:     { color: '#FFFFFF', fontSize: '14px', fontWeight: '700', margin: 0 },
-  logoTag:      { color: '#F5C400', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
+  logoArea:     { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '4px 8px 20px', borderBottom: '1px solid #1D1D1D' },
 
   userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#1B1B1B', borderRadius: '10px', border: '1px solid #1D1D1D' },
   avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#F5C400', color: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
