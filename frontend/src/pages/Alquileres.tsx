@@ -62,7 +62,7 @@ export default function Alquileres({ user }: { user: User }) {
         </div>
       </div>
 
-      {error && <div style={s.errorBanner}>⚠ {error}</div>}
+      {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
 
       {/* Filtros */}
       <div style={s.tabs}>
@@ -102,7 +102,7 @@ export default function Alquileres({ user }: { user: User }) {
               <span style={{ ...s.td, width: '160px' }}>{a.cliente?.nombre ?? '—'}</span>
               <span style={{ ...s.td, width: '100px' }}>{fmtFecha(a.fechaInicio)}</span>
               <span style={{ ...s.td, width: '100px' }}>{fmtFecha(a.fechaFin)}</span>
-              <span style={{ ...s.td, width: '110px', justifyContent: 'flex-end', color: '#F5C400', fontWeight: 700 }}>
+              <span style={{ ...s.td, width: '110px', justifyContent: 'flex-end', color: '#111111', fontWeight: 700 }}>
                 ${fmt(a.total)}
               </span>
               <span style={{ ...s.td, width: '100px', justifyContent: 'center' }}>
@@ -133,29 +133,29 @@ export default function Alquileres({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   container:   { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
-  loading:     { color: '#9A9A9A', padding: '40px', textAlign: 'center' },
+  loading:     { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   header:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  title:       { color: '#FFFFFF', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:    { color: '#CFCFCF', fontSize: '13px', margin: '3px 0 0' },
+  title:       { color: '#111111', fontSize: '20px', fontWeight: '700', margin: 0 },
+  subtitle:    { color: '#6B6B6B', fontSize: '13px', margin: '3px 0 0' },
   errorBanner: { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
 
   tabs:        { display: 'flex', gap: '6px' },
-  tab:         { background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '7px 14px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
-  tabActive:   { background: 'rgba(245,196,0,0.1)', borderColor: 'rgba(245,196,0,0.3)', color: '#F5C400', fontWeight: '600' },
+  tab:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '7px 14px', color: '#6B6B6B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
+  tabActive:   { background: '#111111', borderColor: '#111111', color: '#F5C400', fontWeight: '600' },
 
-  tableWrap:   { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', overflow: 'hidden' },
-  thead:       { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#111111', borderBottom: '1px solid #2B2B2B' },
-  th:          { color: '#CFCFCF', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
-  row:         { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #1A1A1A' },
-  td:          { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#CFCFCF' },
-  empty:       { padding: '40px', textAlign: 'center', color: '#CFCFCF', fontSize: '14px' },
-  name:        { color: '#FFFFFF', fontWeight: '600' },
+  tableWrap:   { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', overflow: 'hidden' },
+  thead:       { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#FAFBFC', borderBottom: '2px solid #E7E9ED' },
+  th:          { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
+  row:         { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #EFF1F4' },
+  td:          { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#333333' },
+  empty:       { padding: '40px', textAlign: 'center', color: '#6B6B6B', fontSize: '14px' },
+  name:        { color: '#111111', fontWeight: '600' },
 
   badge:       { padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
-  badgeActivo:     { background: 'rgba(46,158,91,0.1)', color: '#2E9E5B', border: '1px solid rgba(46,158,91,0.2)' },
-  badgeFinalizado: { background: 'rgba(154,154,154,0.1)', color: '#9A9A9A', border: '1px solid rgba(154,154,154,0.2)' },
-  badgeCancelado:  { background: 'rgba(198,64,47,0.1)', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)' },
+  badgeActivo:     { background: '#E4F5EA', color: '#1E7A45', border: '1px solid #CDEBD9' },
+  badgeFinalizado: { background: '#ECEEF1', color: '#6B6B6B', border: '1px solid #E2E4E8' },
+  badgeCancelado:  { background: '#FBE5E2', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)' },
 
-  btnFinalizar: { background: '#2B2B2B', border: 'none', borderRadius: '6px', padding: '5px 10px', color: '#CFCFCF', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
-  btnCancelar:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '6px', padding: '5px 10px', color: '#C6402F', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
+  btnFinalizar: { background: '#111111', border: 'none', borderRadius: '6px', padding: '5px 10px', color: '#F5C400', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
+  btnCancelar:  { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '6px', padding: '5px 10px', color: '#C6402F', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
 }

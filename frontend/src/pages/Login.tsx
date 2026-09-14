@@ -43,12 +43,12 @@ export default function Login({ onLogin }: Props) {
         </div>
         <div style={s.features}>
           {[
-            { icon: '📦', text: 'Control total de inventario' },
-            { icon: '📊', text: 'Stock en tiempo real' },
-            { icon: '🔒', text: 'Acceso por roles' },
+            { icon: 'bi-box-seam', text: 'Control total de inventario' },
+            { icon: 'bi-bar-chart', text: 'Stock en tiempo real' },
+            { icon: 'bi-shield-lock', text: 'Acceso por roles' },
           ].map(f => (
             <div key={f.text} style={s.featureItem}>
-              <span style={s.featureIcon}>{f.icon}</span>
+              <span style={s.featureIcon}><i className={`bi ${f.icon}`} /></span>
               <span style={s.featureText}>{f.text}</span>
             </div>
           ))}
@@ -99,7 +99,7 @@ export default function Login({ onLogin }: Props) {
 
             {error && (
               <div style={s.errorBox}>
-                <span>⚠</span> {error}
+                <i className="bi bi-exclamation-triangle-fill" /> {error}
               </div>
             )}
 

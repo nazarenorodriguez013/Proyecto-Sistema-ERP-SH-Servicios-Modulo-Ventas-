@@ -61,15 +61,15 @@ export default function Stock({ user }: { user: User }) {
         <p style={s.subtitle}>{productos.length} productos en inventario</p>
       </div>
 
-      {error && <div style={s.errorBanner}>⚠ {error}</div>}
+      {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
 
       {/* Tarjetas resumen */}
       <div className="stock-cards">
         {[
-          { label: 'Total', value: productos.length, color: '#FFFFFF', bg: '#1A1A1A', border: '#2B2B2B' },
-          { label: 'Normal', value: okCount, color: '#2E9E5B', bg: 'rgba(46,158,91,0.05)', border: 'rgba(46,158,91,0.2)' },
-          { label: 'Stock bajo', value: lowCount, color: '#E08A00', bg: 'rgba(224,138,0,0.05)', border: 'rgba(224,138,0,0.2)' },
-          { label: 'Sin stock', value: outCount, color: '#C6402F', bg: 'rgba(198,64,47,0.05)', border: 'rgba(198,64,47,0.2)' },
+          { label: 'Total', value: productos.length, color: '#111111', bg: '#FFFFFF', border: '#E2E4E8' },
+          { label: 'Normal', value: okCount, color: '#1E7A45', bg: '#E4F5EA', border: '#CDEBD9' },
+          { label: 'Stock bajo', value: lowCount, color: '#97640B', bg: '#FDF0DA', border: 'rgba(224,138,0,0.35)' },
+          { label: 'Sin stock', value: outCount, color: '#C6402F', bg: '#FBE5E2', border: 'rgba(198,64,47,0.3)' },
         ].map(c => (
           <div key={c.label} style={{ ...s.card, background: c.bg, borderColor: c.border }}>
             <p style={{ ...s.cardVal, color: c.color }}>{c.value}</p>
@@ -81,14 +81,14 @@ export default function Stock({ user }: { user: User }) {
       {/* Filtros */}
       <div style={s.tabs}>
         {([
-          { key: 'all', label: 'Todos' },
-          { key: 'low', label: `⚠️ Stock bajo (${lowCount})` },
-          { key: 'out', label: `🔴 Sin stock (${outCount})` },
+          { key: 'all', label: 'Todos', icon: '' },
+          { key: 'low', label: `Stock bajo (${lowCount})`, icon: 'bi-exclamation-triangle-fill' },
+          { key: 'out', label: `Sin stock (${outCount})`, icon: 'bi-x-circle-fill' },
         ] as const).map(f => (
           <button key={f.key}
             style={{ ...s.tab, ...(filter === f.key ? s.tabActive : {}) }}
             onClick={() => setFilter(f.key)}>
-            {f.label}
+            {f.icon && <i className={`bi ${f.icon}`} />} {f.label}
           </button>
         ))}
       </div>
@@ -108,7 +108,7 @@ export default function Stock({ user }: { user: User }) {
           ? <div style={s.empty}>No hay productos en esta categoría</div>
           : filtered.map(p => {
             const status = p.stock === 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : 'ok'
-            const stockColor = status === 'out' ? '#C6402F' : status === 'low' ? '#E08A00' : '#2E9E5B'
+            const stockColor = status === 'out' ? '#C6402F' : status === 'low' ? '#97640B' : '#1E7A45'
 
             return (
               <div key={p.id} style={s.row}>
@@ -125,14 +125,14 @@ export default function Stock({ user }: { user: User }) {
                         value={adjusting.value}
                         onChange={e => setAdjusting({ id: p.id, value: e.target.value })}
                         autoFocus />
-                      <button style={s.btnSave} onClick={() => handleAdjust(p.id, Number(adjusting.value))}>✓</button>
-                      <button style={s.btnCancel} onClick={() => setAdjusting(null)}>✕</button>
+                      <button style={s.btnSave} onClick={() => handleAdjust(p.id, Number(adjusting.value))}><i className="bi bi-check-lg" /></button>
+                      <button style={s.btnCancel} onClick={() => setAdjusting(null)}><i className="bi bi-x-lg" /></button>
                     </div>
                   ) : (
                     <span style={{ fontWeight: '800', fontSize: '18px', color: stockColor }}>{p.stock}</span>
                   )}
                 </span>
-                <span className="stock-min-col" style={{ ...s.td, width: '100px', justifyContent: 'center', color: '#CFCFCF', fontWeight: '600' }}>
+                <span className="stock-min-col" style={{ ...s.td, width: '100px', justifyContent: 'center', color: '#333333', fontWeight: '600' }}>
                   {p.stockMinimo}
                 </span>
                 <span style={{ ...s.td, width: '100px', justifyContent: 'center' }}>
@@ -161,31 +161,31 @@ export default function Stock({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   container:  { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
-  loading:    { color: '#9A9A9A', padding: '40px', textAlign: 'center' },
+  loading:    { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   header:     { display: 'flex', flexDirection: 'column', gap: '2px' },
-  title:      { color: '#FFFFFF', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:   { color: '#CFCFCF', fontSize: '13px' },
+  title:      { color: '#111111', fontSize: '20px', fontWeight: '700', margin: 0 },
+  subtitle:   { color: '#6B6B6B', fontSize: '13px' },
   errorBanner:{ background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
   cards:      { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' },
-  card:       { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', padding: '18px 20px' },
+  card:       { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '18px 20px' },
   cardVal:    { fontSize: '30px', fontWeight: '800', margin: 0 },
-  cardLbl:    { color: '#CFCFCF', fontSize: '12px', margin: '4px 0 0', fontWeight: '500' },
+  cardLbl:    { color: '#6B6B6B', fontSize: '12px', margin: '4px 0 0', fontWeight: '500' },
   tabs:       { display: 'flex', gap: '6px' },
-  tab:        { background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '7px 14px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
-  tabActive:  { background: 'rgba(245,196,0,0.1)', borderColor: 'rgba(245,196,0,0.3)', color: '#F5C400', fontWeight: '600' },
-  tableWrap:  { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', overflow: 'hidden' },
-  thead:      { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#111111', borderBottom: '1px solid #2B2B2B' },
-  th:         { color: '#CFCFCF', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
-  row:        { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #1A1A1A', background: '#1A1A1A' },
-  td:         { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#CFCFCF' },
-  empty:      { padding: '40px', textAlign: 'center', color: '#CFCFCF', fontSize: '14px' },
-  name:       { color: '#FFFFFF', fontWeight: '600' },
-  catBadge:   { background: '#111111', color: '#9A9A9A', border: '1px solid #2B2B2B', padding: '2px 9px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' as const },
-  badgeOut:   { background: 'rgba(198,64,47,0.1)', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
-  badgeLow:   { background: 'rgba(224,138,0,0.1)', color: '#E08A00', border: '1px solid rgba(224,138,0,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
-  badgeOk:    { background: 'rgba(46,158,91,0.1)', color: '#2E9E5B', border: '1px solid rgba(46,158,91,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
-  adjustInput:{ background: '#111111', border: '1px solid #F5C400', borderRadius: '6px', padding: '5px 8px', color: '#FFFFFF', fontSize: '13px', outline: 'none', width: '64px' },
-  btnSave:    { background: '#2E9E5B', border: 'none', borderRadius: '5px', padding: '5px 8px', color: '#111111', fontWeight: '700', cursor: 'pointer', fontSize: '13px' },
-  btnCancel:  { background: '#2B2B2B', border: 'none', borderRadius: '5px', padding: '5px 8px', color: '#9A9A9A', cursor: 'pointer', fontSize: '13px' },
-  btnEdit:    { background: '#2B2B2B', border: '1px solid #3A3A3A', borderRadius: '6px', padding: '5px 12px', color: '#CFCFCF', fontSize: '12px', cursor: 'pointer', fontWeight: '500' },
+  tab:        { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '7px 14px', color: '#6B6B6B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
+  tabActive:  { background: '#111111', borderColor: '#111111', color: '#F5C400', fontWeight: '600' },
+  tableWrap:  { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', overflow: 'hidden' },
+  thead:      { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#FAFBFC', borderBottom: '2px solid #E7E9ED' },
+  th:         { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
+  row:        { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #EFF1F4', background: '#FFFFFF' },
+  td:         { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#333333' },
+  empty:      { padding: '40px', textAlign: 'center', color: '#6B6B6B', fontSize: '14px' },
+  name:       { color: '#111111', fontWeight: '600' },
+  catBadge:   { background: '#F5F5F5', color: '#6B6B6B', border: '1px solid #E2E4E8', padding: '2px 9px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' as const },
+  badgeOut:   { background: '#FBE5E2', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
+  badgeLow:   { background: '#FDF0DA', color: '#97640B', border: '1px solid rgba(224,138,0,0.3)', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
+  badgeOk:    { background: '#E4F5EA', color: '#1E7A45', border: '1px solid #CDEBD9', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const, display: 'inline-block' },
+  adjustInput:{ background: '#FFFFFF', border: '1px solid #F5C400', borderRadius: '6px', padding: '5px 8px', color: '#111111', fontSize: '13px', outline: 'none', width: '64px' },
+  btnSave:    { background: '#2E9E5B', border: 'none', borderRadius: '5px', padding: '5px 8px', color: '#fff', fontWeight: '700', cursor: 'pointer', fontSize: '13px' },
+  btnCancel:  { background: '#ECEEF1', border: 'none', borderRadius: '5px', padding: '5px 8px', color: '#6B6B6B', cursor: 'pointer', fontSize: '13px' },
+  btnEdit:    { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '6px', padding: '5px 12px', color: '#111111', fontSize: '12px', cursor: 'pointer', fontWeight: '500' },
 }

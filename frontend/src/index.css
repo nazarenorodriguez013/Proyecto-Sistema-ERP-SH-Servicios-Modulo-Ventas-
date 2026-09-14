@@ -31,9 +31,9 @@ body {
 .page-container  { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
 .page-header     { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .page-grid-2     { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.page-modal      { background: #1A1A1A; border: 1px solid #2B2B2B; border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; }
+.page-modal      { background: #FFFFFF; border: 1px solid #E2E4E8; border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; }
 .stock-cards     { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.stock-table-wrap{ background: #1A1A1A; border: 1px solid #2B2B2B; border-radius: 12px; overflow-x: auto; }
+.stock-table-wrap{ background: #FFFFFF; border: 1px solid #E2E4E8; border-radius: 12px; overflow-x: auto; }
 
 @media (max-width: 767px) {
   .page-container  { padding: 16px; gap: 14px; }
@@ -54,9 +54,9 @@ body {
 }
 
 /* ── Dashboard responsive ───────────────────────── */
-.db-layout    { display: flex; width: 100%; min-height: 100vh; background: #111111; }
-.db-sidebar   { width: 256px; height: 100vh; position: sticky; top: 0; background: #1A1A1A; border-right: 1px solid #2B2B2B; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 12px; flex-shrink: 0; overflow: hidden; }
-.db-main      { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; background: #111111; }
+.db-layout    { display: flex; width: 100%; min-height: 100vh; background: #F1F2F4; }
+.db-sidebar   { width: 256px; height: 100vh; position: sticky; top: 0; background: #111111; border-right: 1px solid #1D1D1D; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 12px; flex-shrink: 0; overflow: hidden; }
+.db-main      { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; background: #F1F2F4; }
 .db-backdrop  { display: none; }
 .db-hamburger { display: none; }
 .db-close-btn { display: none; }
