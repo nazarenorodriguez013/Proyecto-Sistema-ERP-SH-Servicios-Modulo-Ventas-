@@ -6,6 +6,7 @@ import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
 import Clientes from './Clientes'
+import PuntoAlquiler from './PuntoAlquiler'
 import Maquinas from './Maquinas'
 import Alquileres from './Alquileres'
 
@@ -32,8 +33,9 @@ const allSections: Section[] = [
   {
     id: 'alquiler', label: 'Alquiler', icon: '🏠', roles: ['ADMIN'],
     children: [
-      { id: 'maquinas',   label: 'Máquinas',   icon: '🚜' },
-      { id: 'alquileres', label: 'Alquileres', icon: '📅' },
+      { id: 'punto-alquiler', label: 'Punto de Alquiler', icon: '🧾' },
+      { id: 'maquinas',       label: 'Máquinas',          icon: '🚜' },
+      { id: 'alquileres',     label: 'Alquileres',        icon: '📅' },
     ],
   },
   { id: 'servicios',  label: 'Servicios Técnicos',  icon: '🔧', roles: ['ADMIN'] },
@@ -42,15 +44,16 @@ const allSections: Section[] = [
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
-  clientes: 'Clientes', maquinas: 'Máquinas', alquileres: 'Alquileres', servicios: 'Servicios Técnicos',
+  clientes: 'Clientes', 'punto-alquiler': 'Punto de Alquiler', maquinas: 'Máquinas', alquileres: 'Alquileres', servicios: 'Servicios Técnicos',
 }
 
-const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock', 'clientes', 'maquinas', 'alquileres']
+const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock', 'clientes', 'punto-alquiler', 'maquinas', 'alquileres']
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
   'punto-venta': '/', categorias: '/categorias', articulos: '/articulos',
-  stock: '/stock', clientes: '/clientes', maquinas: '/maquinas', alquileres: '/alquileres', servicios: '/servicios',
+  stock: '/stock', clientes: '/clientes', 'punto-alquiler': '/punto-alquiler',
+  maquinas: '/maquinas', alquileres: '/alquileres', servicios: '/servicios',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
@@ -89,6 +92,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
     if (activePage === 'clientes')     return <Clientes     user={user} />
+    if (activePage === 'punto-alquiler') return <PuntoAlquiler user={user} />
     if (activePage === 'maquinas')     return <Maquinas     user={user} />
     if (activePage === 'alquileres')   return <Alquileres   user={user} />
     return (
@@ -240,56 +244,56 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 const st: Record<string, React.CSSProperties> = {
   sidebarTop:   { display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
-  logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #334155' },
+  logoArea:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 20px', borderBottom: '1px solid #2B2B2B' },
   logoImg:      { width: '38px', height: '38px', objectFit: 'contain', flexShrink: 0, borderRadius: '6px' },
-  logoName:     { color: '#f1f5f9', fontSize: '14px', fontWeight: '700', margin: 0 },
-  logoTag:      { color: '#eab308', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
+  logoName:     { color: '#FFFFFF', fontSize: '14px', fontWeight: '700', margin: 0 },
+  logoTag:      { color: '#F5C400', fontSize: '10px', fontWeight: '700', letterSpacing: '2px', margin: 0 },
 
-  userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#0f172a', borderRadius: '10px', border: '1px solid #334155' },
-  avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
-  userName:     { color: '#f1f5f9', fontSize: '13px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  userRole:     { color: '#94a3b8', fontSize: '11px', margin: 0, marginTop: '1px' },
+  userCard:     { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#111111', borderRadius: '10px', border: '1px solid #2B2B2B' },
+  avatar:       { width: '34px', height: '34px', borderRadius: '50%', background: '#F5C400', color: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', flexShrink: 0 },
+  userName:     { color: '#FFFFFF', fontSize: '13px', fontWeight: '600', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  userRole:     { color: '#9A9A9A', fontSize: '11px', margin: 0, marginTop: '1px' },
 
   navSection:   { display: 'flex', flexDirection: 'column', gap: '6px' },
-  navLabel:     { color: '#cbd5e1', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', margin: '0 0 2px 8px' },
+  navLabel:     { color: '#CFCFCF', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', margin: '0 0 2px 8px' },
   nav:          { display: 'flex', flexDirection: 'column', gap: '1px' },
 
-  navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
-  navItemActive:{ background: 'rgba(234,179,8,0.1)', color: '#eab308', fontWeight: '600' },
+  navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#9A9A9A', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  navItemActive:{ background: 'rgba(245,196,0,0.1)', color: '#F5C400', fontWeight: '600' },
   navIcon:      { fontSize: '16px', width: '20px', textAlign: 'center' },
-  arrow:        { fontSize: '10px', color: '#cbd5e1', display: 'inline-block', transition: 'transform 0.2s' },
+  arrow:        { fontSize: '10px', color: '#CFCFCF', display: 'inline-block', transition: 'transform 0.2s' },
 
-  subMenuWrap:  { marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid #334155' },
-  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#94a3b8', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
-  subItemActive:{ background: 'rgba(234,179,8,0.08)', color: '#eab308', fontWeight: '600' },
+  subMenuWrap:  { marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid #2B2B2B' },
+  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  subItemActive:{ background: 'rgba(245,196,0,0.08)', color: '#F5C400', fontWeight: '600' },
   subIcon:      { fontSize: '14px', width: '18px', textAlign: 'center' },
 
-  pageMenuWrap: { marginLeft: '8px', paddingLeft: '8px', borderLeft: '1px solid #1e293b' },
-  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#cbd5e1', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
-  pageItemActive:{ background: 'rgba(234,179,8,0.06)', color: '#eab308', fontWeight: '600' },
+  pageMenuWrap: { marginLeft: '8px', paddingLeft: '8px', borderLeft: '1px solid #1A1A1A' },
+  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#CFCFCF', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
+  pageItemActive:{ background: 'rgba(245,196,0,0.06)', color: '#F5C400', fontWeight: '600' },
   pageIcon:     { fontSize: '12px' },
-  pageDot:      { position: 'absolute', right: '8px', width: '5px', height: '5px', borderRadius: '50%', background: '#eab308' },
+  pageDot:      { position: 'absolute', right: '8px', width: '5px', height: '5px', borderRadius: '50%', background: '#F5C400' },
 
-  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', width: '100%' },
+  logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #2B2B2B', borderRadius: '8px', color: '#9A9A9A', fontSize: '13px', cursor: 'pointer', width: '100%' },
 
-  hLine:        { display: 'block', width: '22px', height: '2px', background: '#94a3b8', borderRadius: '2px' },
+  hLine:        { display: 'block', width: '22px', height: '2px', background: '#9A9A9A', borderRadius: '2px' },
 
-  topBar:       { padding: '16px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', flexShrink: 0 },
-  pageTitle:    { color: '#f1f5f9', fontSize: '18px', fontWeight: '700', margin: 0 },
-  pagePath:     { color: '#cbd5e1', fontSize: '12px', margin: '3px 0 0' },
+  topBar:       { padding: '16px 20px', borderBottom: '1px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111111', flexShrink: 0 },
+  pageTitle:    { color: '#FFFFFF', fontSize: '18px', fontWeight: '700', margin: 0 },
+  pagePath:     { color: '#CFCFCF', fontSize: '12px', margin: '3px 0 0' },
   topBarRight:  { display: 'flex', alignItems: 'center', gap: '12px' },
-  topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '6px 12px' },
-  topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#eab308', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
-  topBarName:   { color: '#94a3b8', fontSize: '13px', fontWeight: '500' },
+  topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '6px 12px' },
+  topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#F5C400', color: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
+  topBarName:   { color: '#9A9A9A', fontSize: '13px', fontWeight: '500' },
 
   contentFull:  { flex: 1, overflowY: 'auto' },
   contentArea:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' },
-  devCard:      { background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '400px' },
+  devCard:      { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '16px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '400px' },
   devIcon:      { fontSize: '48px' },
-  devTitle:     { color: '#f1f5f9', fontSize: '22px', fontWeight: '700', margin: 0 },
-  devText:      { color: '#94a3b8', fontSize: '15px', lineHeight: '1.6', margin: 0 },
-  devBadge:     { background: 'rgba(234,179,8,0.1)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
+  devTitle:     { color: '#FFFFFF', fontSize: '22px', fontWeight: '700', margin: 0 },
+  devText:      { color: '#9A9A9A', fontSize: '15px', lineHeight: '1.6', margin: 0 },
+  devBadge:     { background: 'rgba(245,196,0,0.1)', color: '#F5C400', border: '1px solid rgba(245,196,0,0.2)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
 
-  footer:       { padding: '10px 20px', borderTop: '1px solid #1e293b', textAlign: 'center', flexShrink: 0 },
-  footerText:   { color: '#334155', fontSize: '11px' },
+  footer:       { padding: '10px 20px', borderTop: '1px solid #1A1A1A', textAlign: 'center', flexShrink: 0 },
+  footerText:   { color: '#2B2B2B', fontSize: '11px' },
 }

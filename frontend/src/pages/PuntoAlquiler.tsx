@@ -2,44 +2,50 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
 
-interface Categoria { id: number; nombre: string }
-interface Producto {
+interface Maquina {
   id: number; codigo: string | null; nombre: string
-  precio: number; stock: number; categoria: Categoria
+  marca: string | null; tipo: string | null
+  tarifaDiaria: number; stock: number; activo: boolean
 }
 interface Cliente { id: number; nombre: string }
 interface ItemCarrito {
-  producto: Producto
+  maquina: Maquina
   cantidad: number
-  precioUnitario: number
 }
 interface ComprobanteData {
-  id: number
+  ids: number[]
   fecha: Date
   items: ItemCarrito[]
+  dias: number
   total: number
-  medioPago: string
-  montoRecibido: number | null
-  vendedor: string
   cliente: string | null
+  fechaInicio: string
+  fechaFin: string
+  registradoPor: string
 }
 
-const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Cuenta Corriente']
-const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente'
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+// Son fechas de calendario (sin hora): se formatean en UTC para que no varíen según la zona horaria del navegador
+const fmtFechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
 
-export default function Ventas({ user }: { user: User }) {
-  const [productos, setProductos] = useState<Producto[]>([])
+const calcDias = (inicio: string, fin: string) => {
+  if (!inicio || !fin) return 0
+  const d = Math.ceil((new Date(fin).getTime() - new Date(inicio).getTime()) / (1000 * 60 * 60 * 24))
+  return d > 0 ? d : 0
+}
+
+export default function PuntoAlquiler({ user }: { user: User }) {
+  const [maquinas, setMaquinas] = useState<Maquina[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteId, setClienteId] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [cantidad, setCantidad] = useState('1')
   const [busqueda, setBusqueda] = useState('')
-  const [sugerencias, setSugerencias] = useState<Producto[]>([])
+  const [sugerencias, setSugerencias] = useState<Maquina[]>([])
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0)
-  const [medioPago, setMedioPago] = useState('Efectivo')
-  const [montoRecibido, setMontoRecibido] = useState('')
   const [error, setError] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [comprobante, setComprobante] = useState<ComprobanteData | null>(null)
@@ -50,8 +56,10 @@ export default function Ventas({ user }: { user: User }) {
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
+  const fetchMaquinas = () => fetch(`${API}/machines`, { headers }).then(r => r.json()).then(setMaquinas)
+
   useEffect(() => {
-    fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
+    fetchMaquinas()
     fetch(`${API}/clients`, { headers }).then(r => r.json()).then(setClientes)
   }, [])
 
@@ -59,26 +67,28 @@ export default function Ventas({ user }: { user: User }) {
     const q = busqueda.trim().toLowerCase()
     if (!q) { setSugerencias([]); return }
     setSugerencias(
-      productos.filter(p => p.stock > 0 && (
-        p.nombre.toLowerCase().includes(q) || (p.codigo?.toLowerCase().includes(q))
+      maquinas.filter(m => m.activo && m.stock > 0 && (
+        m.nombre.toLowerCase().includes(q) || (m.codigo?.toLowerCase().includes(q))
       )).slice(0, 8)
     )
     setSugerenciaIdx(0)
-  }, [busqueda, productos])
+  }, [busqueda, maquinas])
 
-  const agregarProducto = useCallback((producto: Producto) => {
+  const dias = calcDias(fechaInicio, fechaFin)
+
+  const agregarMaquina = useCallback((maquina: Maquina) => {
     const cant = Math.max(1, parseInt(cantidad) || 1)
-    if (cant > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return }
+    if (cant > maquina.stock) { setError(`Unidades insuficientes (disponible: ${maquina.stock})`); return }
     setCarrito(prev => {
-      const idx = prev.findIndex(i => i.producto.id === producto.id)
+      const idx = prev.findIndex(i => i.maquina.id === maquina.id)
       if (idx >= 0) {
         const nueva = [...prev]
         const nuevaCant = nueva[idx].cantidad + cant
-        if (nuevaCant > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return prev }
+        if (nuevaCant > maquina.stock) { setError(`Unidades insuficientes (disponible: ${maquina.stock})`); return prev }
         nueva[idx] = { ...nueva[idx], cantidad: nuevaCant }
         return nueva
       }
-      return [...prev, { producto, cantidad: cant, precioUnitario: producto.precio }]
+      return [...prev, { maquina, cantidad: cant }]
     })
     setError(''); setBusqueda(''); setSugerencias([])
     setCantidad('1'); cantidadRef.current?.focus(); cantidadRef.current?.select()
@@ -89,44 +99,45 @@ export default function Ventas({ user }: { user: User }) {
   const cambiarCantidadItem = (idx: number, val: string) => {
     const n = parseInt(val)
     if (isNaN(n) || n < 1) return
-    if (n > carrito[idx].producto.stock) { setError(`Stock insuficiente (disponible: ${carrito[idx].producto.stock})`); return }
+    if (n > carrito[idx].maquina.stock) { setError(`Unidades insuficientes (disponible: ${carrito[idx].maquina.stock})`); return }
     setError('')
     setCarrito(prev => { const c = [...prev]; c[idx] = { ...c[idx], cantidad: n }; return c })
   }
 
-  const total = carrito.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0)
-  const vuelto = medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) - total : null
+  const total = dias > 0 ? carrito.reduce((s, i) => s + i.cantidad * dias * i.maquina.tarifaDiaria, 0) : 0
 
-  const confirmarVenta = async () => {
+  const confirmarAlquiler = async () => {
     if (!carrito.length) { setError('El comprobante está vacío'); return }
-    if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId) { setError('Seleccioná un cliente para vender a cuenta corriente'); return }
+    if (!fechaInicio || !fechaFin) { setError('Seleccioná la fecha de inicio y de fin del alquiler'); return }
+    if (dias < 1) { setError('La fecha de fin debe ser posterior a la de inicio'); return }
     setProcesando(true); setError('')
     try {
-      const res = await fetch(`${API}/sales`, {
-        method: 'POST', headers,
-        body: JSON.stringify({
-          items: carrito.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, precioUnitario: i.precioUnitario })),
-          medioPago,
-          montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
-          clienteId: clienteId ? Number(clienteId) : null,
-        })
-      })
-      if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
-      const venta = await res.json()
+      const ids: number[] = []
+      // Cada unidad de cada máquina es un alquiler propio (así se descuenta stock de a una unidad)
+      for (const item of carrito) {
+        for (let i = 0; i < item.cantidad; i++) {
+          const res = await fetch(`${API}/rentals`, {
+            method: 'POST', headers,
+            body: JSON.stringify({
+              maquinaId: item.maquina.id,
+              clienteId: clienteId ? Number(clienteId) : null,
+              fechaInicio, fechaFin,
+            }),
+          })
+          if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
+          const alquiler = await res.json()
+          ids.push(alquiler.id)
+        }
+      }
       setComprobante({
-        id: venta.id,
-        fecha: new Date(),
-        items: [...carrito],
-        total,
-        medioPago,
-        montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
-        vendedor: user.nombre,
+        ids, fecha: new Date(), items: [...carrito], dias, total,
         cliente: clientes.find(c => String(c.id) === clienteId)?.nombre ?? null,
+        fechaInicio, fechaFin, registradoPor: user.nombre,
       })
-      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido(''); setClienteId('')
-      fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
+      setCarrito([]); setBusqueda(''); setClienteId(''); setFechaInicio(''); setFechaFin('')
+      fetchMaquinas()
     } catch (e: any) { setError(e.message) }
-    finally { setProcesando(false) }
+    finally { setProcesando(false); setCantidad('1') }
   }
 
   const cerrarComprobante = () => {
@@ -140,7 +151,7 @@ export default function Ventas({ user }: { user: User }) {
   const onBusquedaKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSugerenciaIdx(i => Math.min(i + 1, sugerencias.length - 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSugerenciaIdx(i => Math.max(i - 1, 0)) }
-    else if (e.key === 'Enter') { e.preventDefault(); if (sugerencias.length > 0) agregarProducto(sugerencias[sugerenciaIdx]) }
+    else if (e.key === 'Enter') { e.preventDefault(); if (sugerencias.length > 0) agregarMaquina(sugerencias[sugerenciaIdx]) }
     else if (e.key === 'Escape') { setSugerencias([]); setBusqueda(''); cantidadRef.current?.focus() }
   }
 
@@ -151,9 +162,9 @@ export default function Ventas({ user }: { user: User }) {
         {/* ── Header ── */}
         <div style={s.header}>
           <div style={s.headerLeft}>
-            <span style={s.headerIcon}>🧾</span>
+            <span style={s.headerIcon}>🏠</span>
             <div>
-              <h2 style={s.title}>Punto de Venta</h2>
+              <h2 style={s.title}>Punto de Alquiler</h2>
               <p style={s.subtitle}>{user.nombre}</p>
             </div>
           </div>
@@ -165,6 +176,23 @@ export default function Ventas({ user }: { user: User }) {
         </div>
 
         <div style={s.divider} />
+
+        {/* ── Período ── */}
+        <div style={s.inputRow}>
+          <div style={s.inputGroup}>
+            <label style={s.label}>FECHA DE INICIO</label>
+            <input style={s.inputFecha} type="date" value={fechaInicio}
+              onChange={e => setFechaInicio(e.target.value)} />
+          </div>
+          <div style={s.inputGroup}>
+            <label style={s.label}>FECHA DE FIN</label>
+            <input style={s.inputFecha} type="date" value={fechaFin}
+              onChange={e => setFechaFin(e.target.value)} />
+          </div>
+          {dias > 0 && (
+            <div style={s.diasBadge}>{dias} día{dias > 1 ? 's' : ''}</div>
+          )}
+        </div>
 
         {/* ── Ingreso ── */}
         <div style={s.inputRow}>
@@ -180,7 +208,7 @@ export default function Ventas({ user }: { user: User }) {
             />
           </div>
           <div style={{ ...s.inputGroup, flex: 1, position: 'relative' }}>
-            <label style={s.label}>PRODUCTO — nombre o código interno</label>
+            <label style={s.label}>MÁQUINA — nombre o código interno</label>
             <input
               ref={busquedaRef} style={s.inputBusqueda}
               type="text" placeholder="Escribí y presioná Enter..."
@@ -191,17 +219,17 @@ export default function Ventas({ user }: { user: User }) {
             />
             {sugerencias.length > 0 && (
               <div style={s.dropdown}>
-                {sugerencias.map((p, i) => (
-                  <div key={p.id}
+                {sugerencias.map((m, i) => (
+                  <div key={m.id}
                     style={{ ...s.dropItem, ...(i === sugerenciaIdx ? s.dropActive : {}) }}
                     onMouseEnter={() => setSugerenciaIdx(i)}
-                    onMouseDown={() => agregarProducto(p)}
+                    onMouseDown={() => agregarMaquina(m)}
                   >
-                    <span style={s.dropCod}>{p.codigo ?? '—'}</span>
-                    <span style={s.dropNom}>{p.nombre}</span>
-                    <span style={s.dropCat}>{p.categoria.nombre}</span>
-                    <span style={s.dropPrecio}>${fmt(p.precio)}</span>
-                    <span style={{ ...s.dropStock, color: p.stock <= 5 ? '#E08A00' : '#2E9E5B' }}>{p.stock} u.</span>
+                    <span style={s.dropCod}>{m.codigo ?? '—'}</span>
+                    <span style={s.dropNom}>{m.nombre}</span>
+                    <span style={s.dropCat}>{m.tipo ?? m.marca ?? ''}</span>
+                    <span style={s.dropPrecio}>${fmt(m.tarifaDiaria)}/día</span>
+                    <span style={{ ...s.dropStock, color: m.stock <= 1 ? '#E08A00' : '#2E9E5B' }}>{m.stock} u.</span>
                   </div>
                 ))}
               </div>
@@ -215,29 +243,29 @@ export default function Ventas({ user }: { user: User }) {
 
         {/* ── Comprobante ── */}
         <div style={s.comprobanteHead}>
-          <span style={{ ...s.th, flex: 1 }}>Producto</span>
+          <span style={{ ...s.th, flex: 1 }}>Máquina</span>
           <span style={{ ...s.th, width: '80px', textAlign: 'center' }}>Cant.</span>
-          <span style={{ ...s.th, width: '110px', textAlign: 'right' }}>P. Unit.</span>
+          <span style={{ ...s.th, width: '110px', textAlign: 'right' }}>Tarifa/día</span>
           <span style={{ ...s.th, width: '120px', textAlign: 'right' }}>Subtotal</span>
           <span style={{ width: '32px' }} />
         </div>
 
         <div style={s.itemsArea}>
           {carrito.length === 0 ? (
-            <div style={s.vacio}>Sin productos — buscá uno arriba y presioná Enter</div>
+            <div style={s.vacio}>Sin máquinas — buscá una arriba y presioná Enter</div>
           ) : carrito.map((item, idx) => (
-            <div key={item.producto.id} style={s.itemRow}>
+            <div key={item.maquina.id} style={s.itemRow}>
               <div style={{ flex: 1 }}>
-                <p style={s.itemNombre}>{item.producto.nombre}</p>
-                <p style={s.itemSub}>{item.producto.codigo ?? ''}{item.producto.codigo ? ' · ' : ''}{item.producto.categoria.nombre}</p>
+                <p style={s.itemNombre}>{item.maquina.nombre}</p>
+                <p style={s.itemSub}>{item.maquina.codigo ?? ''}{item.maquina.codigo ? ' · ' : ''}{item.maquina.tipo ?? item.maquina.marca ?? ''}</p>
               </div>
               <div style={{ width: '80px', display: 'flex', justifyContent: 'center' }}>
-                <input style={s.cantItem} type="number" min="1" max={item.producto.stock}
+                <input style={s.cantItem} type="number" min="1" max={item.maquina.stock}
                   value={item.cantidad} onChange={e => cambiarCantidadItem(idx, e.target.value)} />
               </div>
-              <span style={{ ...s.cell, width: '110px', textAlign: 'right' }}>${fmt(item.precioUnitario)}</span>
+              <span style={{ ...s.cell, width: '110px', textAlign: 'right' }}>${fmt(item.maquina.tarifaDiaria)}</span>
               <span style={{ ...s.cell, width: '120px', textAlign: 'right', color: '#F5C400', fontWeight: 700 }}>
-                ${fmt(item.cantidad * item.precioUnitario)}
+                ${fmt(item.cantidad * dias * item.maquina.tarifaDiaria)}
               </span>
               <button style={s.btnX} onClick={() => quitarItem(idx)}>✕</button>
             </div>
@@ -248,7 +276,7 @@ export default function Ventas({ user }: { user: User }) {
 
         {/* ── Cliente ── */}
         <div style={s.inputGroup}>
-          <label style={s.label}>CLIENTE {medioPago === MEDIO_CUENTA_CORRIENTE ? '(obligatorio)' : '(opcional)'}</label>
+          <label style={s.label}>CLIENTE (opcional)</label>
           <select style={s.selectCliente} value={clienteId} onChange={e => setClienteId(e.target.value)}>
             <option value="">Sin cliente</option>
             {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -257,42 +285,12 @@ export default function Ventas({ user }: { user: User }) {
 
         <div style={s.divider} />
 
-        {/* ── Medios de pago | Monto recibido | Total ── */}
+        {/* ── Total ── */}
         <div style={s.totalPagoRow}>
-          <div style={s.pagoBlock}>
-            <span style={s.label}>MEDIO DE PAGO</span>
-            <div style={s.medios}>
-              {MEDIOS.map(m => (
-                <button key={m}
-                  style={{ ...s.medioBtn, ...(medioPago === m ? s.medioBtnOn : {}) }}
-                  onClick={() => { setMedioPago(m); if (m !== 'Efectivo') setMontoRecibido('') }}
-                >{m}</button>
-              ))}
-            </div>
-          </div>
-
-          {medioPago === 'Efectivo' && (
-            <div style={s.inputGroup}>
-              <label style={s.label}>MONTO RECIBIDO</label>
-              <div style={s.montoWrap}>
-                <span style={s.montoSign}>$</span>
-                <input style={s.montoInput} type="number" min="0" step="0.01" placeholder="0.00"
-                  value={montoRecibido} onChange={e => setMontoRecibido(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && confirmarVenta()} />
-              </div>
-            </div>
-          )}
-
           <div style={s.totalBlock}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
               <span style={s.totalLabel}>TOTAL</span>
               <span style={s.totalValor}>${fmt(total)}</span>
-              {vuelto !== null && (
-                <div style={{ ...s.vueltoBox, ...(vuelto < 0 ? s.vueltoNeg : s.vueltoPos) }}>
-                  <span style={s.vueltoLabel}>{vuelto < 0 ? 'FALTA' : 'VUELTO'}</span>
-                  <span style={s.vueltoValor}>${fmt(Math.abs(vuelto))}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -301,11 +299,11 @@ export default function Ventas({ user }: { user: User }) {
 
         {/* ── Confirmar ── */}
         <button
-          style={{ ...s.btnConfirmar, ...(!carrito.length || procesando ? s.btnOff : {}) }}
-          onClick={confirmarVenta}
-          disabled={!carrito.length || procesando}
+          style={{ ...s.btnConfirmar, ...(!carrito.length || dias < 1 || procesando ? s.btnOff : {}) }}
+          onClick={confirmarAlquiler}
+          disabled={!carrito.length || dias < 1 || procesando}
         >
-          {procesando ? 'Procesando...' : '✓  Confirmar Venta'}
+          {procesando ? 'Procesando...' : '✓  Confirmar Alquiler'}
         </button>
 
       </div>
@@ -323,23 +321,27 @@ export default function Ventas({ user }: { user: User }) {
                 <h1 style={s.ticketEmpresa}>SH Servicios</h1>
                 <p style={s.ticketSubEmpresa}>Insumos y Soluciones Técnicas</p>
                 <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
-                <p style={s.ticketTipo}>COMPROBANTE DE VENTA</p>
+                <p style={s.ticketTipo}>COMPROBANTE DE ALQUILER</p>
                 <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
               </div>
 
-              {/* Datos de la venta */}
+              {/* Datos del alquiler */}
               <div style={s.ticketMeta}>
                 <div style={s.ticketMetaRow}>
                   <span style={s.ticketMetaKey}>N° Comprobante</span>
-                  <span style={s.ticketMetaVal}>#{String(comprobante.id).padStart(6, '0')}</span>
+                  <span style={s.ticketMetaVal}>#{String(comprobante.ids[0]).padStart(6, '0')}</span>
                 </div>
                 <div style={s.ticketMetaRow}>
                   <span style={s.ticketMetaKey}>Fecha</span>
                   <span style={s.ticketMetaVal}>{fmtFecha(comprobante.fecha)}</span>
                 </div>
                 <div style={s.ticketMetaRow}>
-                  <span style={s.ticketMetaKey}>Vendedor</span>
-                  <span style={s.ticketMetaVal}>{comprobante.vendedor}</span>
+                  <span style={s.ticketMetaKey}>Período</span>
+                  <span style={s.ticketMetaVal}>{fmtFechaCorta(comprobante.fechaInicio)} al {fmtFechaCorta(comprobante.fechaFin)} ({comprobante.dias} día{comprobante.dias > 1 ? 's' : ''})</span>
+                </div>
+                <div style={s.ticketMetaRow}>
+                  <span style={s.ticketMetaKey}>Registrado por</span>
+                  <span style={s.ticketMetaVal}>{comprobante.registradoPor}</span>
                 </div>
                 {comprobante.cliente && (
                   <div style={s.ticketMetaRow}>
@@ -355,7 +357,7 @@ export default function Ventas({ user }: { user: User }) {
               <div style={s.ticketItemHead}>
                 <span style={{ flex: 1, minWidth: 0 }}>Descripción</span>
                 <span style={s.ticketCol1}>Cant</span>
-                <span style={{ ...s.ticketColNum, textAlign: 'right' }}>P.U.</span>
+                <span style={{ ...s.ticketColNum, textAlign: 'right' }}>Tarifa/día</span>
                 <span style={{ ...s.ticketColNum, textAlign: 'right' }}>Subtotal</span>
               </div>
               <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
@@ -364,12 +366,12 @@ export default function Ventas({ user }: { user: User }) {
               {comprobante.items.map((item, i) => (
                 <div key={i} style={s.ticketItem}>
                   <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <p style={s.ticketItemNombre}>{item.producto.nombre}</p>
-                    {item.producto.codigo && <p style={s.ticketItemCod}>Cód: {item.producto.codigo}</p>}
+                    <p style={s.ticketItemNombre}>{item.maquina.nombre}</p>
+                    {item.maquina.codigo && <p style={s.ticketItemCod}>Cód: {item.maquina.codigo}</p>}
                   </div>
                   <span style={{ ...s.ticketCol1, textAlign: 'center', color: '#1A1A1A' }}>{item.cantidad}</span>
-                  <span style={{ ...s.ticketColNum, textAlign: 'right', color: '#1A1A1A' }}>${fmt(item.precioUnitario)}</span>
-                  <span style={{ ...s.ticketColNum, textAlign: 'right', fontWeight: 700, color: '#1A1A1A' }}>${fmt(item.cantidad * item.precioUnitario)}</span>
+                  <span style={{ ...s.ticketColNum, textAlign: 'right', color: '#1A1A1A' }}>${fmt(item.maquina.tarifaDiaria)}</span>
+                  <span style={{ ...s.ticketColNum, textAlign: 'right', fontWeight: 700, color: '#1A1A1A' }}>${fmt(item.cantidad * comprobante.dias * item.maquina.tarifaDiaria)}</span>
                 </div>
               ))}
 
@@ -381,36 +383,14 @@ export default function Ventas({ user }: { user: User }) {
                 <span>${fmt(comprobante.total)}</span>
               </div>
 
-              <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
-
-              {/* Pago */}
-              <div style={s.ticketPago}>
-                <div style={s.ticketMetaRow}>
-                  <span style={s.ticketMetaKey}>Medio de pago</span>
-                  <span style={s.ticketMetaVal}>{comprobante.medioPago}</span>
-                </div>
-                {comprobante.montoRecibido !== null && (
-                  <>
-                    <div style={s.ticketMetaRow}>
-                      <span style={s.ticketMetaKey}>Monto recibido</span>
-                      <span style={s.ticketMetaVal}>${fmt(comprobante.montoRecibido)}</span>
-                    </div>
-                    <div style={s.ticketMetaRow}>
-                      <span style={s.ticketMetaKey}>Vuelto</span>
-                      <span style={{ ...s.ticketMetaVal, fontWeight: 700 }}>${fmt(comprobante.montoRecibido - comprobante.total)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
               <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
-              <p style={s.ticketGracias}>¡Gracias por su compra!</p>
+              <p style={s.ticketGracias}>¡Gracias por confiar en SH Servicios!</p>
             </div>
 
             {/* Botones */}
             <div style={s.modalBtns}>
               <button style={s.btnImprimir} onClick={() => window.print()}>🖨️ Imprimir</button>
-              <button style={s.btnCerrar} onClick={cerrarComprobante}>Nueva venta</button>
+              <button style={s.btnCerrar} onClick={cerrarComprobante}>Nuevo alquiler</button>
             </div>
           </div>
         </div>
@@ -435,6 +415,8 @@ const s: Record<string, React.CSSProperties> = {
   inputRow:    { display: 'flex', gap: '12px', alignItems: 'flex-end' },
   inputGroup:  { display: 'flex', flexDirection: 'column', gap: '5px' },
   label:       { color: '#CFCFCF', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
+  inputFecha:  { background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '10px 12px', color: '#FFFFFF', fontSize: '14px', outline: 'none' },
+  diasBadge:   { background: 'rgba(245,196,0,0.1)', color: '#F5C400', border: '1px solid rgba(245,196,0,0.2)', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: '700' },
   inputCant:   { width: '72px', background: '#111111', border: '2px solid #F5C400', borderRadius: '8px', padding: '10px', color: '#F5C400', fontSize: '18px', fontWeight: '700', outline: 'none', textAlign: 'center' },
   inputBusqueda: { width: '100%', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '11px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
   selectCliente: { background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', minWidth: '220px' },
@@ -462,23 +444,10 @@ const s: Record<string, React.CSSProperties> = {
   cantItem:    { width: '54px', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '6px', padding: '5px', color: '#FFFFFF', fontSize: '13px', outline: 'none', textAlign: 'center' },
   btnX:        { background: 'transparent', border: 'none', color: '#9A9A9A', cursor: 'pointer', fontSize: '13px', padding: '4px 6px', borderRadius: '4px', width: '32px' },
 
-  totalPagoRow:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' as const },
+  totalPagoRow:{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '24px', flexWrap: 'wrap' as const },
   totalBlock:  { display: 'flex', alignItems: 'flex-end', gap: '16px' },
   totalLabel:  { color: '#CFCFCF', fontSize: '11px', fontWeight: '700', letterSpacing: '2px' },
   totalValor:  { color: '#F5C400', fontSize: '30px', fontWeight: '800' },
-  pagoBlock:   { display: 'flex', flexDirection: 'column', gap: '8px' },
-  medios:      { display: 'flex', gap: '6px', flexWrap: 'wrap' as const },
-  medioBtn:    { padding: '7px 16px', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', color: '#9A9A9A', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
-  medioBtnOn:  { background: 'rgba(245,196,0,0.1)', border: '1px solid #F5C400', color: '#F5C400' },
-
-  montoWrap:   { display: 'flex', alignItems: 'center', background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', overflow: 'hidden' },
-  montoSign:   { color: '#F5C400', fontWeight: '700', padding: '0 10px', fontSize: '15px' },
-  montoInput:  { background: 'transparent', border: 'none', padding: '10px 10px 10px 0', color: '#FFFFFF', fontSize: '15px', outline: 'none', width: '130px' },
-  vueltoBox:   { padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' },
-  vueltoPos:   { background: 'rgba(46,158,91,0.08)', border: '1px solid rgba(46,158,91,0.2)' },
-  vueltoNeg:   { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)' },
-  vueltoLabel: { fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: '#2E9E5B' },
-  vueltoValor: { fontSize: '18px', fontWeight: '800', color: '#2E9E5B' },
 
   btnConfirmar: { padding: '14px', background: '#F5C400', color: '#111111', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '800', cursor: 'pointer', letterSpacing: '0.5px' },
   btnOff:       { opacity: 0.35, cursor: 'not-allowed' },
@@ -509,7 +478,6 @@ const s: Record<string, React.CSSProperties> = {
   ticketColNum:     { width: '88px', flexShrink: 0, fontSize: '11px', whiteSpace: 'nowrap' as const },
 
   ticketTotal:      { display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '900', color: '#111111', margin: '4px 0' },
-  ticketPago:       { margin: '4px 0' },
   ticketGracias:    { textAlign: 'center', fontSize: '12px', color: '#6B6B6B', margin: '8px 0 4px', fontStyle: 'italic' },
 
   modalBtns:   { display: 'flex', gap: '10px' },
