@@ -123,7 +123,7 @@ const s: Record<string, React.CSSProperties> = {
   logoImg:     { width: '96px', height: '96px', objectFit: 'contain', borderRadius: '14px' },
   brandName:   { color: '#FFFFFF', fontSize: '38px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 },
   brandSub:    { color: '#9A9A9A', fontSize: '18px', margin: 0 },
-  features:    { display: 'flex', flexDirection: 'column', gap: '20px' },
+  features:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' },
   featureItem: { display: 'flex', alignItems: 'center', gap: '14px' },
   featureIcon: { fontSize: '24px', width: '44px', height: '44px', background: 'rgba(245,196,0,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   featureText: { color: '#CFCFCF', fontSize: '17px' },
