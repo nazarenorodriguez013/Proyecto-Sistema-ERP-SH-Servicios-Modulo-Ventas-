@@ -119,14 +119,14 @@ export default function Login({ onLogin }: Props) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  brand:       { display: 'flex', flexDirection: 'column', gap: '16px' },
-  logoImg:     { width: '64px', height: '64px', objectFit: 'contain', borderRadius: '10px' },
-  brandName:   { color: '#FFFFFF', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 },
-  brandSub:    { color: '#6B6B6B', fontSize: '14px', margin: 0 },
-  features:    { display: 'flex', flexDirection: 'column', gap: '16px' },
+  brand:       { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' as const, gap: '18px' },
+  logoImg:     { width: '96px', height: '96px', objectFit: 'contain', borderRadius: '14px' },
+  brandName:   { color: '#FFFFFF', fontSize: '38px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 },
+  brandSub:    { color: '#9A9A9A', fontSize: '18px', margin: 0 },
+  features:    { display: 'flex', flexDirection: 'column', gap: '20px' },
   featureItem: { display: 'flex', alignItems: 'center', gap: '14px' },
-  featureIcon: { fontSize: '20px', width: '36px', height: '36px', background: 'rgba(245,196,0,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  featureText: { color: '#9A9A9A', fontSize: '14px' },
+  featureIcon: { fontSize: '24px', width: '44px', height: '44px', background: 'rgba(245,196,0,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  featureText: { color: '#CFCFCF', fontSize: '17px' },
 
   formHeader:  { marginBottom: '28px' },
   formTitle:   { color: '#FFFFFF', fontSize: '22px', fontWeight: '700', margin: '0 0 6px' },
