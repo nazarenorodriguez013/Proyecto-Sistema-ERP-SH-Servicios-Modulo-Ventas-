@@ -108,7 +108,7 @@ export default function Categorias({ user }: { user: User }) {
                   placeholder="Ej: Herramientas Neumáticas..."
                   required autoFocus />
               </div>
-              {error && <p style={{ color: '#f87171', fontSize: '13px', margin: 0 }}>{error}</p>}
+              {error && <p style={{ color: '#C6402F', fontSize: '13px', margin: 0 }}>{error}</p>}
               <div style={s.modalActions}>
                 <button type="button" style={s.btnSecondary} onClick={closeModal}>Cancelar</button>
                 <button type="submit" style={s.btnPrimary}>{modal.editing ? 'Guardar cambios' : 'Crear categoría'}</button>
@@ -122,7 +122,7 @@ export default function Categorias({ user }: { user: User }) {
         <div style={s.overlay}>
           <div style={{ ...s.modal, maxWidth: '400px' }}>
             <h3 style={{ ...s.modalTitle, marginBottom: '12px' }}>Eliminar categoría</h3>
-            <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0 0 24px' }}>
+            <p style={{ color: '#9A9A9A', fontSize: '14px', margin: '0 0 24px' }}>
               ¿Estás seguro? Si la categoría tiene productos asignados no se podrá eliminar.
             </p>
             <div style={s.modalActions}>
@@ -138,32 +138,32 @@ export default function Categorias({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' },
-  loading:      { color: '#94a3b8', padding: '40px', textAlign: 'center' },
+  loading:      { color: '#9A9A9A', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  title:        { color: '#f1f5f9', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:     { color: '#cbd5e1', fontSize: '13px', margin: '3px 0 0' },
-  errorBanner:  { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
-  empty:        { color: '#cbd5e1', textAlign: 'center', padding: '60px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' },
+  title:        { color: '#FFFFFF', fontSize: '20px', fontWeight: '700', margin: 0 },
+  subtitle:     { color: '#CFCFCF', fontSize: '13px', margin: '3px 0 0' },
+  errorBanner:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
+  empty:        { color: '#CFCFCF', textAlign: 'center', padding: '60px', background: '#1A1A1A', borderRadius: '12px', border: '1px solid #2B2B2B' },
   grid:         { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' },
-  card:         { background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' },
-  cardIcon:     { fontSize: '26px', flexShrink: 0, width: '44px', height: '44px', background: '#0f172a', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  card:         { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '12px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' },
+  cardIcon:     { fontSize: '26px', flexShrink: 0, width: '44px', height: '44px', background: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardBody:     { flex: 1, minWidth: 0 },
-  cardName:     { color: '#f1f5f9', fontWeight: '600', fontSize: '15px', margin: 0 },
-  cardDate:     { color: '#cbd5e1', fontSize: '12px', margin: '4px 0 0' },
+  cardName:     { color: '#FFFFFF', fontWeight: '600', fontSize: '15px', margin: 0 },
+  cardDate:     { color: '#CFCFCF', fontSize: '12px', margin: '4px 0 0' },
   cardActions:  { display: 'flex', gap: '6px', flexShrink: 0 },
-  btnIcon:      { background: '#334155', border: 'none', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '14px' },
-  btnIconDanger:{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '14px' },
-  btnPrimary:   { background: '#eab308', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
-  btnSecondary: { background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
-  btnDanger:    { background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  btnIcon:      { background: '#2B2B2B', border: 'none', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '14px' },
+  btnIconDanger:{ background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '14px' },
+  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  btnSecondary: { background: 'transparent', color: '#9A9A9A', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
+  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' },
+  modal:        { background: '#1A1A1A', border: '1px solid #2B2B2B', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' },
   modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-  modalTitle:   { color: '#f1f5f9', fontSize: '17px', fontWeight: '700', margin: 0 },
-  closeBtn:     { background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer' },
+  modalTitle:   { color: '#FFFFFF', fontSize: '17px', fontWeight: '700', margin: 0 },
+  closeBtn:     { background: 'transparent', border: 'none', color: '#9A9A9A', fontSize: '18px', cursor: 'pointer' },
   form:         { display: 'flex', flexDirection: 'column', gap: '16px' },
   field:        { display: 'flex', flexDirection: 'column', gap: '6px' },
-  label:        { color: '#94a3b8', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
-  input:        { background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '10px 14px', color: '#f1f5f9', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
+  label:        { color: '#9A9A9A', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
+  input:        { background: '#111111', border: '1px solid #2B2B2B', borderRadius: '8px', padding: '10px 14px', color: '#FFFFFF', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
   modalActions: { display: 'flex', gap: '10px', justifyContent: 'flex-end' },
 }
