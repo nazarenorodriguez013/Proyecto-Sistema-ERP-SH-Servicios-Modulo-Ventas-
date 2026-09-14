@@ -22,8 +22,8 @@ body {
 
 /* ── Login responsive ───────────────────────────── */
 .login-page  { display: flex; width: 100%; min-height: 100vh; }
-.login-left  { width: 420px; flex-shrink: 0; background: linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,.88)), url('/fachada-sh.jpg') center/cover no-repeat, linear-gradient(160deg,#1A1A1A 0%,#111111 100%); display: flex; flex-direction: column; justify-content: center; padding: 60px 48px; gap: 48px; }
-.login-right { flex: 1; display: flex; align-items: center; justify-content: center; background: #000000; padding: 40px; }
+.login-left  { width: 420px; flex-shrink: 0; background: #000000; display: flex; flex-direction: column; justify-content: center; padding: 60px 48px; gap: 48px; }
+.login-right { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; position: relative; background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.82)), url('/fachada-sh.jpg') center/cover no-repeat; }
 .login-card  { width: 100%; max-width: 420px; background: #1A1A1A; border-radius: 20px; padding: 40px; border: 1px solid #2B2B2B; }
 .login-mobile-logo { display: none; }
 
