@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
+import { socket } from '../socket'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -20,13 +21,16 @@ export default function Stock({ user }: { user: User }) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const isAdmin = user.rol === 'ADMIN'
 
-  const fetchAll = async () => {
-    const res = await fetch(`${API}/products`, { headers })
-    setProductos(await res.json())
-    setLoading(false)
-  }
+  const fetchAll = () =>
+    fetch(`${API}/products`, { headers })
+      .then(r => r.json())
+      .then(data => { setProductos(data); setLoading(false) })
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    fetchAll()
+    socket.on('stock-actualizado', fetchAll)
+    return () => { socket.off('stock-actualizado', fetchAll) }
+  }, [])
 
   const handleAdjust = async (id: number, stock: number) => {
     if (!Number.isInteger(stock) || stock < 0) {

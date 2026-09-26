@@ -8,9 +8,10 @@
     "build": "npx prisma generate && cd ../frontend && npm install && npm run build && cd ../backend && npx tsc",
     "start": "npx prisma migrate deploy && NODE_ENV=production node dist/index.js",
     "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node --transpile-only prisma/seed.ts"
+    "db:seed": "ts-node --transpile-only src/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -37,5 +38,8 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "socket.io": "^4.8.3"
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only src/seed.ts"
   }
 }

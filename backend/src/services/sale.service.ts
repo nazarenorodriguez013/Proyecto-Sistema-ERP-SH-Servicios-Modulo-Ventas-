@@ -3,75 +3,63 @@ import { getIO } from '../socket';
 
 const prisma = new PrismaClient();
 
-const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
+const includeVenta = {
+  detallesVenta: { include: { producto: { include: { categoria: true } } } },
+  usuario: true,
+};
 
+// El precio y el total se calculan con los datos de la base: del cliente solo se aceptan producto y cantidad
 export const createSale = async (
   usuarioId: number,
-  items: { productoId: number; cantidad: number; precioUnitario: number }[],
+  items: { productoId: number; cantidad: number }[],
   medioPago: string,
   montoRecibido?: number | null,
-  clienteId?: number | null,
 ) => {
-  if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId)
-    throw new Error('Para vender a cuenta corriente hay que seleccionar un cliente');
+  // Unifica ítems repetidos para validar el stock contra la cantidad total pedida de cada producto
+  const cantidades = new Map<number, number>();
+  for (const item of items) {
+    if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
+      throw new Error('La cantidad de cada ítem debe ser un número entero mayor a 0');
+    cantidades.set(item.productoId, (cantidades.get(item.productoId) ?? 0) + item.cantidad);
+  }
 
   // Todo en una transacción: si falla el descuento de stock de cualquier ítem, se revierte la venta entera
-  return prisma.$transaction(async (tx) => {
-    // Verifica stock de todos los ítems ANTES de crear la venta, para no dejar registros a medias
-    for (const item of items) {
-      if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
-        throw new Error('La cantidad de cada ítem debe ser un número entero mayor a 0');
-      const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
-      if (!producto) throw new Error(`Producto no encontrado`);
-      if (producto.stock < item.cantidad)
+  const venta = await prisma.$transaction(async (tx) => {
+    const detalles = [];
+    for (const [productoId, cantidad] of cantidades) {
+      const producto = await tx.producto.findUnique({ where: { id: productoId } });
+      if (!producto) throw new Error('Producto no encontrado');
+      if (!producto.activo) throw new Error(`"${producto.nombre}" no está disponible para la venta`);
+
+      // Descuenta solo si alcanza el stock en ese momento, así dos ventas simultáneas no lo dejan negativo
+      const { count } = await tx.producto.updateMany({
+        where: { id: productoId, stock: { gte: cantidad } },
+        data: { stock: { decrement: cantidad } },
+      });
+      if (count === 0)
         throw new Error(`Stock insuficiente para "${producto.nombre}" (disponible: ${producto.stock})`);
+
+      detalles.push({ productoId, cantidad, precioUnitario: producto.precio });
     }
 
-    const total = items.reduce((sum, i) => sum + i.cantidad * i.precioUnitario, 0);
+    const total = detalles.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
 
-    const venta = await tx.venta.create({
+    return tx.venta.create({
       data: {
         total,
         medioPago,
         montoRecibido: montoRecibido ?? null,
         usuarioId,
-        clienteId: clienteId ?? null,
-        detallesVenta: {
-          create: items.map(i => ({
-            productoId: i.productoId,
-            cantidad: i.cantidad,
-            precioUnitario: i.precioUnitario,
-          })),
-        },
+        detallesVenta: { create: detalles },
       },
-      include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true, cliente: true },
+      include: includeVenta,
     });
-
-    // Venta a cuenta corriente: la deuda queda registrada en la cuenta del cliente
-    if (medioPago === MEDIO_CUENTA_CORRIENTE && clienteId) {
-      await tx.movimientoCuenta.create({
-        data: { clienteId, tipo: 'VENTA', concepto: `Venta #${venta.id}`, monto: total, ventaId: venta.id },
-      });
-    }
-
-    // Descuenta stock recién después de crear la venta y avisa por websocket si quedó bajo
-    for (const item of items) {
-      const updated = await tx.producto.update({
-        where: { id: item.productoId },
-        data: { stock: { decrement: item.cantidad } },
-        include: { categoria: true },
-      });
-      if (updated.activo && updated.stock <= updated.stockMinimo) {
-        getIO()?.emit('low-stock', updated);
-      }
-    }
-
-    return venta;
   });
+
+  // Se avisa recién cuando la transacción quedó confirmada
+  getIO()?.emit('stock-actualizado');
+  return venta;
 };
 
 export const getAll = () =>
-  prisma.venta.findMany({
-    include: { detallesVenta: { include: { producto: { include: { categoria: true } } } }, usuario: true, cliente: true },
-    orderBy: { creadoEn: 'desc' },
-  });
+  prisma.venta.findMany({ include: includeVenta, orderBy: { creadoEn: 'desc' } });

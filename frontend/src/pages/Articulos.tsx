@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
+import { socket } from '../socket'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -47,17 +48,17 @@ export default function Articulos({ user }: { user: User }) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const isAdmin = user.rol === 'ADMIN'
 
-  const fetchAll = async () => {
-    const [pRes, cRes] = await Promise.all([
-      fetch(`${API}/products`, { headers }),
-      fetch(`${API}/categories`, { headers }),
-    ])
-    setProductos(await pRes.json())
-    setCategorias(await cRes.json())
-    setLoading(false)
-  }
+  const fetchAll = () =>
+    Promise.all([
+      fetch(`${API}/products`, { headers }).then(r => r.json()),
+      fetch(`${API}/categories`, { headers }).then(r => r.json()),
+    ]).then(([prods, cats]) => { setProductos(prods); setCategorias(cats); setLoading(false) })
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    fetchAll()
+    socket.on('stock-actualizado', fetchAll)
+    return () => { socket.off('stock-actualizado', fetchAll) }
+  }, [])
 
   const openCreate = () => { setForm(EMPTY_FORM); setError(''); setModal({ open: true, editing: null }) }
   const openEdit = (p: Producto) => {

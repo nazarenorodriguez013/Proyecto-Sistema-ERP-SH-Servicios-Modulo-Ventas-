@@ -1,22 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { User } from '../types'
 import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
-import Clientes from './Clientes'
-import PuntoAlquiler from './PuntoAlquiler'
-import Maquinas from './Maquinas'
-import Alquileres from './Alquileres'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
-interface Section    { id: string; label: string; icon: string; roles: string[]; children?: SubSection[] }
+interface Section    { id: string; label: string; icon: string; children?: SubSection[] }
 
-const allSections: Section[] = [
+const sections: Section[] = [
   {
-    id: 'ventas', label: 'Ventas', icon: 'bi-cart3', roles: ['ADMIN', 'VENDEDOR'],
+    id: 'ventas', label: 'Ventas', icon: 'bi-cart3',
     children: [
       { id: 'punto-venta',  label: 'Punto de Venta',  icon: 'bi-receipt' },
       {
@@ -29,50 +25,29 @@ const allSections: Section[] = [
       },
     ],
   },
-  { id: 'clientes',   label: 'Clientes',           icon: 'bi-people', roles: ['ADMIN', 'VENDEDOR'] },
-  {
-    id: 'alquiler', label: 'Alquiler', icon: 'bi-house-door', roles: ['ADMIN'],
-    children: [
-      { id: 'punto-alquiler', label: 'Punto de Alquiler', icon: 'bi-cart-check' },
-      { id: 'maquinas',       label: 'Máquinas',          icon: 'bi-truck' },
-      { id: 'alquileres',     label: 'Alquileres',        icon: 'bi-calendar3' },
-    ],
-  },
-  { id: 'servicios',  label: 'Servicios Técnicos',  icon: 'bi-tools', roles: ['ADMIN'] },
 ]
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
   categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
-  clientes: 'Clientes', 'punto-alquiler': 'Punto de Alquiler', maquinas: 'Máquinas', alquileres: 'Alquileres', servicios: 'Servicios Técnicos',
 }
-
-const contentPages = ['punto-venta', 'categorias', 'articulos', 'stock', 'clientes', 'punto-alquiler', 'maquinas', 'alquileres']
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
-  'punto-venta': '/', categorias: '/categorias', articulos: '/articulos',
-  stock: '/stock', clientes: '/clientes', 'punto-alquiler': '/punto-alquiler',
-  maquinas: '/maquinas', alquileres: '/alquileres', servicios: '/servicios',
+  'punto-venta': '/', categorias: '/categorias', articulos: '/articulos', stock: '/stock',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
 )
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const sections      = allSections.filter(s => s.roles.includes(user.rol))
   const routerNav     = useNavigate()
   const { pathname }  = useLocation()
 
-  const [activePage, setActivePage]   = useState(() => pathToPage[pathname] ?? 'punto-venta')
+  // La página activa sale de la URL, así funcionan los botones atrás/adelante del navegador
+  const activePage = pathToPage[pathname] ?? 'punto-venta'
   const [expanded, setExpanded]       = useState<string[]>(['ventas', 'inventario'])
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  // Sincroniza activePage cuando el usuario usa el botón atrás/adelante del navegador
-  useEffect(() => {
-    const page = pathToPage[pathname] ?? 'punto-venta'
-    setActivePage(page)
-  }, [pathname])
 
   const toggle = (id: string) =>
     setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -81,30 +56,15 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     sub.children?.some(p => p.id === activePage) ?? false
 
   const navigate = (id: string) => {
-    setActivePage(id)
     setSidebarOpen(false)
     routerNav(pageToPath[id] ?? '/')
   }
 
   const renderContent = () => {
-    if (activePage === 'punto-venta')  return <Ventas       user={user} />
     if (activePage === 'categorias')   return <Categorias   user={user} />
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
-    if (activePage === 'clientes')     return <Clientes     user={user} />
-    if (activePage === 'punto-alquiler') return <PuntoAlquiler user={user} />
-    if (activePage === 'maquinas')     return <Maquinas     user={user} />
-    if (activePage === 'alquileres')   return <Alquileres   user={user} />
-    return (
-      <div style={st.contentArea}>
-        <div style={st.devCard}>
-          <div style={st.devIcon}><i className="bi bi-cone-striped" /></div>
-          <h3 style={st.devTitle}>En Desarrollo</h3>
-          <p style={st.devText}>El módulo de <strong>{pageLabels[activePage]}</strong> está siendo construido.</p>
-          <div style={st.devBadge}>Próximamente</div>
-        </div>
-      </div>
-    )
+    return <Ventas user={user} />
   }
 
   return (
@@ -221,7 +181,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           </div>
         </div>
 
-        <div style={contentPages.includes(activePage) ? st.contentFull : undefined}>
+        <div style={st.contentFull}>
           {renderContent()}
         </div>
 
@@ -279,12 +239,6 @@ const st: Record<string, React.CSSProperties> = {
   topBarName:   { color: '#111111', fontSize: '13px', fontWeight: '500' },
 
   contentFull:  { flex: 1, overflowY: 'auto' },
-  contentArea:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' },
-  devCard:      { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '400px' },
-  devIcon:      { fontSize: '48px', color: '#D6D6D6' },
-  devTitle:     { color: '#111111', fontSize: '22px', fontWeight: '700', margin: 0 },
-  devText:      { color: '#6B6B6B', fontSize: '15px', lineHeight: '1.6', margin: 0 },
-  devBadge:     { background: 'rgba(245,196,0,0.15)', color: '#8A6D00', border: '1px solid rgba(245,196,0,0.4)', padding: '6px 20px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginTop: '8px' },
 
   footer:       { padding: '10px 20px', borderTop: '1px solid #E2E4E8', textAlign: 'center', flexShrink: 0, background: '#FFFFFF' },
   footerText:   { color: '#9A9A9A', fontSize: '11px' },

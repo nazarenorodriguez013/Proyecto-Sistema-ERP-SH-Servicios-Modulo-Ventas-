@@ -28,11 +28,11 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
     await categoryService.remove(Number(req.params.id));
     res.status(204).send();
   } catch (err: any) {
-    // P2003: la categoría tiene productos asociados (restricción de clave foránea)
-    if (err.code === 'P2003') {
-      res.status(409).json({ message: 'No se puede eliminar: tiene productos asignados' });
+    // P2025: no existe la categoría; cualquier otro error es porque tiene productos asignados
+    if (err.code === 'P2025') {
+      res.status(404).json({ message: 'Categoría no encontrada' });
       return;
     }
-    res.status(404).json({ message: 'Categoría no encontrada' });
+    res.status(409).json({ message: err.message });
   }
 };
