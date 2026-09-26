@@ -8,6 +8,7 @@ interface Producto {
   id: number; codigo: string | null; nombre: string
   precio: number; stock: number; activo: boolean; categoria: Categoria
 }
+interface Cliente { id: number; nombre: string }
 interface ItemCarrito {
   producto: Producto
   cantidad: number
@@ -21,14 +22,18 @@ interface ComprobanteData {
   medioPago: string
   montoRecibido: number | null
   vendedor: string
+  cliente: string | null
 }
 
-const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia']
+const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Cuenta Corriente']
+const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente'
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export default function Ventas({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [clienteId, setClienteId] = useState('')
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [cantidad, setCantidad] = useState('1')
   const [busqueda, setBusqueda] = useState('')
@@ -49,6 +54,7 @@ export default function Ventas({ user }: { user: User }) {
 
   useEffect(() => {
     fetchProductos()
+    fetch(`${API}/clients`, { headers }).then(r => r.json()).then(setClientes)
     // Otra terminal vendió o ajustó stock: se recargan los productos para no ofrecer unidades que ya no existen
     socket.on('stock-actualizado', fetchProductos)
     return () => { socket.off('stock-actualizado', fetchProductos) }
@@ -96,6 +102,7 @@ export default function Ventas({ user }: { user: User }) {
 
   const confirmarVenta = async () => {
     if (!carrito.length) { setError('El comprobante está vacío'); return }
+    if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId) { setError('Seleccioná un cliente para vender a cuenta corriente'); return }
     setProcesando(true); setError('')
     try {
       const res = await fetch(`${API}/sales`, {
@@ -104,6 +111,7 @@ export default function Ventas({ user }: { user: User }) {
           items: carrito.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad })),
           medioPago,
           montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
+          clienteId: clienteId ? Number(clienteId) : null,
         })
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
@@ -116,8 +124,9 @@ export default function Ventas({ user }: { user: User }) {
         medioPago,
         montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
         vendedor: user.nombre,
+        cliente: venta.cliente?.nombre ?? null,
       })
-      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido('')
+      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido(''); setClienteId('')
     } catch (e) { setError((e as Error).message) }
     finally { setProcesando(false) }
   }
@@ -239,6 +248,17 @@ export default function Ventas({ user }: { user: User }) {
 
         <div style={s.divider} />
 
+        {/* ── Cliente ── */}
+        <div style={s.inputGroup}>
+          <label style={s.label}>CLIENTE {medioPago === MEDIO_CUENTA_CORRIENTE ? '(obligatorio)' : '(opcional)'}</label>
+          <select style={s.selectCliente} value={clienteId} onChange={e => setClienteId(e.target.value)}>
+            <option value="">Sin cliente</option>
+            {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+        </div>
+
+        <div style={s.divider} />
+
         {/* ── Medios de pago | Monto recibido | Total ── */}
         <div style={s.totalPagoRow}>
           <div style={s.pagoBlock}>
@@ -323,6 +343,12 @@ export default function Ventas({ user }: { user: User }) {
                   <span style={s.ticketMetaKey}>Vendedor</span>
                   <span style={s.ticketMetaVal}>{comprobante.vendedor}</span>
                 </div>
+                {comprobante.cliente && (
+                  <div style={s.ticketMetaRow}>
+                    <span style={s.ticketMetaKey}>Cliente</span>
+                    <span style={s.ticketMetaVal}>{comprobante.cliente}</span>
+                  </div>
+                )}
               </div>
 
               <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
@@ -412,6 +438,7 @@ const s: Record<string, React.CSSProperties> = {
   inputGroup:  { display: 'flex', flexDirection: 'column', gap: '5px' },
   label:       { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
   inputCant:   { width: '72px', background: '#FFFFFF', border: '2px solid #F5C400', borderRadius: '8px', padding: '10px', color: '#8A6D00', fontSize: '18px', fontWeight: '700', outline: 'none', textAlign: 'center' },
+  selectCliente: { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', minWidth: '220px' },
   inputBusqueda: { width: '100%', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '11px 14px', color: '#111111', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
 
   dropdown:    { position: 'absolute', top: '100%', left: 0, right: 0, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', zIndex: 100, marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(17,17,17,.18)' },
