@@ -27,7 +27,9 @@ El sistema se centra en dos pilares críticos para el funcionamiento de SH Servi
 
 **Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo.
 
-**Seguridad y Acceso:** Sistema de autenticación con JWT y roles de usuario, asegurando que solo el personal autorizado pueda modificar el inventario o visualizar el registro de ventas.
+**Servicio Técnico:** Registro de solicitudes de reparación o mantenimiento. Sin garantía se genera un presupuesto de mano de obra que el cliente acepta o rechaza; con garantía pasa directo al taller sin costo. Administración asigna un técnico, el técnico carga los repuestos que salen del depósito (se descuentan del stock en ese momento) y marca la reparación como terminada. Al entregar el equipo se registra el cobro, la fecha del próximo mantenimiento y se emite el recibo.
+
+**Seguridad y Acceso:** Sistema de autenticación con JWT y tres roles: **Administrador** (acceso total), **Vendedor** (ventas, inventario, clientes y atención de servicios técnicos) y **Técnico** (solo ve los servicios que tiene asignados, carga repuestos y cierra reparaciones).
 
 ## 4. Tecnologías Utilizadas
 
@@ -44,7 +46,7 @@ Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se ut
 
 ## 6. Estructura de la Base de Datos
 
-El sistema se apoya en una estructura relacional de 7 tablas:
+El sistema se apoya en una estructura relacional de 9 tablas:
 
 - **usuarios:** Gestión de credenciales y perfiles de acceso de los empleados.
 - **categorias:** Clasificación organizada de los productos de SH Servicios.
@@ -52,7 +54,9 @@ El sistema se apoya en una estructura relacional de 7 tablas:
 - **ventas:** Registro de cabecera de cada venta (fecha, total, medio de pago, usuario que la realizó y cliente opcional).
 - **detalles_venta:** Detalle de los artículos y cantidades incluidas en cada venta.
 - **clientes:** Datos de los clientes (nombre, documento único, teléfono, email y dirección).
-- **movimientos_cuenta:** Cuenta corriente de cada cliente: las ventas a cuenta suman deuda y los pagos la restan.
+- **movimientos_cuenta:** Cuenta corriente de cada cliente: las ventas y servicios a cuenta suman deuda y los pagos la restan.
+- **servicios_tecnicos:** Solicitudes de reparación (cliente, equipo, falla, garantía, mano de obra, técnico asignado, estado, cobro y próximo mantenimiento).
+- **servicio_repuestos:** Repuestos del inventario utilizados en cada servicio, con cantidad y precio.
 
 ## 7. Despliegue en la Nube
 
@@ -177,6 +181,9 @@ Abrir el navegador en **http://localhost:5173**
 |---|---|---|
 | Administrador | admin@shservicios.com | admin123 |
 | Vendedor | vendedor@shservicios.com | vendedor123 |
+| Técnico | tecnico@shservicios.com | tecnico123 |
+
+Si faltan, estos usuarios se crean al levantar el backend, aunque la base ya tenga datos.
 
 ### Base de datos
 
@@ -206,7 +213,8 @@ Base URL en producción: `https://shservicios.up.railway.app`
 Base URL en desarrollo: `http://localhost:3000`
 
 Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.  
-Las rutas marcadas con 👑 requieren además rol **ADMIN**.
+Las rutas marcadas con 👑 requieren además rol **ADMIN**.  
+Las rutas marcadas con 🧾 son para **ADMIN** y **VENDEDOR**; las marcadas con 🛠, para **ADMIN** y **TECNICO**.
 
 ### Autenticación — `/api/auth`
 
@@ -233,14 +241,14 @@ Las rutas marcadas con 👑 requieren además rol **ADMIN**.
 | GET | `https://shservicios.up.railway.app/api/products/:id` | 🔒 | Obtiene un producto por ID |
 | POST | `https://shservicios.up.railway.app/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
 | PUT | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Edita un producto |
-| DELETE | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto (falla si tiene ventas registradas; en ese caso se desactiva) |
+| DELETE | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto (falla si tiene ventas o servicios registrados; en ese caso se desactiva) |
 
 ### Ventas — `/api/sales`
 
 | Método | URL completa | Auth | Descripción |
 |--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
-| POST | `https://shservicios.up.railway.app/api/sales` | 🔒 | Registra una venta y descuenta el stock |
+| GET | `https://shservicios.up.railway.app/api/sales` | 🔒 🧾 | Lista todas las ventas con sus detalles |
+| POST | `https://shservicios.up.railway.app/api/sales` | 🔒 🧾 | Registra una venta y descuenta el stock |
 
 Cuerpo de `POST /api/sales`:
 
@@ -259,12 +267,31 @@ El precio unitario y el total se calculan en el servidor con los precios de la b
 
 | Método | URL completa | Auth | Descripción |
 |--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/clients` | 🔒 | Lista los clientes con su saldo de cuenta corriente |
-| GET | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 | Ficha del cliente: datos, historial de compras con sus productos, movimientos y saldo |
+| GET | `https://shservicios.up.railway.app/api/clients` | 🔒 🧾 | Lista los clientes con su saldo de cuenta corriente |
+| GET | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 🧾 | Ficha del cliente: datos, historial de compras con sus productos, movimientos y saldo |
 | POST | `https://shservicios.up.railway.app/api/clients` | 🔒 👑 | Crea un cliente (el documento no se puede repetir) |
 | PUT | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Edita un cliente |
-| DELETE | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Elimina un cliente (falla si tiene compras o pagos registrados) |
+| DELETE | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Elimina un cliente (falla si tiene compras, pagos o servicios registrados) |
 | POST | `https://shservicios.up.railway.app/api/clients/:id/movements` | 🔒 👑 | Registra un pago en la cuenta corriente. Cuerpo: `{ "monto": 10000 }` |
+
+### Servicios Técnicos — `/api/repairs`
+
+El técnico solo puede ver y modificar los servicios que tiene asignados.
+
+| Método | URL completa | Auth | Descripción |
+|--------|-------------|------|-------------|
+| GET | `https://shservicios.up.railway.app/api/repairs` | 🔒 | Lista los servicios (el técnico ve solo los suyos) |
+| GET | `https://shservicios.up.railway.app/api/repairs/technicians` | 🔒 🧾 | Lista los usuarios con rol Técnico |
+| GET | `https://shservicios.up.railway.app/api/repairs/:id` | 🔒 | Obtiene un servicio con cliente, técnico y repuestos |
+| POST | `https://shservicios.up.railway.app/api/repairs` | 🔒 🧾 | Registra una solicitud: `{ "clienteId", "equipo", "descripcionFalla", "enGarantia", "costoManoObra" }` |
+| PUT | `https://shservicios.up.railway.app/api/repairs/:id/presupuesto` | 🔒 🧾 | Respuesta del cliente al presupuesto: `{ "aceptado": true }` |
+| PUT | `https://shservicios.up.railway.app/api/repairs/:id/tecnico` | 🔒 🧾 | Asigna o reasigna el técnico e inicia la reparación: `{ "tecnicoId" }` |
+| POST | `https://shservicios.up.railway.app/api/repairs/:id/repuestos` | 🔒 🛠 | Carga un repuesto y lo descuenta del stock: `{ "productoId", "cantidad" }` |
+| DELETE | `https://shservicios.up.railway.app/api/repairs/:id/repuestos/:productoId` | 🔒 🛠 | Quita un repuesto y lo devuelve al stock |
+| PUT | `https://shservicios.up.railway.app/api/repairs/:id/reparado` | 🔒 🛠 | Marca la reparación como terminada |
+| PUT | `https://shservicios.up.railway.app/api/repairs/:id/entregar` | 🔒 🧾 | Entrega y cobro: `{ "medioPago", "proximoMantenimiento" }` |
+
+Estados de un servicio: `PRESUPUESTADO` → `PENDIENTE` (o `RECHAZADO`) → `EN_REPARACION` → `REPARADO` → `ENTREGADO`. Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se cobra a `Cuenta Corriente`, el total queda como deuda en la cuenta del cliente.
 
 ### Tiempo real — Socket.io
 
@@ -272,7 +299,8 @@ El frontend se conecta con Socket.io a la misma URL del servidor.
 
 | Evento | Cuándo se emite | Uso en el frontend |
 |--------|-----------------|--------------------|
-| `stock-actualizado` | Después de confirmar una venta y al crear, editar o eliminar un producto | Punto de Venta, Artículos y Stock recargan los productos al instante en todas las terminales |
+| `stock-actualizado` | Después de confirmar una venta, al crear, editar o eliminar un producto y al cargar o quitar repuestos de un servicio | Punto de Venta, Artículos, Stock y el selector de repuestos recargan los productos al instante en todas las terminales |
+| `servicios-actualizados` | Ante cualquier cambio en un servicio técnico | Administración y taller ven al instante el estado, el técnico asignado y los repuestos |
 
 ### Health check
 
