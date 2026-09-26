@@ -1,0 +1,155 @@
+import { useState, useEffect } from 'react'
+import { API } from '../config'
+
+interface Venta {
+  id: number; total: number; medioPago: string; creadoEn: string
+  detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string } }[]
+}
+interface Movimiento {
+  id: number; tipo: 'VENTA' | 'PAGO'; concepto: string; monto: number; creadoEn: string
+}
+interface ClienteFicha {
+  id: number; nombre: string; documento: string | null; telefono: string | null
+  email: string | null; direccion: string | null
+  ventas: Venta[]; movimientos: Movimiento[]; saldo: number
+}
+
+const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { clienteId: number; isAdmin: boolean; onBack: () => void }) {
+  const [cliente, setCliente] = useState<ClienteFicha | null>(null)
+  const [montoPago, setMontoPago] = useState('')
+  const [error, setError] = useState('')
+
+  const token = localStorage.getItem('token') ?? ''
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+
+  const fetchCliente = () =>
+    fetch(`${API}/clients/${clienteId}`, { headers })
+      .then(r => r.json())
+      .then(setCliente)
+
+  useEffect(() => { fetchCliente() }, [clienteId])
+
+  const handlePago = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    const res = await fetch(`${API}/clients/${clienteId}/movements`, {
+      method: 'POST', headers, body: JSON.stringify({ monto: Number(montoPago) }),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo registrar el pago')
+      return
+    }
+    setMontoPago(''); fetchCliente()
+  }
+
+  if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
+
+  return (
+    <div className="page-container">
+      <div style={s.header}>
+        <button style={s.btnVolver} onClick={onBack}><i className="bi bi-arrow-left" /> Volver</button>
+        <div style={s.saldoBox}>
+          <span style={s.saldoLabel}>SALDO CUENTA CORRIENTE</span>
+          <span style={{ ...s.saldoValor, color: cliente.saldo > 0 ? '#C6402F' : '#2E9E5B' }}>${fmt(cliente.saldo)}</span>
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <h2 style={s.title}>{cliente.nombre}</h2>
+        <div style={s.datosGrid}>
+          <span style={s.dato}><i className="bi bi-file-earmark-text" /> {cliente.documento || '—'}</span>
+          <span style={s.dato}><i className="bi bi-telephone" /> {cliente.telefono || '—'}</span>
+          <span style={s.dato}><i className="bi bi-envelope" /> {cliente.email || '—'}</span>
+          <span style={s.dato}><i className="bi bi-geo-alt" /> {cliente.direccion || '—'}</span>
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Historial de compras ({cliente.ventas.length})</p>
+        {cliente.ventas.length === 0
+          ? <div style={s.empty}>Todavía no realizó compras</div>
+          : cliente.ventas.map(v => (
+            <div key={v.id} style={s.ventaRow}>
+              <div style={s.ventaHead}>
+                <span style={s.ventaId}>Venta #{String(v.id).padStart(6, '0')}</span>
+                <span style={s.ventaFecha}>{fmtFecha(v.creadoEn)}</span>
+                <span style={s.ventaMedio}>{v.medioPago}</span>
+                <span style={s.ventaTotal}>${fmt(v.total)}</span>
+              </div>
+              {v.detallesVenta.map(d => (
+                <p key={d.id} style={s.ventaItem}>
+                  {d.cantidad} × {d.producto.nombre} <span style={s.ventaItemPrecio}>${fmt(d.precioUnitario)} c/u</span>
+                </p>
+              ))}
+            </div>
+          ))
+        }
+      </div>
+
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Cuenta corriente</p>
+        {isAdmin && (
+          <form onSubmit={handlePago} style={s.form}>
+            <input style={s.inputMonto} type="number" min="0.01" step="0.01" placeholder="Monto" value={montoPago}
+              onChange={e => setMontoPago(e.target.value)} required />
+            <button type="submit" style={s.btnPrimary}>Registrar Pago</button>
+          </form>
+        )}
+        {error && <p style={s.errorText}><i className="bi bi-exclamation-triangle-fill" /> {error}</p>}
+        {cliente.movimientos.length === 0
+          ? <div style={s.empty}>Sin compras a cuenta corriente ni pagos</div>
+          : cliente.movimientos.map(m => (
+            <div key={m.id} style={s.movRow}>
+              <span style={s.movTipo}>{m.tipo === 'PAGO' ? 'Pago' : 'Compra'}</span>
+              <span style={s.movConcepto}>{m.concepto}</span>
+              <span style={s.movFecha}>{fmtFecha(m.creadoEn)}</span>
+              <span style={{ ...s.movMonto, color: m.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
+                {m.tipo === 'PAGO' ? '-' : '+'}${fmt(m.monto)}
+              </span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  )
+}
+
+const s: Record<string, React.CSSProperties> = {
+  loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
+  header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  btnVolver:    { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', color: '#333333', fontSize: '13px', padding: '8px 16px', cursor: 'pointer' },
+  saldoBox:     { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' },
+  saldoLabel:   { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1.5px' },
+  saldoValor:   { fontSize: '26px', fontWeight: '800' },
+
+  card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' },
+  title:        { color: '#111111', fontSize: '19px', fontWeight: '700', margin: 0 },
+  datosGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' },
+  dato:         { color: '#333333', fontSize: '13px' },
+  sectionTitle: { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
+  empty:        { color: '#6B6B6B', fontSize: '13px', textAlign: 'center', padding: '20px' },
+
+  ventaRow:       { padding: '10px 4px', borderBottom: '1px solid #EFF1F4', display: 'flex', flexDirection: 'column', gap: '4px' },
+  ventaHead:      { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' as const },
+  ventaId:        { color: '#111111', fontSize: '13px', fontWeight: '700', flex: 1, minWidth: '120px' },
+  ventaFecha:     { color: '#6B6B6B', fontSize: '12px' },
+  ventaMedio:     { color: '#8A6D00', fontSize: '11px', fontWeight: '700', background: '#FFFDF3', border: '1px solid rgba(245,196,0,0.3)', borderRadius: '20px', padding: '3px 10px' },
+  ventaTotal:     { color: '#111111', fontSize: '14px', fontWeight: '800', minWidth: '100px', textAlign: 'right' as const },
+  ventaItem:      { color: '#333333', fontSize: '12px', margin: 0 },
+  ventaItemPrecio:{ color: '#9A9A9A' },
+
+  form:         { display: 'flex', gap: '8px', flexWrap: 'wrap' as const },
+  inputMonto:   { width: '160px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none' },
+  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  errorText:    { color: '#C6402F', fontSize: '13px', margin: 0 },
+
+  movRow:       { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 4px', borderBottom: '1px solid #EFF1F4', flexWrap: 'wrap' as const },
+  movTipo:      { color: '#8A6D00', fontSize: '11px', fontWeight: '700', background: '#FFFDF3', border: '1px solid rgba(245,196,0,0.3)', borderRadius: '20px', padding: '3px 10px', flexShrink: 0 },
+  movConcepto:  { color: '#111111', fontSize: '13px', flex: 1, minWidth: '120px' },
+  movFecha:     { color: '#6B6B6B', fontSize: '12px', flexShrink: 0 },
+  movMonto:     { fontSize: '14px', fontWeight: '700', flexShrink: 0, minWidth: '90px', textAlign: 'right' as const },
+}

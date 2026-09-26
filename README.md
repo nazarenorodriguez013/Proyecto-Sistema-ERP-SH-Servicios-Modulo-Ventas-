@@ -25,6 +25,8 @@ El sistema se centra en dos pilares críticos para el funcionamiento de SH Servi
 
 **Control de Stock en Tiempo Real:** Validación de disponibilidad antes de confirmar la venta y descuento automático de unidades en la base de datos al completar la transacción.
 
+**Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo.
+
 **Seguridad y Acceso:** Sistema de autenticación con JWT y roles de usuario, asegurando que solo el personal autorizado pueda modificar el inventario o visualizar el registro de ventas.
 
 ## 4. Tecnologías Utilizadas
@@ -42,19 +44,21 @@ Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se ut
 
 ## 6. Estructura de la Base de Datos
 
-El sistema se apoya en una estructura relacional de 5 tablas principales:
+El sistema se apoya en una estructura relacional de 7 tablas:
 
 - **usuarios:** Gestión de credenciales y perfiles de acceso de los empleados.
 - **categorias:** Clasificación organizada de los productos de SH Servicios.
 - **productos:** Registro maestro de artículos (precios, descripción, código único y stock).
-- **ventas:** Registro de cabecera de cada venta (fecha, total y usuario que la realizó).
+- **ventas:** Registro de cabecera de cada venta (fecha, total, medio de pago, usuario que la realizó y cliente opcional).
 - **detalles_venta:** Detalle de los artículos y cantidades incluidas en cada venta.
+- **clientes:** Datos de los clientes (nombre, documento único, teléfono, email y dirección).
+- **movimientos_cuenta:** Cuenta corriente de cada cliente: las ventas a cuenta suman deuda y los pagos la restan.
 
 ## 7. Despliegue en la Nube
 
 - **Infraestructura:** Railway.
 - **Persistencia:** PostgreSQL.
-- **URL en producción:** https://sh-servicios-erp-production.up.railway.app
+- **URL en producción:** https://shservicios.up.railway.app
 - **Video demostrativo:** https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing
 
 ## Conclusión
@@ -198,7 +202,7 @@ npm run db:studio
 
 ## API — Listado de Endpoints
 
-Base URL en producción: `https://sh-servicios-erp-production.up.railway.app`  
+Base URL en producción: `https://shservicios.up.railway.app`  
 Base URL en desarrollo: `http://localhost:3000`
 
 Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.  
@@ -208,35 +212,35 @@ Las rutas marcadas con 👑 requieren además rol **ADMIN**.
 
 | Método | URL completa | Descripción |
 |--------|-------------|-------------|
-| POST | `https://sh-servicios-erp-production.up.railway.app/api/auth/register` | Crea un nuevo usuario |
-| POST | `https://sh-servicios-erp-production.up.railway.app/api/auth/login` | Inicia sesión y devuelve el token JWT |
+| POST | `https://shservicios.up.railway.app/api/auth/register` | Crea un nuevo usuario |
+| POST | `https://shservicios.up.railway.app/api/auth/login` | Inicia sesión y devuelve el token JWT |
 
 ### Categorías — `/api/categories`
 
 | Método | URL completa | Auth | Descripción |
 |--------|-------------|------|-------------|
-| GET | `https://sh-servicios-erp-production.up.railway.app/api/categories` | 🔒 | Lista todas las categorías |
-| POST | `https://sh-servicios-erp-production.up.railway.app/api/categories` | 🔒 👑 | Crea una nueva categoría |
-| PUT | `https://sh-servicios-erp-production.up.railway.app/api/categories/:id` | 🔒 👑 | Edita el nombre de una categoría |
-| DELETE | `https://sh-servicios-erp-production.up.railway.app/api/categories/:id` | 🔒 👑 | Elimina una categoría (falla si tiene productos asignados) |
+| GET | `https://shservicios.up.railway.app/api/categories` | 🔒 | Lista todas las categorías |
+| POST | `https://shservicios.up.railway.app/api/categories` | 🔒 👑 | Crea una nueva categoría |
+| PUT | `https://shservicios.up.railway.app/api/categories/:id` | 🔒 👑 | Edita el nombre de una categoría |
+| DELETE | `https://shservicios.up.railway.app/api/categories/:id` | 🔒 👑 | Elimina una categoría (falla si tiene productos asignados) |
 
 ### Productos — `/api/products`
 
 | Método | URL completa | Auth | Descripción |
 |--------|-------------|------|-------------|
-| GET | `https://sh-servicios-erp-production.up.railway.app/api/products` | 🔒 | Lista todos los productos con su categoría |
-| GET | `https://sh-servicios-erp-production.up.railway.app/api/products/low-stock` | 🔒 | Lista productos activos con stock ≤ stock mínimo |
-| GET | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 | Obtiene un producto por ID |
-| POST | `https://sh-servicios-erp-production.up.railway.app/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
-| PUT | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Edita un producto |
-| DELETE | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto (falla si tiene ventas registradas; en ese caso se desactiva) |
+| GET | `https://shservicios.up.railway.app/api/products` | 🔒 | Lista todos los productos con su categoría |
+| GET | `https://shservicios.up.railway.app/api/products/low-stock` | 🔒 | Lista productos activos con stock ≤ stock mínimo |
+| GET | `https://shservicios.up.railway.app/api/products/:id` | 🔒 | Obtiene un producto por ID |
+| POST | `https://shservicios.up.railway.app/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
+| PUT | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Edita un producto |
+| DELETE | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto (falla si tiene ventas registradas; en ese caso se desactiva) |
 
 ### Ventas — `/api/sales`
 
 | Método | URL completa | Auth | Descripción |
 |--------|-------------|------|-------------|
-| GET | `https://sh-servicios-erp-production.up.railway.app/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
-| POST | `https://sh-servicios-erp-production.up.railway.app/api/sales` | 🔒 | Registra una venta y descuenta el stock |
+| GET | `https://shservicios.up.railway.app/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
+| POST | `https://shservicios.up.railway.app/api/sales` | 🔒 | Registra una venta y descuenta el stock |
 
 Cuerpo de `POST /api/sales`:
 
@@ -244,11 +248,23 @@ Cuerpo de `POST /api/sales`:
 {
   "items": [{ "productoId": 4, "cantidad": 2 }],
   "medioPago": "Efectivo",
-  "montoRecibido": 120000
+  "montoRecibido": 120000,
+  "clienteId": 1
 }
 ```
 
-El precio unitario y el total se calculan en el servidor con los precios de la base. La venta se rechaza completa si algún producto está inactivo o no tiene stock suficiente.
+El precio unitario y el total se calculan en el servidor con los precios de la base. La venta se rechaza completa si algún producto está inactivo o no tiene stock suficiente. `clienteId` es opcional, salvo con `"medioPago": "Cuenta Corriente"`, que exige cliente y registra la deuda en su cuenta.
+
+### Clientes — `/api/clients`
+
+| Método | URL completa | Auth | Descripción |
+|--------|-------------|------|-------------|
+| GET | `https://shservicios.up.railway.app/api/clients` | 🔒 | Lista los clientes con su saldo de cuenta corriente |
+| GET | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 | Ficha del cliente: datos, historial de compras con sus productos, movimientos y saldo |
+| POST | `https://shservicios.up.railway.app/api/clients` | 🔒 👑 | Crea un cliente (el documento no se puede repetir) |
+| PUT | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Edita un cliente |
+| DELETE | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Elimina un cliente (falla si tiene compras o pagos registrados) |
+| POST | `https://shservicios.up.railway.app/api/clients/:id/movements` | 🔒 👑 | Registra un pago en la cuenta corriente. Cuerpo: `{ "monto": 10000 }` |
 
 ### Tiempo real — Socket.io
 
@@ -262,4 +278,4 @@ El frontend se conecta con Socket.io a la misma URL del servidor.
 
 | Método | URL completa | Descripción |
 |--------|-------------|-------------|
-| GET | `https://sh-servicios-erp-production.up.railway.app/health` | Confirma que el servidor está corriendo |
+| GET | `https://shservicios.up.railway.app/health` | Confirma que el servidor está corriendo |
