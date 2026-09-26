@@ -4,6 +4,7 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -15,11 +16,10 @@ model Usuario {
   correo        String   @unique
   contrasena    String
   rol           Rol      @default(VENDEDOR)
-  creadoEn      DateTime @default(now())  @map("creado_en")
-  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
-  ventas     Venta[]
-  alquileres Alquiler[]
+  ventas Venta[]
 
   @@map("usuarios")
 }
@@ -44,14 +44,14 @@ model Producto {
   codigo        String?  @unique
   nombre        String
   descripcion   String?
-  precioCosto   Float    @default(0)  @map("precio_costo")
+  precioCosto   Float    @default(0) @map("precio_costo")
   precio        Float
   stock         Int      @default(0)
-  stockMinimo   Int      @default(5)  @map("stock_minimo")
+  stockMinimo   Int      @default(5) @map("stock_minimo")
   activo        Boolean  @default(true)
   categoriaId   Int      @map("categoria_id")
-  creadoEn      DateTime @default(now())  @map("creado_en")
-  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
   categoria     Categoria      @relation(fields: [categoriaId], references: [id])
   detallesVenta DetalleVenta[]
@@ -60,61 +60,17 @@ model Producto {
 }
 
 model Venta {
-  id             Int      @id @default(autoincrement())
-  total          Float
-  medioPago      String   @default("Efectivo") @map("medio_pago")
-  montoRecibido  Float?   @map("monto_recibido")
-  usuarioId      Int      @map("usuario_id")
-  clienteId      Int?     @map("cliente_id")
-  creadoEn       DateTime @default(now()) @map("creado_en")
+  id            Int      @id @default(autoincrement())
+  total         Float
+  medioPago     String   @default("Efectivo") @map("medio_pago")
+  montoRecibido Float?   @map("monto_recibido")
+  usuarioId     Int      @map("usuario_id")
+  creadoEn      DateTime @default(now()) @map("creado_en")
 
-  usuario            Usuario            @relation(fields: [usuarioId], references: [id])
-  cliente            Cliente?           @relation(fields: [clienteId], references: [id])
-  detallesVenta      DetalleVenta[]
-  movimientosCuenta  MovimientoCuenta[]
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id])
+  detallesVenta DetalleVenta[]
 
   @@map("ventas")
-}
-
-model Cliente {
-  id            Int      @id @default(autoincrement())
-  nombre        String
-  documento     String?  @unique
-  telefono      String?
-  email         String?
-  direccion     String?
-  activo        Boolean  @default(true)
-  creadoEn      DateTime @default(now())  @map("creado_en")
-  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
-
-  movimientos MovimientoCuenta[]
-  ventas      Venta[]
-  alquileres  Alquiler[]
-
-  @@map("clientes")
-}
-
-// Cuenta corriente del cliente: cada consumo (venta/alquiler/servicio) suma deuda y cada pago la resta
-enum TipoMovimiento {
-  VENTA
-  ALQUILER
-  SERVICIO
-  PAGO
-}
-
-model MovimientoCuenta {
-  id        Int            @id @default(autoincrement())
-  clienteId Int            @map("cliente_id")
-  tipo      TipoMovimiento
-  concepto  String
-  monto     Float
-  ventaId   Int?           @map("venta_id")
-  creadoEn  DateTime       @default(now()) @map("creado_en")
-
-  cliente Cliente @relation(fields: [clienteId], references: [id])
-  venta   Venta?  @relation(fields: [ventaId], references: [id])
-
-  @@map("movimientos_cuenta")
 }
 
 model DetalleVenta {
@@ -128,46 +84,4 @@ model DetalleVenta {
   producto Producto @relation(fields: [productoId], references: [id])
 
   @@map("detalles_venta")
-}
-
-model Maquina {
-  id            Int      @id @default(autoincrement())
-  codigo        String?  @unique
-  nombre        String
-  marca         String?
-  tipo          String?
-  tarifaDiaria  Float    @map("tarifa_diaria")
-  stock         Int      @default(0)
-  stockMinimo   Int      @default(1)  @map("stock_minimo")
-  activo        Boolean  @default(true)
-  creadoEn      DateTime @default(now())  @map("creado_en")
-  actualizadoEn DateTime @updatedAt       @map("actualizado_en")
-
-  alquileres Alquiler[]
-
-  @@map("maquinas")
-}
-
-model Alquiler {
-  id          Int            @id @default(autoincrement())
-  maquinaId   Int            @map("maquina_id")
-  clienteId   Int?           @map("cliente_id")
-  fechaInicio DateTime       @map("fecha_inicio")
-  fechaFin    DateTime       @map("fecha_fin")
-  total       Float
-  estado      EstadoAlquiler @default(ACTIVO)
-  usuarioId   Int            @map("usuario_id")
-  creadoEn    DateTime       @default(now()) @map("creado_en")
-
-  maquina Maquina  @relation(fields: [maquinaId], references: [id])
-  cliente Cliente? @relation(fields: [clienteId], references: [id])
-  usuario Usuario  @relation(fields: [usuarioId], references: [id])
-
-  @@map("alquileres")
-}
-
-enum EstadoAlquiler {
-  ACTIVO
-  FINALIZADO
-  CANCELADO
 }
