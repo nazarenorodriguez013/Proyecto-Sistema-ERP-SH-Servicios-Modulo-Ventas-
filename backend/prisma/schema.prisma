@@ -19,7 +19,8 @@ model Usuario {
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
-  ventas Venta[]
+  ventas             Venta[]
+  serviciosAsignados ServicioTecnico[]
 
   @@map("usuarios")
 }
@@ -27,6 +28,7 @@ model Usuario {
 enum Rol {
   ADMIN
   VENDEDOR
+  TECNICO
 }
 
 model Categoria {
@@ -53,8 +55,9 @@ model Producto {
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
-  categoria     Categoria      @relation(fields: [categoriaId], references: [id])
-  detallesVenta DetalleVenta[]
+  categoria       Categoria          @relation(fields: [categoriaId], references: [id])
+  detallesVenta   DetalleVenta[]
+  usosEnServicios ServicioRepuesto[]
 
   @@map("productos")
 }
@@ -101,27 +104,79 @@ model Cliente {
 
   ventas      Venta[]
   movimientos MovimientoCuenta[]
+  servicios   ServicioTecnico[]
 
   @@map("clientes")
 }
 
-// Cuenta corriente del cliente: cada venta a cuenta suma deuda y cada pago la resta
+// Cuenta corriente del cliente: cada venta o servicio a cuenta suma deuda y cada pago la resta
 enum TipoMovimiento {
   VENTA
+  SERVICIO
   PAGO
 }
 
 model MovimientoCuenta {
-  id        Int            @id @default(autoincrement())
-  clienteId Int            @map("cliente_id")
-  tipo      TipoMovimiento
-  concepto  String
-  monto     Float
-  ventaId   Int?           @map("venta_id")
-  creadoEn  DateTime       @default(now()) @map("creado_en")
+  id         Int            @id @default(autoincrement())
+  clienteId  Int            @map("cliente_id")
+  tipo       TipoMovimiento
+  concepto   String
+  monto      Float
+  ventaId    Int?           @map("venta_id")
+  servicioId Int?           @map("servicio_id")
+  creadoEn   DateTime       @default(now()) @map("creado_en")
 
-  cliente Cliente @relation(fields: [clienteId], references: [id])
-  venta   Venta?  @relation(fields: [ventaId], references: [id])
+  cliente  Cliente          @relation(fields: [clienteId], references: [id])
+  venta    Venta?           @relation(fields: [ventaId], references: [id])
+  servicio ServicioTecnico? @relation(fields: [servicioId], references: [id])
 
   @@map("movimientos_cuenta")
+}
+
+// Flujo del taller: sin garantía se presupuesta y el cliente decide; con garantía pasa directo a pendiente
+enum EstadoServicio {
+  PRESUPUESTADO
+  PENDIENTE
+  RECHAZADO
+  EN_REPARACION
+  REPARADO
+  ENTREGADO
+}
+
+model ServicioTecnico {
+  id                   Int            @id @default(autoincrement())
+  clienteId            Int            @map("cliente_id")
+  tecnicoId            Int?           @map("tecnico_id")
+  equipo               String
+  descripcionFalla     String         @map("descripcion_falla")
+  enGarantia           Boolean        @default(false) @map("en_garantia")
+  costoManoObra        Float          @default(0) @map("costo_mano_obra")
+  estado               EstadoServicio
+  medioPago            String?        @map("medio_pago")
+  total                Float?
+  proximoMantenimiento DateTime?      @map("proximo_mantenimiento")
+  fechaIngreso         DateTime       @default(now()) @map("fecha_ingreso")
+  entregadoEn          DateTime?      @map("entregado_en")
+
+  cliente     Cliente            @relation(fields: [clienteId], references: [id])
+  tecnico     Usuario?           @relation(fields: [tecnicoId], references: [id])
+  repuestos   ServicioRepuesto[]
+  movimientos MovimientoCuenta[]
+
+  @@map("servicios_tecnicos")
+}
+
+// Repuestos del inventario usados en un servicio; el stock se descuenta al cargarlos (salen del depósito)
+model ServicioRepuesto {
+  id             Int   @id @default(autoincrement())
+  servicioId     Int   @map("servicio_id")
+  productoId     Int   @map("producto_id")
+  cantidad       Int
+  precioUnitario Float @map("precio_unitario")
+
+  servicio ServicioTecnico @relation(fields: [servicioId], references: [id])
+  producto Producto        @relation(fields: [productoId], references: [id])
+
+  @@unique([servicioId, productoId])
+  @@map("servicio_repuestos")
 }

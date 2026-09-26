@@ -70,8 +70,12 @@ export const update = async (id: number, data: {
 };
 
 export const remove = async (id: number) => {
-  if (await prisma.detalleVenta.count({ where: { productoId: id } }))
-    throw new Error('No se puede eliminar: tiene ventas registradas. Desactivalo en su lugar');
+  const [ventas, servicios] = await Promise.all([
+    prisma.detalleVenta.count({ where: { productoId: id } }),
+    prisma.servicioRepuesto.count({ where: { productoId: id } }),
+  ]);
+  if (ventas || servicios)
+    throw new Error('No se puede eliminar: tiene ventas o servicios registrados. Desactivalo en su lugar');
   await prisma.producto.delete({ where: { id } });
   getIO()?.emit('stock-actualizado');
 };
