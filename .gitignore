@@ -1,8 +1,6 @@
 node_modules
 /.env
+backend/.env
 frontend/.env
 /generated/prisma
-prisma/dev.db-journal
-prisma/dev.db-shm
-prisma/dev.db-wal
 backend/prisma/.env

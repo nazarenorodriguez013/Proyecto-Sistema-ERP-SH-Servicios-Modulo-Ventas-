@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
+import { socket } from '../socket'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
   id: number; codigo: string | null; nombre: string
-  precio: number; stock: number; categoria: Categoria
+  precio: number; stock: number; activo: boolean; categoria: Categoria
 }
-interface Cliente { id: number; nombre: string }
 interface ItemCarrito {
   producto: Producto
   cantidad: number
@@ -21,22 +21,17 @@ interface ComprobanteData {
   medioPago: string
   montoRecibido: number | null
   vendedor: string
-  cliente: string | null
 }
 
-const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Cuenta Corriente']
-const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente'
+const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia']
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export default function Ventas({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [clienteId, setClienteId] = useState('')
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [cantidad, setCantidad] = useState('1')
   const [busqueda, setBusqueda] = useState('')
-  const [sugerencias, setSugerencias] = useState<Producto[]>([])
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0)
   const [medioPago, setMedioPago] = useState('Efectivo')
   const [montoRecibido, setMontoRecibido] = useState('')
@@ -50,21 +45,23 @@ export default function Ventas({ user }: { user: User }) {
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
-  useEffect(() => {
-    fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
-    fetch(`${API}/clients`, { headers }).then(r => r.json()).then(setClientes)
-  }, [])
+  const fetchProductos = () => fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
 
   useEffect(() => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) { setSugerencias([]); return }
-    setSugerencias(
-      productos.filter(p => p.stock > 0 && (
+    fetchProductos()
+    // Otra terminal vendió o ajustó stock: se recargan los productos para no ofrecer unidades que ya no existen
+    socket.on('stock-actualizado', fetchProductos)
+    return () => { socket.off('stock-actualizado', fetchProductos) }
+  }, [])
+
+  const q = busqueda.trim().toLowerCase()
+  const sugerencias = q
+    ? productos.filter(p => p.activo && p.stock > 0 && (
         p.nombre.toLowerCase().includes(q) || (p.codigo?.toLowerCase().includes(q))
       )).slice(0, 8)
-    )
-    setSugerenciaIdx(0)
-  }, [busqueda, productos])
+    : []
+
+  const cambiarBusqueda = (valor: string) => { setBusqueda(valor); setSugerenciaIdx(0) }
 
   const agregarProducto = useCallback((producto: Producto) => {
     const cant = Math.max(1, parseInt(cantidad) || 1)
@@ -80,7 +77,7 @@ export default function Ventas({ user }: { user: User }) {
       }
       return [...prev, { producto, cantidad: cant, precioUnitario: producto.precio }]
     })
-    setError(''); setBusqueda(''); setSugerencias([])
+    setError(''); setBusqueda('')
     setCantidad('1'); cantidadRef.current?.focus(); cantidadRef.current?.select()
   }, [cantidad])
 
@@ -99,16 +96,14 @@ export default function Ventas({ user }: { user: User }) {
 
   const confirmarVenta = async () => {
     if (!carrito.length) { setError('El comprobante está vacío'); return }
-    if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId) { setError('Seleccioná un cliente para vender a cuenta corriente'); return }
     setProcesando(true); setError('')
     try {
       const res = await fetch(`${API}/sales`, {
         method: 'POST', headers,
         body: JSON.stringify({
-          items: carrito.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, precioUnitario: i.precioUnitario })),
+          items: carrito.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad })),
           medioPago,
           montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
-          clienteId: clienteId ? Number(clienteId) : null,
         })
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
@@ -116,16 +111,14 @@ export default function Ventas({ user }: { user: User }) {
       setComprobante({
         id: venta.id,
         fecha: new Date(),
-        items: [...carrito],
-        total,
+        items: venta.detallesVenta,
+        total: venta.total,
         medioPago,
         montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
         vendedor: user.nombre,
-        cliente: clientes.find(c => String(c.id) === clienteId)?.nombre ?? null,
       })
-      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido(''); setClienteId('')
-      fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
-    } catch (e: any) { setError(e.message) }
+      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido('')
+    } catch (e) { setError((e as Error).message) }
     finally { setProcesando(false) }
   }
 
@@ -141,7 +134,7 @@ export default function Ventas({ user }: { user: User }) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSugerenciaIdx(i => Math.min(i + 1, sugerencias.length - 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSugerenciaIdx(i => Math.max(i - 1, 0)) }
     else if (e.key === 'Enter') { e.preventDefault(); if (sugerencias.length > 0) agregarProducto(sugerencias[sugerenciaIdx]) }
-    else if (e.key === 'Escape') { setSugerencias([]); setBusqueda(''); cantidadRef.current?.focus() }
+    else if (e.key === 'Escape') { setBusqueda(''); cantidadRef.current?.focus() }
   }
 
   return (
@@ -185,7 +178,7 @@ export default function Ventas({ user }: { user: User }) {
               ref={busquedaRef} style={s.inputBusqueda}
               type="text" placeholder="Escribí y presioná Enter..."
               value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
+              onChange={e => cambiarBusqueda(e.target.value)}
               onKeyDown={onBusquedaKeyDown}
               autoComplete="off"
             />
@@ -242,17 +235,6 @@ export default function Ventas({ user }: { user: User }) {
               <button style={s.btnX} onClick={() => quitarItem(idx)}><i className="bi bi-x-lg" /></button>
             </div>
           ))}
-        </div>
-
-        <div style={s.divider} />
-
-        {/* ── Cliente ── */}
-        <div style={s.inputGroup}>
-          <label style={s.label}>CLIENTE {medioPago === MEDIO_CUENTA_CORRIENTE ? '(obligatorio)' : '(opcional)'}</label>
-          <select style={s.selectCliente} value={clienteId} onChange={e => setClienteId(e.target.value)}>
-            <option value="">Sin cliente</option>
-            {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
         </div>
 
         <div style={s.divider} />
@@ -341,12 +323,6 @@ export default function Ventas({ user }: { user: User }) {
                   <span style={s.ticketMetaKey}>Vendedor</span>
                   <span style={s.ticketMetaVal}>{comprobante.vendedor}</span>
                 </div>
-                {comprobante.cliente && (
-                  <div style={s.ticketMetaRow}>
-                    <span style={s.ticketMetaKey}>Cliente</span>
-                    <span style={s.ticketMetaVal}>{comprobante.cliente}</span>
-                  </div>
-                )}
               </div>
 
               <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
@@ -437,7 +413,6 @@ const s: Record<string, React.CSSProperties> = {
   label:       { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
   inputCant:   { width: '72px', background: '#FFFFFF', border: '2px solid #F5C400', borderRadius: '8px', padding: '10px', color: '#8A6D00', fontSize: '18px', fontWeight: '700', outline: 'none', textAlign: 'center' },
   inputBusqueda: { width: '100%', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '11px 14px', color: '#111111', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
-  selectCliente: { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', minWidth: '220px' },
 
   dropdown:    { position: 'absolute', top: '100%', left: 0, right: 0, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', zIndex: 100, marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(17,17,17,.18)' },
   dropItem:    { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #EFF1F4' },

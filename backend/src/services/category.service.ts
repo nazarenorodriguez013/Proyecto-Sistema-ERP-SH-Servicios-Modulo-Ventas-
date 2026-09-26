@@ -14,4 +14,8 @@ export const update = (id: number, nombre: string) => {
   return prisma.categoria.update({ where: { id }, data: { nombre: nombre.trim() } });
 };
 
-export const remove = (id: number) => prisma.categoria.delete({ where: { id } });
+export const remove = async (id: number) => {
+  if (await prisma.producto.count({ where: { categoriaId: id } }))
+    throw new Error('No se puede eliminar: tiene productos asignados');
+  return prisma.categoria.delete({ where: { id } });
+};

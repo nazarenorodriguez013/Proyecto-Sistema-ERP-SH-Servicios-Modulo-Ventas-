@@ -32,7 +32,7 @@ El sistema se centra en dos pilares críticos para el funcionamiento de SH Servi
 Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se utilizó el siguiente stack:
 
 - **Backend:** Node.js con Express y TypeScript (arquitectura en capas: Controladores, Servicios, Rutas).
-- **Base de Datos:** SQLite gestionado a través de Prisma ORM para asegurar un tipado estricto de los modelos de datos.
+- **Base de Datos:** PostgreSQL gestionado a través de Prisma ORM para asegurar un tipado estricto de los modelos de datos.
 - **Frontend:** React con TypeScript, orientado a una experiencia de usuario ágil y responsiva.
 - **Comunicación en Tiempo Real:** Uso de WebSockets con Socket.io para notificar instantáneamente la actualización de stock en todos los terminales cuando se realiza una venta.
 
@@ -53,7 +53,7 @@ El sistema se apoya en una estructura relacional de 5 tablas principales:
 ## 7. Despliegue en la Nube
 
 - **Infraestructura:** Railway.
-- **Persistencia:** SQLite.
+- **Persistencia:** PostgreSQL.
 - **URL en producción:** https://sh-servicios-erp-production.up.railway.app
 - **Video demostrativo:** https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing
 
@@ -100,6 +100,7 @@ Alertas de Stock Bajo en Tiempo Real (frontend/src/components/AlertBell.tsx): im
 
 - [Node.js](https://nodejs.org/) v20 o superior
 - npm v9 o superior
+- [PostgreSQL](https://www.postgresql.org/) v14 o superior, con una base creada para el proyecto (por ejemplo `sh_servicios`)
 
 ### 1. Clonar el repositorio
 
@@ -127,10 +128,24 @@ cd ..
 ### 4. Configurar variables de entorno
 
 ```bash
+cd backend
 cp .env.example .env
 ```
 
-El `.env` ya viene configurado para usar la base de datos local (`prisma/dev.db`).
+Editar `backend/.env` con los datos de la base PostgreSQL local:
+
+| Variable | Descripción |
+|---|---|
+| `DATABASE_URL` | Conexión a PostgreSQL, por ejemplo `postgresql://postgres:postgres@localhost:5432/sh_servicios` |
+| `JWT_SECRET` | Clave con la que se firman los tokens JWT |
+
+Crear las tablas aplicando las migraciones:
+
+```bash
+npm run db:migrate
+```
+
+Al levantar el backend por primera vez, si la base está vacía se cargan automáticamente los usuarios de prueba, 3 categorías y 9 productos.
 
 ### 5. Correr el proyecto
 
@@ -161,12 +176,15 @@ Abrir el navegador en **http://localhost:5173**
 
 ### Base de datos
 
-La base de datos SQLite ya viene incluida en el repositorio (`backend/prisma/dev.db`) con datos de prueba listos para usar.
-
-Si se necesita resetear o re-sembrar los datos:
+Para borrar todos los datos, recrear las tablas y volver a cargar los datos de prueba:
 ```bash
 cd backend
-npm run db:migrate
+npm run db:reset
+```
+
+Para cargar solo los datos de prueba en una base vacía:
+```bash
+cd backend
 npm run db:seed
 ```
 
@@ -211,7 +229,7 @@ Las rutas marcadas con 👑 requieren además rol **ADMIN**.
 | GET | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 | Obtiene un producto por ID |
 | POST | `https://sh-servicios-erp-production.up.railway.app/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
 | PUT | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Edita un producto |
-| DELETE | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto |
+| DELETE | `https://sh-servicios-erp-production.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto (falla si tiene ventas registradas; en ese caso se desactiva) |
 
 ### Ventas — `/api/sales`
 
@@ -219,6 +237,26 @@ Las rutas marcadas con 👑 requieren además rol **ADMIN**.
 |--------|-------------|------|-------------|
 | GET | `https://sh-servicios-erp-production.up.railway.app/api/sales` | 🔒 | Lista todas las ventas con sus detalles |
 | POST | `https://sh-servicios-erp-production.up.railway.app/api/sales` | 🔒 | Registra una venta y descuenta el stock |
+
+Cuerpo de `POST /api/sales`:
+
+```json
+{
+  "items": [{ "productoId": 4, "cantidad": 2 }],
+  "medioPago": "Efectivo",
+  "montoRecibido": 120000
+}
+```
+
+El precio unitario y el total se calculan en el servidor con los precios de la base. La venta se rechaza completa si algún producto está inactivo o no tiene stock suficiente.
+
+### Tiempo real — Socket.io
+
+El frontend se conecta con Socket.io a la misma URL del servidor.
+
+| Evento | Cuándo se emite | Uso en el frontend |
+|--------|-----------------|--------------------|
+| `stock-actualizado` | Después de confirmar una venta y al crear, editar o eliminar un producto | Punto de Venta, Artículos y Stock recargan los productos al instante en todas las terminales |
 
 ### Health check
 

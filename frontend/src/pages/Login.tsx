@@ -24,8 +24,8 @@ export default function Login({ onLogin }: Props) {
       if (!res.ok) throw new Error(data.message)
       localStorage.setItem('token', data.token)
       onLogin(data.user)
-    } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión')
+    } catch (err) {
+      setError((err as Error).message || 'Error al iniciar sesión')
     } finally {
       setLoading(false)
     }

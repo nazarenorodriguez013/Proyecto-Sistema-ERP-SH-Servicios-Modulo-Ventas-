@@ -38,7 +38,12 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
   try {
     await productService.remove(Number(req.params.id));
     res.status(204).send();
-  } catch {
-    res.status(404).json({ message: 'Producto no encontrado' });
+  } catch (err: any) {
+    // P2025: no existe el producto; cualquier otro error es porque tiene ventas registradas
+    if (err.code === 'P2025') {
+      res.status(404).json({ message: 'Producto no encontrado' });
+      return;
+    }
+    res.status(409).json({ message: err.message });
   }
 };
