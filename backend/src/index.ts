@@ -12,8 +12,9 @@ import categoryRoutes from './routes/category.routes';
 import productRoutes from './routes/product.routes';
 import saleRoutes from './routes/sale.routes';
 import clientRoutes from './routes/client.routes';
+import repairRoutes from './routes/repair.routes';
 import { setIO } from './socket';
-import { seedIfEmpty } from './seed';
+import { seed } from './seed';
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,6 +28,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/repairs', repairRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -50,7 +52,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 
-seedIfEmpty().then(() => {
+seed().then(() => {
   httpServer.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
   });

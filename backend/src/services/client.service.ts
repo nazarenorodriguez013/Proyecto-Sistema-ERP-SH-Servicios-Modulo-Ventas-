@@ -19,7 +19,7 @@ const traducirError = (err: unknown): never => {
   throw err;
 };
 
-// Las ventas a cuenta corriente suman deuda y los pagos la restan
+// Las ventas y servicios a cuenta corriente suman deuda y los pagos la restan
 const calcularSaldo = (movimientos: { tipo: string; monto: number }[]) =>
   movimientos.reduce((saldo, m) => saldo + (m.tipo === 'PAGO' ? -m.monto : m.monto), 0);
 
@@ -58,10 +58,12 @@ export const update = async (id: number, data: ClienteData) => {
 };
 
 export const remove = async (id: number) => {
-  const [ventas, movimientos] = await Promise.all([
+  const [ventas, movimientos, servicios] = await Promise.all([
     prisma.venta.count({ where: { clienteId: id } }),
     prisma.movimientoCuenta.count({ where: { clienteId: id } }),
+    prisma.servicioTecnico.count({ where: { clienteId: id } }),
   ]);
-  if (ventas || movimientos) throw new Error('No se puede eliminar: el cliente tiene compras o pagos registrados');
+  if (ventas || movimientos || servicios)
+    throw new Error('No se puede eliminar: el cliente tiene compras, pagos o servicios registrados');
   await prisma.cliente.delete({ where: { id } }).catch(traducirError);
 };

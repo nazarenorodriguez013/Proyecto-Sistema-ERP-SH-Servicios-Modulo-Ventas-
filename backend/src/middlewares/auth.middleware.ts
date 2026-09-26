@@ -19,10 +19,16 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 };
 
 // Debe ir siempre después de authenticate, ya que depende de req.user
-export const authorizeAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  if (req.user?.rol !== 'ADMIN') {
-    res.status(403).json({ message: 'Acceso solo para administradores' });
-    return;
-  }
-  next();
-};
+export const authorizeRoles = (...roles: string[]) =>
+  (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!roles.includes(req.user?.rol ?? '')) {
+      res.status(403).json({ message: 'No tenés permiso para esta acción' });
+      return;
+    }
+    next();
+  };
+
+export const authorizeAdmin = authorizeRoles('ADMIN');
+
+// Ventas, clientes y cobros son tareas de administración: el técnico solo trabaja en el taller
+export const authorizeAdministracion = authorizeRoles('ADMIN', 'VENDEDOR');

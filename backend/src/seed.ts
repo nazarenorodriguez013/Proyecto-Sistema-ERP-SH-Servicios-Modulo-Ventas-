@@ -4,19 +4,19 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Solo siembra datos de ejemplo si la base está vacía (primer arranque), nunca pisa datos existentes
-export async function seedIfEmpty() {
-  const count = await prisma.usuario.count();
-  if (count > 0) return;
-
-  console.log('DB vacía, sembrando datos iniciales...');
-
+// Crea los usuarios de prueba que falten y, solo si no hay catálogo, los datos de ejemplo; nunca pisa datos existentes
+export async function seed() {
   await prisma.usuario.createMany({
     data: [
       { nombre: 'Administrador', correo: 'admin@shservicios.com',    contrasena: await bcrypt.hash('admin123',    10), rol: 'ADMIN'    },
       { nombre: 'Vendedor',      correo: 'vendedor@shservicios.com', contrasena: await bcrypt.hash('vendedor123', 10), rol: 'VENDEDOR' },
+      { nombre: 'Técnico',       correo: 'tecnico@shservicios.com',  contrasena: await bcrypt.hash('tecnico123',  10), rol: 'TECNICO'  },
     ],
+    skipDuplicates: true,
   });
+
+  if (await prisma.categoria.count()) return;
+  console.log('Catálogo vacío, sembrando datos de ejemplo...');
 
   await prisma.categoria.createMany({
     data: [
@@ -41,10 +41,10 @@ export async function seedIfEmpty() {
     ],
   });
 
-  console.log('Seed completo: 2 usuarios, 3 categorías, 9 productos.');
+  console.log('Seed completo: 3 categorías y 9 productos.');
 }
 
 // Permite ejecutarlo a mano con "npm run db:seed" o automáticamente tras "npm run db:reset"
 if (require.main === module) {
-  seedIfEmpty().catch(console.error).finally(() => prisma.$disconnect());
+  seed().catch(console.error).finally(() => prisma.$disconnect());
 }
