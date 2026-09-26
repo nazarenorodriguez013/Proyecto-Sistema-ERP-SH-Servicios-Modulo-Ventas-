@@ -3,18 +3,25 @@ import { getIO } from '../socket';
 
 const prisma = new PrismaClient();
 
+const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
+
 const includeVenta = {
   detallesVenta: { include: { producto: { include: { categoria: true } } } },
   usuario: true,
+  cliente: true,
 };
 
-// El precio y el total se calculan con los datos de la base: del cliente solo se aceptan producto y cantidad
+// El precio y el total se calculan con los datos de la base: del frontend solo se aceptan producto y cantidad
 export const createSale = async (
   usuarioId: number,
   items: { productoId: number; cantidad: number }[],
   medioPago: string,
   montoRecibido?: number | null,
+  clienteId?: number | null,
 ) => {
+  if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId)
+    throw new Error('Para vender a cuenta corriente hay que seleccionar un cliente');
+
   // Unifica ítems repetidos para validar el stock contra la cantidad total pedida de cada producto
   const cantidades = new Map<number, number>();
   for (const item of items) {
@@ -25,6 +32,9 @@ export const createSale = async (
 
   // Todo en una transacción: si falla el descuento de stock de cualquier ítem, se revierte la venta entera
   const venta = await prisma.$transaction(async (tx) => {
+    if (clienteId && !(await tx.cliente.findUnique({ where: { id: clienteId } })))
+      throw new Error('Cliente no encontrado');
+
     const detalles = [];
     for (const [productoId, cantidad] of cantidades) {
       const producto = await tx.producto.findUnique({ where: { id: productoId } });
@@ -44,16 +54,26 @@ export const createSale = async (
 
     const total = detalles.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
 
-    return tx.venta.create({
+    const nueva = await tx.venta.create({
       data: {
         total,
         medioPago,
         montoRecibido: montoRecibido ?? null,
         usuarioId,
+        clienteId: clienteId ?? null,
         detallesVenta: { create: detalles },
       },
       include: includeVenta,
     });
+
+    // Venta a cuenta corriente: la deuda queda registrada en la cuenta del cliente
+    if (medioPago === MEDIO_CUENTA_CORRIENTE && clienteId) {
+      await tx.movimientoCuenta.create({
+        data: { clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, monto: total, ventaId: nueva.id },
+      });
+    }
+
+    return nueva;
   });
 
   // Se avisa recién cuando la transacción quedó confirmada

@@ -5,6 +5,7 @@ import Categorias from './Categorias'
 import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
+import Clientes from './Clientes'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
@@ -25,16 +26,17 @@ const sections: Section[] = [
       },
     ],
   },
+  { id: 'clientes', label: 'Clientes', icon: 'bi-people' },
 ]
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
-  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock',
+  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock', clientes: 'Clientes',
 }
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
-  'punto-venta': '/', categorias: '/categorias', articulos: '/articulos', stock: '/stock',
+  'punto-venta': '/', categorias: '/categorias', articulos: '/articulos', stock: '/stock', clientes: '/clientes',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
@@ -64,6 +66,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     if (activePage === 'categorias')   return <Categorias   user={user} />
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
+    if (activePage === 'clientes')     return <Clientes     user={user} />
     return <Ventas user={user} />
   }
 
@@ -95,7 +98,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
               {sections.map(section => {
                 const secExpanded = expanded.includes(section.id)
                 const hasChildren = !!section.children?.length
-                const secHasActive = section.children?.some(sub =>
+                const secHasActive = section.id === activePage || section.children?.some(sub =>
                   sub.id === activePage || sub.children?.some(p => p.id === activePage)
                 )
                 return (
