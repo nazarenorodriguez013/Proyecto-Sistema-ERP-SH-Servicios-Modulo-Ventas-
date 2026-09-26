@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { User } from '../types'
-import { API } from '../config'
+import { API, MEDIOS_PAGO, MEDIO_CUENTA_CORRIENTE } from '../config'
 import { socket } from '../socket'
 
 interface Categoria { id: number; nombre: string }
@@ -25,8 +25,6 @@ interface ComprobanteData {
   cliente: string | null
 }
 
-const MEDIOS = ['Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Cuenta Corriente']
-const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente'
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -264,7 +262,7 @@ export default function Ventas({ user }: { user: User }) {
           <div style={s.pagoBlock}>
             <span style={s.label}>MEDIO DE PAGO</span>
             <div style={s.medios}>
-              {MEDIOS.map(m => (
+              {MEDIOS_PAGO.map(m => (
                 <button key={m}
                   style={{ ...s.medioBtn, ...(medioPago === m ? s.medioBtnOn : {}) }}
                   onClick={() => { setMedioPago(m); if (m !== 'Efectivo') setMontoRecibido('') }}

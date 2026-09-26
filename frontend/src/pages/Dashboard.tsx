@@ -6,14 +6,18 @@ import Articulos from './Articulos'
 import Stock from './Stock'
 import Ventas from './Ventas'
 import Clientes from './Clientes'
+import ServiciosTecnicos from './ServiciosTecnicos'
 
 interface PageItem   { id: string; label: string; icon: string }
 interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
-interface Section    { id: string; label: string; icon: string; children?: SubSection[] }
+interface Section    { id: string; label: string; icon: string; roles: string[]; children?: SubSection[] }
 
-const sections: Section[] = [
+const ADMINISTRACION = ['ADMIN', 'VENDEDOR']
+const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', TECNICO: 'Técnico' }
+
+const allSections: Section[] = [
   {
-    id: 'ventas', label: 'Ventas', icon: 'bi-cart3',
+    id: 'ventas', label: 'Ventas', icon: 'bi-cart3', roles: ADMINISTRACION,
     children: [
       { id: 'punto-venta',  label: 'Punto de Venta',  icon: 'bi-receipt' },
       {
@@ -26,28 +30,34 @@ const sections: Section[] = [
       },
     ],
   },
-  { id: 'clientes', label: 'Clientes', icon: 'bi-people' },
+  { id: 'clientes',  label: 'Clientes',           icon: 'bi-people', roles: ADMINISTRACION },
+  { id: 'servicios', label: 'Servicios Técnicos', icon: 'bi-tools',  roles: [...ADMINISTRACION, 'TECNICO'] },
 ]
 
 const pageLabels: Record<string, string> = {
   'punto-venta': 'Punto de Venta',
-  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock', clientes: 'Clientes',
+  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock', clientes: 'Clientes', servicios: 'Servicios Técnicos',
 }
 
 // Mapeo entre ID de página y segmento de URL
 const pageToPath: Record<string, string> = {
   'punto-venta': '/', categorias: '/categorias', articulos: '/articulos', stock: '/stock', clientes: '/clientes',
+  servicios: '/servicios',
 }
 const pathToPage: Record<string, string> = Object.fromEntries(
   Object.entries(pageToPath).map(([k, v]) => [v, k])
 )
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const sections      = allSections.filter(s => s.roles.includes(user.rol))
   const routerNav     = useNavigate()
   const { pathname }  = useLocation()
 
-  // La página activa sale de la URL, así funcionan los botones atrás/adelante del navegador
-  const activePage = pathToPage[pathname] ?? 'punto-venta'
+  // La página activa sale de la URL (así funcionan atrás/adelante); si el rol no puede verla, va a su primera página
+  const allowedPages = sections.flatMap(s =>
+    s.children ? s.children.flatMap(sub => sub.children ? sub.children.map(p => p.id) : [sub.id]) : [s.id]
+  )
+  const activePage = allowedPages.includes(pathToPage[pathname]) ? pathToPage[pathname] : allowedPages[0]
   const [expanded, setExpanded]       = useState<string[]>(['ventas', 'inventario'])
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -67,6 +77,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     if (activePage === 'articulos')    return <Articulos    user={user} />
     if (activePage === 'stock')        return <Stock        user={user} />
     if (activePage === 'clientes')     return <Clientes     user={user} />
+    if (activePage === 'servicios')    return <ServiciosTecnicos user={user} />
     return <Ventas user={user} />
   }
 
@@ -88,7 +99,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
             <div style={st.avatar}>{user.nombre.charAt(0).toUpperCase()}</div>
             <div style={{ minWidth: 0 }}>
               <p style={st.userName}>{user.nombre}</p>
-              <p style={st.userRole}>{user.rol === 'ADMIN' ? 'Administrador' : 'Vendedor'}</p>
+              <p style={st.userRole}>{ROL_LABEL[user.rol] ?? user.rol}</p>
             </div>
           </div>
 
