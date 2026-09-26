@@ -3,7 +3,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import type { User } from './types'
 
-const SESSION_DURATION = 12 * 60 * 60 * 1000 // 12 horas en ms
+const SESSION_DURATION = 8 * 60 * 60 * 1000 // 8 horas en ms, igual que la expiración del JWT
 
 function clearSession() {
   localStorage.removeItem('token')
@@ -28,11 +28,15 @@ function App() {
     return parsed
   })
 
+  const handleLogout = () => {
+    clearSession()
+    setUser(null)
+  }
+
   useEffect(() => {
     if (!user) return
     const loginTime = Number(localStorage.getItem('loginTime') ?? 0)
     const remaining = SESSION_DURATION - (Date.now() - loginTime)
-    if (remaining <= 0) { handleLogout(); return }
     const timer = setTimeout(handleLogout, remaining)
     return () => clearTimeout(timer)
   }, [user])
@@ -41,11 +45,6 @@ function App() {
     localStorage.setItem('loginTime', String(Date.now()))
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
-  }
-
-  const handleLogout = () => {
-    clearSession()
-    setUser(null)
   }
 
   if (!user) return <Login onLogin={handleLogin} />

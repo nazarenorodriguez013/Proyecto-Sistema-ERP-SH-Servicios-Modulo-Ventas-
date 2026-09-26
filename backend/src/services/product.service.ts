@@ -47,7 +47,9 @@ export const create = async (data: {
   validateNumericFields(data);
   // El código se genera acá, no lo manda el cliente, para garantizar unicidad y orden
   const codigo = await generateCode();
-  return prisma.producto.create({ data: { ...data, codigo }, include: { categoria: true } });
+  const producto = await prisma.producto.create({ data: { ...data, codigo }, include: { categoria: true } });
+  getIO()?.emit('stock-actualizado');
+  return producto;
 };
 
 export const update = async (id: number, data: {
@@ -62,11 +64,14 @@ export const update = async (id: number, data: {
 }) => {
   validateNumericFields(data);
   const producto = await prisma.producto.update({ where: { id }, data, include: { categoria: true } });
-  // Avisa por websocket en tiempo real si la edición dejó el producto en stock bajo
-  if (producto.activo && producto.stock <= producto.stockMinimo) {
-    getIO()?.emit('low-stock', producto);
-  }
+  // Avisa a todas las terminales para que refresquen el stock en tiempo real
+  getIO()?.emit('stock-actualizado');
   return producto;
 };
 
-export const remove = (id: number) => prisma.producto.delete({ where: { id } });
+export const remove = async (id: number) => {
+  if (await prisma.detalleVenta.count({ where: { productoId: id } }))
+    throw new Error('No se puede eliminar: tiene ventas registradas. Desactivalo en su lugar');
+  await prisma.producto.delete({ where: { id } });
+  getIO()?.emit('stock-actualizado');
+};

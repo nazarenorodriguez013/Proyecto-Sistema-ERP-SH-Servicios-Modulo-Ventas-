@@ -17,11 +17,10 @@ export default function Categorias({ user }: { user: User }) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const isAdmin = user.rol === 'ADMIN'
 
-  const fetchAll = async () => {
-    const res = await fetch(`${API}/categories`, { headers })
-    setCategorias(await res.json())
-    setLoading(false)
-  }
+  const fetchAll = () =>
+    fetch(`${API}/categories`, { headers })
+      .then(r => r.json())
+      .then(data => { setCategorias(data); setLoading(false) })
 
   useEffect(() => { fetchAll() }, [])
 
