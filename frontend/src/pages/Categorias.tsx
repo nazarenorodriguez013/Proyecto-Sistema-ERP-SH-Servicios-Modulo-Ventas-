@@ -2,19 +2,17 @@ import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
 
-interface Categoria { id: number; nombre: string; creadoEn: string }
-
+interface Categoria { id: number; nombre: string; _count: { productos: number } }
 
 export default function Categorias({ user }: { user: User }) {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; editing: Categoria | null }>({ open: false, editing: null })
   const [nombre, setNombre] = useState('')
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
   const [error, setError] = useState('')
 
-  const token = localStorage.getItem('token') ?? ''
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
   const isAdmin = user.rol === 'ADMIN'
 
   const fetchAll = () =>
@@ -24,35 +22,27 @@ export default function Categorias({ user }: { user: User }) {
 
   useEffect(() => { fetchAll() }, [])
 
-  const openCreate = () => { setNombre(''); setError(''); setModal({ open: true, editing: null }) }
-  const openEdit = (c: Categoria) => { setNombre(c.nombre); setError(''); setModal({ open: true, editing: c }) }
-  const closeModal = () => setModal({ open: false, editing: null })
+  const abrir = (c: Categoria | null) => {
+    setNombre(c?.nombre ?? ''); setError(''); setConfirmarBorrado(false); setModal({ open: true, editing: c })
+  }
+  const cerrar = () => setModal({ open: false, editing: null })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const guardar = async (method: string, path: string, body?: object) => {
     setError('')
-    const body = JSON.stringify({ nombre })
-    let res: Response
-    if (modal.editing) {
-      res = await fetch(`${API}/categories/${modal.editing.id}`, { method: 'PUT', headers, body })
-    } else {
-      res = await fetch(`${API}/categories`, { method: 'POST', headers, body })
-    }
+    const res = await fetch(`${API}/categories${path}`, { method, headers, body: body && JSON.stringify(body) })
     if (!res.ok) {
       const data = await res.json()
-      setError(data.message || 'Error al guardar')
+      setError(data.message || 'No se pudo guardar la categoría')
+      setConfirmarBorrado(false)
       return
     }
-    closeModal(); fetchAll()
+    cerrar(); fetchAll()
   }
 
-  const handleDelete = async (id: number) => {
-    const res = await fetch(`${API}/categories/${id}`, { method: 'DELETE', headers })
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.message || 'No se puede eliminar')
-    }
-    setDeleteConfirm(null); fetchAll()
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (modal.editing) guardar('PUT', `/${modal.editing.id}`, { nombre })
+    else guardar('POST', '', { nombre })
   }
 
   if (loading) return <div style={s.loading}>Cargando categorías...</div>
@@ -60,30 +50,20 @@ export default function Categorias({ user }: { user: User }) {
   return (
     <div className="page-container">
       <div className="page-header">
-        <p style={s.subtitle}>{categorias.length} categorías registradas</p>
-        {isAdmin && <button style={s.btnPrimary} onClick={openCreate}><i className="bi bi-plus-lg" /> Nueva Categoría</button>}
+        <p style={s.subtitle}>{categorias.length} categorías</p>
+        {isAdmin && <button style={s.btnPrimary} onClick={() => abrir(null)}><i className="bi bi-plus-lg" /> Nueva categoría</button>}
       </div>
 
-      {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
-
       {categorias.length === 0
-        ? <div style={s.empty}>No hay categorías. Creá la primera.</div>
+        ? <div style={s.empty}>Todavía no hay categorías</div>
         : (
-          <div className="page-grid-2">
+          <div>
             {categorias.map(c => (
-              <div key={c.id} style={s.card}>
-                <div style={s.cardIcon}><i className="bi bi-tag" /></div>
-                <div style={s.cardBody}>
-                  <p style={s.cardName}>{c.nombre}</p>
-                  <p style={s.cardDate}>Creada: {new Date(c.creadoEn).toLocaleDateString('es-AR')}</p>
-                </div>
-                {isAdmin && (
-                  <div style={s.cardActions}>
-                    <button style={s.btnIcon} onClick={() => openEdit(c)} title="Editar"><i className="bi bi-pencil" /></button>
-                    <button style={s.btnIconDanger} onClick={() => setDeleteConfirm(c.id)} title="Eliminar"><i className="bi bi-trash" /></button>
-                  </div>
-                )}
-              </div>
+              <button key={c.id} style={{ ...s.row, cursor: isAdmin ? 'pointer' : 'default' }} disabled={!isAdmin} onClick={() => abrir(c)}>
+                <span style={s.nombre}>{c.nombre}</span>
+                <span style={s.meta}>{c._count.productos} artículos</span>
+                {isAdmin && <i className="bi bi-chevron-right" style={s.chevron} />}
+              </button>
             ))}
           </div>
         )
@@ -93,38 +73,30 @@ export default function Categorias({ user }: { user: User }) {
         <div style={s.overlay}>
           <div className="page-modal">
             <div style={s.modalHeader}>
-              <h3 style={s.modalTitle}>{modal.editing ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
-              <button style={s.closeBtn} onClick={closeModal}><i className="bi bi-x-lg" /></button>
+              <h3 style={s.modalTitle}>{modal.editing ? 'Editar categoría' : 'Nueva categoría'}</h3>
+              <button style={s.closeBtn} onClick={cerrar}><i className="bi bi-x-lg" /></button>
             </div>
-            <form onSubmit={handleSubmit} style={s.form}>
-              <div style={s.field}>
-                <label style={s.label}>Nombre *</label>
-                <input style={s.input} value={nombre}
-                  onChange={e => setNombre(e.target.value)}
-                  placeholder="Ej: Herramientas Neumáticas..."
-                  required autoFocus />
-              </div>
-              {error && <p style={{ color: '#C6402F', fontSize: '13px', margin: 0 }}>{error}</p>}
-              <div style={s.modalActions}>
-                <button type="button" style={s.btnSecondary} onClick={closeModal}>Cancelar</button>
-                <button type="submit" style={s.btnPrimary}>{modal.editing ? 'Guardar cambios' : 'Crear categoría'}</button>
-              </div>
+            <form onSubmit={handleSubmit}>
+              <input style={s.input} value={nombre} onChange={e => setNombre(e.target.value)}
+                placeholder="Herramientas neumáticas" required autoFocus />
+              {error && <p style={s.errorText}>{error}</p>}
+              {confirmarBorrado ? (
+                <div style={s.confirmar}>
+                  <span style={s.texto}>¿Eliminar esta categoría?</span>
+                  <button type="button" style={s.btnSecondary} onClick={() => setConfirmarBorrado(false)}>Cancelar</button>
+                  <button type="button" style={s.btnDanger} onClick={() => guardar('DELETE', `/${modal.editing!.id}`)}>Eliminar</button>
+                </div>
+              ) : (
+                <div style={s.modalActions}>
+                  {modal.editing && (
+                    <button type="button" style={s.btnLink} onClick={() => setConfirmarBorrado(true)}>Eliminar</button>
+                  )}
+                  <span style={{ flex: 1 }} />
+                  <button type="button" style={s.btnSecondary} onClick={cerrar}>Cancelar</button>
+                  <button type="submit" style={s.btnPrimary}>{modal.editing ? 'Guardar' : 'Crear categoría'}</button>
+                </div>
+              )}
             </form>
-          </div>
-        </div>
-      )}
-
-      {deleteConfirm !== null && (
-        <div style={s.overlay}>
-          <div style={{ ...s.modal, maxWidth: '400px' }}>
-            <h3 style={{ ...s.modalTitle, marginBottom: '12px' }}>Eliminar categoría</h3>
-            <p style={{ color: '#6B6B6B', fontSize: '14px', margin: '0 0 24px' }}>
-              ¿Estás seguro? Si la categoría tiene productos asignados no se podrá eliminar.
-            </p>
-            <div style={s.modalActions}>
-              <button style={s.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancelar</button>
-              <button style={s.btnDanger} onClick={() => handleDelete(deleteConfirm)}>Eliminar</button>
-            </div>
           </div>
         </div>
       )}
@@ -135,27 +107,23 @@ export default function Categorias({ user }: { user: User }) {
 const s: Record<string, React.CSSProperties> = {
   loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: 0 },
-  errorBanner:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
-  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '60px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E4E8' },
-  card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' },
-  cardIcon:     { fontSize: '20px', flexShrink: 0, width: '44px', height: '44px', background: '#F5F5F5', color: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  cardBody:     { flex: 1, minWidth: 0 },
-  cardName:     { color: '#111111', fontWeight: '600', fontSize: '15px', margin: 0 },
-  cardDate:     { color: '#6B6B6B', fontSize: '12px', margin: '4px 0 0' },
-  cardActions:  { display: 'flex', gap: '6px', flexShrink: 0 },
-  btnIcon:      { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '14px', color: '#111111' },
-  btnIconDanger:{ background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '7px 10px', cursor: 'pointer', fontSize: '14px', color: '#C6402F' },
-  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
-  btnSecondary: { background: '#FFFFFF', color: '#6B6B6B', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
-  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '48px 20px', fontSize: '14px' },
+  row:          { width: '100%', display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFFFF', border: 'none', borderBottom: '1px solid #EFF1F4', padding: '14px 12px', textAlign: 'left', font: 'inherit' },
+  nombre:       { flex: 1, color: '#111111', fontSize: '14px', fontWeight: '600' },
+  meta:         { color: '#8A8A8A', fontSize: '13px' },
+  chevron:      { color: '#B0B0B0', fontSize: '12px' },
+
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
   modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: 0 },
   closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
-  form:         { display: 'flex', flexDirection: 'column', gap: '16px' },
-  field:        { display: 'flex', flexDirection: 'column', gap: '6px' },
-  label:        { color: '#333333', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
   input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
-  modalActions: { display: 'flex', gap: '10px', justifyContent: 'flex-end' },
+  errorText:    { color: '#C6402F', fontSize: '13px', margin: '12px 0 0' },
+  texto:        { color: '#333333', fontSize: '13px', flex: 1 },
+  modalActions: { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px' },
+  confirmar:    { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px', background: '#FBE5E2', borderRadius: '10px', padding: '10px 12px' },
+  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
+  btnSecondary: { background: '#FFFFFF', color: '#333333', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
+  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  btnLink:      { background: 'transparent', border: 'none', color: '#C6402F', fontSize: '13px', fontWeight: '600', cursor: 'pointer', padding: '9px 4px' },
 }
