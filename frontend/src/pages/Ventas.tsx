@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { User } from '../types'
 import { API, MEDIOS_PAGO, MEDIO_CUENTA_CORRIENTE } from '../config'
 import { socket } from '../socket'
+import ClienteSelector from '../components/ClienteSelector'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
   id: number; codigo: string | null; nombre: string
   precio: number; stock: number; activo: boolean; categoria: Categoria
 }
-interface Cliente { id: number; nombre: string }
+interface Cliente { id: number; nombre: string; documento: string | null; saldo: number }
 interface ItemCarrito {
   producto: Producto
   cantidad: number
@@ -33,7 +34,6 @@ export default function Ventas({ user }: { user: User }) {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteId, setClienteId] = useState('')
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
-  const [cantidad, setCantidad] = useState('1')
   const [busqueda, setBusqueda] = useState('')
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0)
   const [medioPago, setMedioPago] = useState('Efectivo')
@@ -42,7 +42,6 @@ export default function Ventas({ user }: { user: User }) {
   const [procesando, setProcesando] = useState(false)
   const [comprobante, setComprobante] = useState<ComprobanteData | null>(null)
 
-  const cantidadRef = useRef<HTMLInputElement>(null)
   const busquedaRef = useRef<HTMLInputElement>(null)
 
   const token = localStorage.getItem('token') ?? ''
@@ -67,23 +66,16 @@ export default function Ventas({ user }: { user: User }) {
 
   const cambiarBusqueda = (valor: string) => { setBusqueda(valor); setSugerenciaIdx(0) }
 
-  const agregarProducto = useCallback((producto: Producto) => {
-    const cant = Math.max(1, parseInt(cantidad) || 1)
-    if (cant > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return }
-    setCarrito(prev => {
-      const idx = prev.findIndex(i => i.producto.id === producto.id)
-      if (idx >= 0) {
-        const nueva = [...prev]
-        const nuevaCant = nueva[idx].cantidad + cant
-        if (nuevaCant > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return prev }
-        nueva[idx] = { ...nueva[idx], cantidad: nuevaCant }
-        return nueva
-      }
-      return [...prev, { producto, cantidad: cant, precioUnitario: producto.precio }]
-    })
+  // Cada Enter agrega una unidad (si el producto ya está, suma una); la cantidad se ajusta en el carrito
+  const agregarProducto = (producto: Producto) => {
+    const enCarrito = carrito.find(i => i.producto.id === producto.id)
+    if ((enCarrito?.cantidad ?? 0) + 1 > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return }
+    setCarrito(prev => enCarrito
+      ? prev.map(i => i.producto.id === producto.id ? { ...i, cantidad: i.cantidad + 1 } : i)
+      : [...prev, { producto, cantidad: 1, precioUnitario: producto.precio }])
     setError(''); setBusqueda('')
-    setCantidad('1'); cantidadRef.current?.focus(); cantidadRef.current?.select()
-  }, [cantidad])
+    busquedaRef.current?.focus()
+  }
 
   const quitarItem = (idx: number) => setCarrito(prev => prev.filter((_, i) => i !== idx))
 
@@ -124,71 +116,39 @@ export default function Ventas({ user }: { user: User }) {
         vendedor: user.nombre,
         cliente: venta.cliente?.nombre ?? null,
       })
-      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido(''); setClienteId('')
+      setCarrito([]); setBusqueda(''); setMontoRecibido(''); setClienteId(''); setMedioPago('Efectivo')
     } catch (e) { setError((e as Error).message) }
     finally { setProcesando(false) }
   }
 
   const cerrarComprobante = () => {
     setComprobante(null)
-    setTimeout(() => { cantidadRef.current?.focus() }, 100)
+    setTimeout(() => { busquedaRef.current?.focus() }, 100)
   }
 
-  const onCantidadKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); busquedaRef.current?.focus(); busquedaRef.current?.select() }
-  }
   const onBusquedaKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSugerenciaIdx(i => Math.min(i + 1, sugerencias.length - 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSugerenciaIdx(i => Math.max(i - 1, 0)) }
     else if (e.key === 'Enter') { e.preventDefault(); if (sugerencias.length > 0) agregarProducto(sugerencias[sugerenciaIdx]) }
-    else if (e.key === 'Escape') { setBusqueda(''); cantidadRef.current?.focus() }
+    else if (e.key === 'Escape') setBusqueda('')
   }
 
   return (
     <div style={s.wrap}>
       <div style={s.container}>
 
-        {/* ── Header ── */}
-        <div style={s.header}>
-          <div style={s.headerLeft}>
-            <span style={s.headerIcon}><i className="bi bi-receipt" /></span>
-            <div>
-              <h2 style={s.title}>Punto de Venta</h2>
-              <p style={s.subtitle}>{user.nombre}</p>
-            </div>
-          </div>
-          {carrito.length > 0 && (
-            <button style={s.btnLimpiar} onClick={() => { setCarrito([]); setCantidad('1'); setError('') }}>
-              Limpiar comprobante
-            </button>
-          )}
-        </div>
-
-        <div style={s.divider} />
-
         {/* ── Ingreso ── */}
-        <div style={s.inputRow}>
-          <div style={s.inputGroup}>
-            <label style={s.label}>CANT.</label>
-            <input
-              ref={cantidadRef} style={s.inputCant}
-              type="number" min="1" value={cantidad}
-              onChange={e => setCantidad(e.target.value)}
-              onKeyDown={onCantidadKeyDown}
-              onFocus={e => e.target.select()}
-              autoFocus
-            />
-          </div>
-          <div style={{ ...s.inputGroup, flex: 1, position: 'relative' }}>
-            <label style={s.label}>PRODUCTO — nombre o código interno</label>
-            <input
-              ref={busquedaRef} style={s.inputBusqueda}
-              type="text" placeholder="Escribí y presioná Enter..."
-              value={busqueda}
-              onChange={e => cambiarBusqueda(e.target.value)}
-              onKeyDown={onBusquedaKeyDown}
-              autoComplete="off"
-            />
+        <div style={{ ...s.inputGroup, position: 'relative' }}>
+          <label style={s.label}>PRODUCTO — buscá por nombre o código y presioná Enter</label>
+          <input
+            ref={busquedaRef} style={s.inputBusqueda}
+            type="text" placeholder="Ej: compresor, 0006..."
+            value={busqueda}
+            onChange={e => cambiarBusqueda(e.target.value)}
+            onKeyDown={onBusquedaKeyDown}
+            autoComplete="off"
+            autoFocus
+          />
             {sugerencias.length > 0 && (
               <div style={s.dropdown}>
                 {sugerencias.map((p, i) => (
@@ -206,7 +166,6 @@ export default function Ventas({ user }: { user: User }) {
                 ))}
               </div>
             )}
-          </div>
         </div>
 
         {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
@@ -249,10 +208,8 @@ export default function Ventas({ user }: { user: User }) {
         {/* ── Cliente ── */}
         <div style={s.inputGroup}>
           <label style={s.label}>CLIENTE {medioPago === MEDIO_CUENTA_CORRIENTE ? '(obligatorio)' : '(opcional)'}</label>
-          <select style={s.selectCliente} value={clienteId} onChange={e => setClienteId(e.target.value)}>
-            <option value="">Sin cliente</option>
-            {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
+          <ClienteSelector clientes={clientes} value={clienteId} onChange={setClienteId}
+            onCreated={c => setClientes(prev => [...prev, { ...c, saldo: 0 }])} />
         </div>
 
         <div style={s.divider} />
@@ -300,13 +257,18 @@ export default function Ventas({ user }: { user: User }) {
         <div style={s.divider} />
 
         {/* ── Confirmar ── */}
-        <button
-          style={{ ...s.btnConfirmar, ...(!carrito.length || procesando ? s.btnOff : {}) }}
-          onClick={confirmarVenta}
-          disabled={!carrito.length || procesando}
-        >
-          <i className="bi bi-check-lg" /> {procesando ? 'Procesando...' : 'Confirmar Venta'}
-        </button>
+        <div style={s.confirmarRow}>
+          {carrito.length > 0 && (
+            <button style={s.btnLimpiar} onClick={() => { setCarrito([]); setError('') }}>Cancelar venta</button>
+          )}
+          <button
+            style={{ ...s.btnConfirmar, ...(!carrito.length || procesando ? s.btnOff : {}) }}
+            onClick={confirmarVenta}
+            disabled={!carrito.length || procesando}
+          >
+            <i className="bi bi-check-lg" /> {procesando ? 'Procesando...' : 'Confirmar Venta'}
+          </button>
+        </div>
 
       </div>
 
@@ -423,20 +385,12 @@ const s: Record<string, React.CSSProperties> = {
   wrap:        { padding: '24px 28px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' as const },
   container:   { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '860px', flex: 1, minHeight: 0, overflow: 'hidden' },
 
-  header:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  headerLeft:  { display: 'flex', alignItems: 'center', gap: '12px' },
-  headerIcon:  { fontSize: '22px', background: '#F5F5F5', color: '#111111', borderRadius: '10px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  title:       { color: '#111111', fontSize: '18px', fontWeight: '700', margin: 0 },
-  subtitle:    { color: '#6B6B6B', fontSize: '12px', margin: '2px 0 0' },
-  btnLimpiar:  { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '7px', color: '#6B6B6B', fontSize: '12px', padding: '6px 14px', cursor: 'pointer' },
+  btnLimpiar:  { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', color: '#6B6B6B', fontSize: '14px', fontWeight: '600', padding: '14px 20px', cursor: 'pointer' },
 
   divider:     { height: '1px', background: '#EFF1F4' },
 
-  inputRow:    { display: 'flex', gap: '12px', alignItems: 'flex-end' },
   inputGroup:  { display: 'flex', flexDirection: 'column', gap: '5px' },
   label:       { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
-  inputCant:   { width: '72px', background: '#FFFFFF', border: '2px solid #F5C400', borderRadius: '8px', padding: '10px', color: '#8A6D00', fontSize: '18px', fontWeight: '700', outline: 'none', textAlign: 'center' },
-  selectCliente: { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', minWidth: '220px' },
   inputBusqueda: { width: '100%', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '11px 14px', color: '#111111', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
 
   dropdown:    { position: 'absolute', top: '100%', left: 0, right: 0, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', zIndex: 100, marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(17,17,17,.18)' },
@@ -480,7 +434,8 @@ const s: Record<string, React.CSSProperties> = {
   vueltoLabel: { fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: '#1E7A45' },
   vueltoValor: { fontSize: '18px', fontWeight: '800', color: '#1E7A45' },
 
-  btnConfirmar: { padding: '14px', background: '#F5C400', color: '#111111', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '800', cursor: 'pointer', letterSpacing: '0.5px' },
+  confirmarRow: { display: 'flex', gap: '10px' },
+  btnConfirmar: { flex: 1, padding: '14px', background: '#F5C400', color: '#111111', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '800', cursor: 'pointer', letterSpacing: '0.5px' },
   btnOff:       { opacity: 0.35, cursor: 'not-allowed' },
 
   // Modal comprobante

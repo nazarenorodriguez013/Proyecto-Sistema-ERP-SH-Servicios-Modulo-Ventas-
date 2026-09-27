@@ -2,21 +2,30 @@ import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
 import { socket } from '../socket'
+import ClienteSelector from '../components/ClienteSelector'
 import ServicioDetalle from './ServicioDetalle'
 import { ESTADO_LABEL, ESTADO_COLOR, type Servicio, type EstadoServicio } from '../servicios'
 
-interface Cliente { id: number; nombre: string }
-interface SolicitudForm { clienteId: string; equipo: string; descripcionFalla: string; enGarantia: boolean; costoManoObra: string }
+interface Cliente { id: number; nombre: string; documento: string | null }
+interface SolicitudForm { clienteId: string; equipo: string; descripcionFalla: string; repuestosSolicitados: string; enGarantia: boolean; costoManoObra: string }
 
-const EMPTY_FORM: SolicitudForm = { clienteId: '', equipo: '', descripcionFalla: '', enGarantia: false, costoManoObra: '' }
-const FILTROS: ('all' | EstadoServicio)[] = ['all', 'PRESUPUESTADO', 'PENDIENTE', 'EN_REPARACION', 'REPARADO', 'ENTREGADO', 'RECHAZADO']
+const EMPTY_FORM: SolicitudForm = { clienteId: '', equipo: '', descripcionFalla: '', repuestosSolicitados: '', enGarantia: false, costoManoObra: '' }
+type Filtro = 'curso' | 'all' | EstadoServicio
+const FILTROS: Filtro[] = ['curso', 'PRESUPUESTADO', 'PENDIENTE', 'EN_REPARACION', 'REPARADO', 'ENTREGADO', 'RECHAZADO', 'all']
+// Al técnico solo le llegan servicios ya asignados: no ve las etapas previas del presupuesto
+const FILTROS_TECNICO: Filtro[] = ['EN_REPARACION', 'REPARADO', 'ENTREGADO']
+const FILTRO_LABEL: Record<Filtro, string> = { curso: 'En curso', all: 'Todos', ...ESTADO_LABEL }
+// "En curso" es todo lo que todavía requiere trabajo: ni entregado ni rechazado
+const cumple = (filtro: Filtro, sv: Servicio) =>
+  filtro === 'all' || (filtro === 'curso' ? sv.estado !== 'ENTREGADO' && sv.estado !== 'RECHAZADO' : sv.estado === filtro)
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 export default function ServiciosTecnicos({ user }: { user: User }) {
   const [servicios, setServicios] = useState<Servicio[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | EstadoServicio>('all')
+  // Cada rol arranca viendo lo que tiene que hacer: el técnico, sus reparaciones; administración, lo que está en curso
+  const [filter, setFilter] = useState<Filtro>(user.rol === 'TECNICO' ? 'EN_REPARACION' : 'curso')
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<SolicitudForm>(EMPTY_FORM)
   const [error, setError] = useState('')
@@ -43,11 +52,13 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.clienteId) { setError('Seleccioná o creá el cliente'); return }
     setError('')
     const res = await fetch(`${API}/repairs`, {
       method: 'POST', headers,
       body: JSON.stringify({
         clienteId: Number(form.clienteId), equipo: form.equipo, descripcionFalla: form.descripcionFalla,
+        repuestosSolicitados: form.repuestosSolicitados || null,
         enGarantia: form.enGarantia, costoManoObra: Number(form.costoManoObra) || 0,
       }),
     })
@@ -65,24 +76,21 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
 
   if (loading) return <div style={s.loading}>Cargando servicios...</div>
 
-  const filtered = servicios.filter(sv => filter === 'all' || sv.estado === filter)
+  const filtered = servicios.filter(sv => cumple(filter, sv))
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <div>
-          <h2 style={s.title}>Servicios Técnicos</h2>
-          <p style={s.subtitle}>
-            {esAdministracion ? `${servicios.length} servicios registrados` : `${servicios.length} servicios asignados a vos`}
-          </p>
-        </div>
+        <p style={s.subtitle}>
+          {esAdministracion ? `${servicios.length} servicios registrados` : `${servicios.length} servicios asignados a vos`} · tocá un servicio para ver el detalle
+        </p>
         {esAdministracion && <button style={s.btnPrimary} onClick={openCreate}><i className="bi bi-plus-lg" /> Nueva solicitud</button>}
       </div>
 
       <div style={s.tabs}>
-        {FILTROS.map(f => (
+        {(esAdministracion ? FILTROS : FILTROS_TECNICO).map(f => (
           <button key={f} style={{ ...s.tab, ...(filter === f ? s.tabActive : {}) }} onClick={() => setFilter(f)}>
-            {f === 'all' ? 'Todos' : ESTADO_LABEL[f]} ({f === 'all' ? servicios.length : servicios.filter(sv => sv.estado === f).length})
+            {FILTRO_LABEL[f]} ({servicios.filter(sv => cumple(f, sv)).length})
           </button>
         ))}
       </div>
@@ -126,11 +134,9 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
             <form onSubmit={handleSubmit} style={s.form}>
               <div style={s.field}>
                 <label style={s.label}>Cliente *</label>
-                <select style={s.input} value={form.clienteId} required
-                  onChange={e => setForm(f => ({ ...f, clienteId: e.target.value }))}>
-                  <option value="">Seleccionar...</option>
-                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
+                <ClienteSelector clientes={clientes} value={form.clienteId}
+                  onChange={id => setForm(f => ({ ...f, clienteId: id }))}
+                  onCreated={c => setClientes(prev => [...prev, c])} />
               </div>
               <div style={s.field}>
                 <label style={s.label}>Equipo *</label>
@@ -141,6 +147,12 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
                 <label style={s.label}>Descripción de la falla *</label>
                 <textarea style={{ ...s.input, resize: 'vertical', minHeight: '70px' }} value={form.descripcionFalla} required
                   onChange={e => setForm(f => ({ ...f, descripcionFalla: e.target.value }))} />
+              </div>
+              <div style={s.field}>
+                <label style={s.label}>Repuestos necesarios (opcional)</label>
+                <textarea style={{ ...s.input, resize: 'vertical', minHeight: '50px' }} value={form.repuestosSolicitados}
+                  placeholder="Ej: 2 filtros de aceite, junta de tapa de cilindro"
+                  onChange={e => setForm(f => ({ ...f, repuestosSolicitados: e.target.value }))} />
               </div>
               <label style={s.checkLabel}>
                 <input type="checkbox" checked={form.enGarantia}
@@ -169,8 +181,7 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
 
 const s: Record<string, React.CSSProperties> = {
   loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
-  title:        { color: '#111111', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: '3px 0 0' },
+  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: 0 },
 
   tabs:         { display: 'flex', gap: '6px', flexWrap: 'wrap' as const },
   tab:          { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '7px 14px', color: '#6B6B6B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },

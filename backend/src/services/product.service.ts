@@ -4,7 +4,7 @@ import { getIO } from '../socket';
 const prisma = new PrismaClient();
 
 export const getAll = () =>
-  prisma.producto.findMany({ include: { categoria: true } });
+  prisma.producto.findMany({ include: { categoria: true }, orderBy: { nombre: 'asc' } });
 
 export const getById = (id: number) =>
   prisma.producto.findUniqueOrThrow({ where: { id }, include: { categoria: true } });

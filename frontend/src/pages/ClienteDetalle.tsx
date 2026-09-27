@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
+import type { User } from '../types'
 import { API } from '../config'
+import ClienteFormModal from '../components/ClienteFormModal'
+import { describirSaldo } from '../saldo'
 
 interface Venta {
   id: number; total: number; medioPago: string; creadoEn: string
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string } }[]
 }
 interface Movimiento {
-  id: number; tipo: 'VENTA' | 'PAGO'; concepto: string; monto: number; creadoEn: string
+  id: number; tipo: 'VENTA' | 'SERVICIO' | 'PAGO'; concepto: string; monto: number; creadoEn: string
 }
 interface ClienteFicha {
   id: number; nombre: string; documento: string | null; telefono: string | null
@@ -14,11 +17,14 @@ interface ClienteFicha {
   ventas: Venta[]; movimientos: Movimiento[]; saldo: number
 }
 
+const TIPO_LABEL: Record<Movimiento['tipo'], string> = { VENTA: 'Compra', SERVICIO: 'Servicio técnico', PAGO: 'Pago' }
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { clienteId: number; isAdmin: boolean; onBack: () => void }) {
+export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId: number; user: User; onBack: () => void }) {
   const [cliente, setCliente] = useState<ClienteFicha | null>(null)
+  const [editando, setEditando] = useState(false)
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
   const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
 
@@ -46,17 +52,36 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
     setMontoPago(''); fetchCliente()
   }
 
+  const handleDelete = async () => {
+    const res = await fetch(`${API}/clients/${clienteId}`, { method: 'DELETE', headers })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo eliminar el cliente')
+      setConfirmarBorrado(false)
+      return
+    }
+    onBack()
+  }
+
   if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
 
   return (
     <div className="page-container">
       <div style={s.header}>
-        <button style={s.btnVolver} onClick={onBack}><i className="bi bi-arrow-left" /> Volver</button>
+        <div style={s.botones}>
+          <button style={s.btnVolver} onClick={onBack}><i className="bi bi-arrow-left" /> Volver</button>
+          <button style={s.btnVolver} onClick={() => setEditando(true)}><i className="bi bi-pencil" /> Editar</button>
+          {user.rol === 'ADMIN' && (
+            <button style={s.btnEliminar} onClick={() => { setError(''); setConfirmarBorrado(true) }}><i className="bi bi-trash" /> Eliminar</button>
+          )}
+        </div>
         <div style={s.saldoBox}>
           <span style={s.saldoLabel}>SALDO CUENTA CORRIENTE</span>
-          <span style={{ ...s.saldoValor, color: cliente.saldo > 0 ? '#C6402F' : '#2E9E5B' }}>${fmt(cliente.saldo)}</span>
+          <span style={{ ...s.saldoValor, color: describirSaldo(cliente.saldo).color }}>{describirSaldo(cliente.saldo).texto}</span>
         </div>
       </div>
+
+      {error && <p style={s.errorText}><i className="bi bi-exclamation-triangle-fill" /> {error}</p>}
 
       <div style={s.card}>
         <h2 style={s.title}>{cliente.nombre}</h2>
@@ -92,19 +117,16 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
 
       <div style={s.card}>
         <p style={s.sectionTitle}>Cuenta corriente</p>
-        {isAdmin && (
-          <form onSubmit={handlePago} style={s.form}>
-            <input style={s.inputMonto} type="number" min="0.01" step="0.01" placeholder="Monto" value={montoPago}
-              onChange={e => setMontoPago(e.target.value)} required />
-            <button type="submit" style={s.btnPrimary}>Registrar Pago</button>
-          </form>
-        )}
-        {error && <p style={s.errorText}><i className="bi bi-exclamation-triangle-fill" /> {error}</p>}
+        <form onSubmit={handlePago} style={s.form}>
+          <input style={s.inputMonto} type="number" min="0.01" step="0.01" placeholder="Monto" value={montoPago}
+            onChange={e => setMontoPago(e.target.value)} required />
+          <button type="submit" style={s.btnPrimary}>Registrar pago o anticipo</button>
+        </form>
         {cliente.movimientos.length === 0
           ? <div style={s.empty}>Sin compras a cuenta corriente ni pagos</div>
           : cliente.movimientos.map(m => (
             <div key={m.id} style={s.movRow}>
-              <span style={s.movTipo}>{m.tipo === 'PAGO' ? 'Pago' : 'Compra'}</span>
+              <span style={s.movTipo}>{TIPO_LABEL[m.tipo]}</span>
               <span style={s.movConcepto}>{m.concepto}</span>
               <span style={s.movFecha}>{fmtFecha(m.creadoEn)}</span>
               <span style={{ ...s.movMonto, color: m.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
@@ -114,6 +136,23 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
           ))
         }
       </div>
+
+      {editando && (
+        <ClienteFormModal cliente={cliente} onClose={() => setEditando(false)} onSaved={() => { setEditando(false); fetchCliente() }} />
+      )}
+
+      {confirmarBorrado && (
+        <div style={s.overlay}>
+          <div className="page-modal">
+            <h3 style={s.modalTitle}>Eliminar cliente</h3>
+            <p style={s.texto}>¿Estás seguro? Si el cliente tiene compras, pagos o servicios registrados no se podrá eliminar.</p>
+            <div style={s.modalActions}>
+              <button style={s.btnVolver} onClick={() => setConfirmarBorrado(false)}>Cancelar</button>
+              <button style={s.btnDanger} onClick={handleDelete}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -121,7 +160,14 @@ export default function ClienteDetalle({ clienteId, isAdmin, onBack }: { cliente
 const s: Record<string, React.CSSProperties> = {
   loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  botones:      { display: 'flex', gap: '8px', flexWrap: 'wrap' as const },
   btnVolver:    { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', color: '#333333', fontSize: '13px', padding: '8px 16px', cursor: 'pointer' },
+  btnEliminar:  { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '8px', color: '#C6402F', fontSize: '13px', padding: '8px 16px', cursor: 'pointer' },
+  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: '0 0 12px' },
+  texto:        { color: '#6B6B6B', fontSize: '14px', margin: '0 0 24px' },
+  modalActions: { display: 'flex', gap: '10px', justifyContent: 'flex-end' },
   saldoBox:     { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' },
   saldoLabel:   { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1.5px' },
   saldoValor:   { fontSize: '26px', fontWeight: '800' },

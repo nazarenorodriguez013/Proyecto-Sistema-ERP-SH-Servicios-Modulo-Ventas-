@@ -13,6 +13,7 @@ import productRoutes from './routes/product.routes';
 import saleRoutes from './routes/sale.routes';
 import clientRoutes from './routes/client.routes';
 import repairRoutes from './routes/repair.routes';
+import technicianRoutes from './routes/technician.routes';
 import { setIO } from './socket';
 import { seed } from './seed';
 
@@ -29,6 +30,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/repairs', repairRoutes);
+app.use('/api/technicians', technicianRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });

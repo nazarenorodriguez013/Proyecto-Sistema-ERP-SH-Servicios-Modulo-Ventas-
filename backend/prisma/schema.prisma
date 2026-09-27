@@ -149,6 +149,7 @@ model ServicioTecnico {
   tecnicoId            Int?           @map("tecnico_id")
   equipo               String
   descripcionFalla     String         @map("descripcion_falla")
+  repuestosSolicitados String?        @map("repuestos_solicitados")
   enGarantia           Boolean        @default(false) @map("en_garantia")
   costoManoObra        Float          @default(0) @map("costo_mano_obra")
   estado               EstadoServicio

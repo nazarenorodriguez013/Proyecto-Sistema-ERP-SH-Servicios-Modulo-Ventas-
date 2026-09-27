@@ -30,6 +30,19 @@ const calcVenta = (costo: number, margen: number) =>
 const fmt = (n: number) =>
   n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
+// Stock bajo: activo y en el mínimo o por debajo, pero con unidades; sin stock: cero unidades
+const esStockBajo = (p: Producto) => p.activo && p.stock > 0 && p.stock <= p.stockMinimo
+const esSinStock = (p: Producto) => p.activo && p.stock === 0
+
+type Filtro = 'activos' | 'bajo' | 'sin' | 'inactivos' | 'todos'
+const FILTROS: { key: Filtro; label: string; cumple: (p: Producto) => boolean }[] = [
+  { key: 'activos',   label: 'Activos',     cumple: p => p.activo },
+  { key: 'bajo',      label: 'Stock bajo',  cumple: esStockBajo },
+  { key: 'sin',       label: 'Sin stock',   cumple: esSinStock },
+  { key: 'inactivos', label: 'Inactivos',   cumple: p => !p.activo },
+  { key: 'todos',     label: 'Todos',       cumple: () => true },
+]
+
 
 export default function Articulos({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])
@@ -37,7 +50,8 @@ export default function Articulos({ user }: { user: User }) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('active')
+  const [filtro, setFiltro] = useState<Filtro>('activos')
+  const [ajuste, setAjuste] = useState<{ id: number; value: string } | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
   const [modal, setModal] = useState<{ open: boolean; editing: Producto | null }>({ open: false, editing: null })
   const [form, setForm] = useState<ProductoForm>(EMPTY_FORM)
@@ -124,10 +138,22 @@ export default function Articulos({ user }: { user: User }) {
     fetchAll()
   }
 
+  const handleAjuste = async (id: number, stock: number) => {
+    if (!Number.isInteger(stock) || stock < 0) { setError('El stock debe ser un número entero mayor o igual a 0'); return }
+    setError('')
+    const res = await fetch(`${API}/products/${id}`, { method: 'PUT', headers, body: JSON.stringify({ stock }) })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo ajustar el stock')
+      return
+    }
+    setAjuste(null); fetchAll()
+  }
+
+  const cumpleFiltro = FILTROS.find(f => f.key === filtro)!.cumple
   const filtered = productos.filter(p => {
     if (filterCat && String(p.categoriaId) !== filterCat) return false
-    if (filterStatus === 'active' && !p.activo) return false
-    if (filterStatus === 'inactive' && p.activo) return false
+    if (!cumpleFiltro(p)) return false
     if (search) {
       const q = search.toLowerCase()
       if (!p.nombre.toLowerCase().includes(q) && !(p.codigo?.toLowerCase().includes(q))) return false
@@ -141,10 +167,7 @@ export default function Articulos({ user }: { user: User }) {
     <div style={s.container}>
       {/* Encabezado */}
       <div style={s.header}>
-        <div>
-          <h2 style={s.title}>Artículos</h2>
-          <p style={s.subtitle}>{filtered.length} de {productos.length} artículos</p>
-        </div>
+        <p style={s.subtitle}>{filtered.length} de {productos.length} artículos</p>
         {isAdmin && <button style={s.btnPrimary} onClick={openCreate}><i className="bi bi-plus-lg" /> Nuevo Artículo</button>}
       </div>
 
@@ -163,13 +186,9 @@ export default function Articulos({ user }: { user: User }) {
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
         <div style={s.tabs}>
-          {(['all', 'active', 'inactive'] as const).map(f => (
-            <button
-              key={f}
-              style={{ ...s.tab, ...(filterStatus === f ? s.tabActive : {}) }}
-              onClick={() => setFilterStatus(f)}
-            >
-              {f === 'all' ? 'Todos' : f === 'active' ? 'Activos' : 'Inactivos'}
+          {FILTROS.map(f => (
+            <button key={f.key} style={{ ...s.tab, ...(filtro === f.key ? s.tabActive : {}) }} onClick={() => setFiltro(f.key)}>
+              {f.label} ({productos.filter(f.cumple).length})
             </button>
           ))}
         </div>
@@ -238,10 +257,27 @@ export default function Articulos({ user }: { user: User }) {
                   <div style={s.stockRow}>
                     <div style={s.stockInfo}>
                       <span style={s.stockLabel}>Stock</span>
-                      <span style={{ ...s.stockNum, color: stockStatus === 'out' ? '#C6402F' : stockStatus === 'low' ? '#E08A00' : '#2E9E5B' }}>
-                        {p.stock}
-                      </span>
-                      <span style={s.stockMin}>/ mín {p.stockMinimo}</span>
+                      {ajuste?.id === p.id ? (
+                        <>
+                          <input style={s.ajusteInput} type="number" min="0" value={ajuste.value} autoFocus
+                            onChange={e => setAjuste({ id: p.id, value: e.target.value })}
+                            onKeyDown={e => e.key === 'Enter' && handleAjuste(p.id, Number(ajuste.value))} />
+                          <button style={s.btnMini} title="Guardar" onClick={() => handleAjuste(p.id, Number(ajuste.value))}><i className="bi bi-check-lg" /></button>
+                          <button style={s.btnMini} title="Cancelar" onClick={() => setAjuste(null)}><i className="bi bi-x-lg" /></button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ ...s.stockNum, color: stockStatus === 'out' ? '#C6402F' : stockStatus === 'low' ? '#E08A00' : '#2E9E5B' }}>
+                            {p.stock}
+                          </span>
+                          <span style={s.stockMin}>/ mín {p.stockMinimo}</span>
+                          {isAdmin && (
+                            <button style={s.btnMini} title="Ajustar stock" onClick={() => { setError(''); setAjuste({ id: p.id, value: String(p.stock) }) }}>
+                              <i className="bi bi-pencil" />
+                            </button>
+                          )}
+                        </>
+                      )}
                       {stockStatus === 'out' && <span style={s.badgeOut}>Sin stock</span>}
                       {stockStatus === 'low' && <span style={s.badgeLow}>Stock bajo</span>}
                     </div>
@@ -400,14 +436,13 @@ const s: Record<string, React.CSSProperties> = {
   container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
   loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
   header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  title:        { color: '#111111', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: '3px 0 0' },
+  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: 0 },
   errorBanner:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
 
   filterBar:    { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
   searchInput:  { flex: 1, minWidth: '200px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none' },
   select:       { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#333333', fontSize: '13px', outline: 'none', cursor: 'pointer' },
-  tabs:         { display: 'flex', gap: '4px', background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '3px' },
+  tabs:         { display: 'flex', flexWrap: 'wrap' as const, gap: '4px', background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '3px' },
   tab:          { background: 'transparent', border: 'none', borderRadius: '6px', padding: '5px 12px', color: '#6B6B6B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
   tabActive:    { background: '#111111', color: '#F5C400', fontWeight: '600' },
 
@@ -446,6 +481,8 @@ const s: Record<string, React.CSSProperties> = {
   stockLabel:   { color: '#6B6B6B', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
   stockNum:     { fontWeight: '800', fontSize: '16px' },
   stockMin:     { color: '#6B6B6B', fontSize: '11px' },
+  ajusteInput:  { width: '64px', background: '#FFFFFF', border: '1px solid #F5C400', borderRadius: '6px', padding: '4px 8px', color: '#111111', fontSize: '13px', outline: 'none' },
+  btnMini:      { background: 'transparent', border: '1px solid #E2E4E8', borderRadius: '6px', padding: '2px 7px', color: '#333333', fontSize: '11px', cursor: 'pointer' },
   badgeOut:     { background: 'rgba(198,64,47,0.1)', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)', padding: '1px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' as const },
   badgeLow:     { background: 'rgba(224,138,0,0.12)', color: '#97640B', border: '1px solid rgba(224,138,0,0.25)', padding: '1px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' as const },
   stockBarWrap: { height: '4px', background: '#EFF1F4', borderRadius: '2px', overflow: 'hidden' },
