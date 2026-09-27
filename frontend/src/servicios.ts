@@ -2,7 +2,7 @@ export type EstadoServicio = 'PRESUPUESTADO' | 'PENDIENTE' | 'RECHAZADO' | 'EN_R
 
 export interface Servicio {
   id: number; equipo: string; descripcionFalla: string; repuestosSolicitados: string | null; enGarantia: boolean
-  costoManoObra: number; estado: EstadoServicio; medioPago: string | null; total: number | null
+  costoManoObra: number; estado: EstadoServicio; medioPago: string | null; total: number | null; saldoAplicado: number
   proximoMantenimiento: string | null; fechaIngreso: string; entregadoEn: string | null
   cliente: { id: number; nombre: string; documento: string | null }
   tecnico: { id: number; nombre: string } | null

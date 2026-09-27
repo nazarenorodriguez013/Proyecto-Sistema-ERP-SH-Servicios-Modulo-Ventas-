@@ -1,10 +1,9 @@
 import { PrismaClient, EstadoServicio } from '@prisma/client';
 import { getIO } from '../socket';
 import { httpError } from '../utils/http';
+import { registrarCargo } from './movement.service';
 
 const prisma = new PrismaClient();
-
-const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
 
 const includeServicio = {
   cliente: true,
@@ -149,7 +148,7 @@ export const marcarReparado = async (id: number, usuario: Usuario) => {
 };
 
 // Entrega del equipo: se registra el cobro y, si es a cuenta corriente, la deuda del cliente
-export const entregar = async (id: number, medioPago: string, proximoMantenimiento?: string | null) => {
+export const entregar = async (id: number, medioPago: string, proximoMantenimiento?: string | null, usarSaldo = true) => {
   if (!medioPago) throw httpError(400, 'Seleccioná el medio de pago');
   const fechaMantenimiento = proximoMantenimiento ? new Date(proximoMantenimiento) : null;
   if (fechaMantenimiento && isNaN(fechaMantenimiento.getTime())) throw httpError(400, 'La fecha de próximo mantenimiento no es válida');
@@ -158,17 +157,15 @@ export const entregar = async (id: number, medioPago: string, proximoMantenimien
   const servicio = await prisma.$transaction(async (tx) => {
     const actual = await tx.servicioTecnico.findUniqueOrThrow({ where: { id }, include: { repuestos: true } });
     const total = calcularCostoTotal(actual);
-    const entregado = await tx.servicioTecnico.update({
+    // El cobro pasa por la cuenta corriente del cliente, que descuenta primero el saldo a favor
+    const saldoAplicado = await registrarCargo(tx, {
+      clienteId: actual.clienteId, tipo: 'SERVICIO', concepto: `Servicio técnico #${id}`, total, medioPago, usarSaldo, servicioId: id,
+    });
+    return tx.servicioTecnico.update({
       where: { id },
-      data: { estado: 'ENTREGADO', medioPago, total, proximoMantenimiento: fechaMantenimiento, entregadoEn: new Date() },
+      data: { estado: 'ENTREGADO', medioPago, total, saldoAplicado, proximoMantenimiento: fechaMantenimiento, entregadoEn: new Date() },
       include: includeServicio,
     });
-    if (medioPago === MEDIO_CUENTA_CORRIENTE && total > 0) {
-      await tx.movimientoCuenta.create({
-        data: { clienteId: actual.clienteId, tipo: 'SERVICIO', concepto: `Servicio técnico #${id}`, monto: total, servicioId: id },
-      });
-    }
-    return entregado;
   });
   notificar();
   return servicio;

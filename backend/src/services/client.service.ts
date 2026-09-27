@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import { calcularSaldo } from './movement.service';
 
 const prisma = new PrismaClient();
 
@@ -18,10 +19,6 @@ const traducirError = (err: unknown): never => {
   }
   throw err;
 };
-
-// Las ventas y servicios a cuenta corriente suman deuda y los pagos la restan
-const calcularSaldo = (movimientos: { tipo: string; monto: number }[]) =>
-  movimientos.reduce((saldo, m) => saldo + (m.tipo === 'PAGO' ? -m.monto : m.monto), 0);
 
 const validar = (data: ClienteData) => {
   if (data.nombre !== undefined && !data.nombre.trim()) throw new Error('El nombre del cliente es obligatorio');

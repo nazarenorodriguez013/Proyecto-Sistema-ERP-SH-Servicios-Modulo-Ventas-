@@ -1,9 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { getIO } from '../socket';
+import { MEDIO_CUENTA_CORRIENTE, registrarCargo } from './movement.service';
 
 const prisma = new PrismaClient();
-
-const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
 
 const includeVenta = {
   detallesVenta: { include: { producto: { include: { categoria: true } } } },
@@ -18,6 +17,7 @@ export const createSale = async (
   medioPago: string,
   montoRecibido?: number | null,
   clienteId?: number | null,
+  usarSaldo = true,
 ) => {
   if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId)
     throw new Error('Para vender a cuenta corriente hay que seleccionar un cliente');
@@ -66,14 +66,14 @@ export const createSale = async (
       include: includeVenta,
     });
 
-    // Venta a cuenta corriente: la deuda queda registrada en la cuenta del cliente
-    if (medioPago === MEDIO_CUENTA_CORRIENTE && clienteId) {
-      await tx.movimientoCuenta.create({
-        data: { clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, monto: total, ventaId: nueva.id },
-      });
-    }
+    if (!clienteId) return nueva;
 
-    return nueva;
+    // Con cliente: la venta pasa por su cuenta corriente, que descuenta primero el saldo a favor
+    const saldoAplicado = await registrarCargo(tx, {
+      clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, total, medioPago, usarSaldo, ventaId: nueva.id,
+    });
+    if (!saldoAplicado) return nueva;
+    return tx.venta.update({ where: { id: nueva.id }, data: { saldoAplicado }, include: includeVenta });
   });
 
   // Se avisa recién cuando la transacción quedó confirmada

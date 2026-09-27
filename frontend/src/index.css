@@ -33,6 +33,7 @@ body {
 .page-grid-2     { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .page-modal      { background: #FFFFFF; border: 1px solid #E2E4E8; border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; }
 .stock-table-wrap{ background: #FFFFFF; border: 1px solid #E2E4E8; border-radius: 12px; overflow-x: auto; }
+.inv-row         { display: grid; grid-template-columns: minmax(0, 1fr) 130px 150px 20px; gap: 12px; align-items: center; }
 
 @media (max-width: 767px) {
   .page-container  { padding: 16px; gap: 14px; }
@@ -42,6 +43,8 @@ body {
   .stock-table-wrap{ border-radius: 10px; }
   .stock-table-wrap .stock-min-col,
   .stock-table-wrap .stock-cat-col { display: none; }
+  .inv-row         { grid-template-columns: minmax(0, 1fr) 110px 14px; }
+  .inv-row .inv-precio { display: none; }
 }
 
 @media (max-width: 767px) {
