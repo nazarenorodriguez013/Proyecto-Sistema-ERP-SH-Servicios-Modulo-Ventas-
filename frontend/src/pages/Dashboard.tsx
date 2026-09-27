@@ -1,83 +1,57 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { User } from '../types'
-import Categorias from './Categorias'
-import Articulos from './Articulos'
-import Stock from './Stock'
+import { API } from '../config'
+import { socket } from '../socket'
+import Inventario from './Inventario'
 import Ventas from './Ventas'
 import Clientes from './Clientes'
-import ServiciosTecnicos from './ServiciosTecnicos'
+import Taller from './Taller'
 
-interface PageItem   { id: string; label: string; icon: string }
-interface SubSection { id: string; label: string; icon: string; children?: PageItem[] }
-interface Section    { id: string; label: string; icon: string; roles: string[]; children?: SubSection[] }
+interface Page { id: string; label: string; icon: string; path: string; roles: string[] }
 
 const ADMINISTRACION = ['ADMIN', 'VENDEDOR']
 const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', TECNICO: 'Técnico' }
 
-const allSections: Section[] = [
-  {
-    id: 'ventas', label: 'Ventas', icon: 'bi-cart3', roles: ADMINISTRACION,
-    children: [
-      { id: 'punto-venta',  label: 'Punto de Venta',  icon: 'bi-receipt' },
-      {
-        id: 'inventario', label: 'Inventario', icon: 'bi-box-seam',
-        children: [
-          { id: 'categorias', label: 'Categorías', icon: 'bi-tag' },
-          { id: 'articulos',  label: 'Artículos',  icon: 'bi-clipboard' },
-          { id: 'stock',      label: 'Stock',        icon: 'bi-bar-chart' },
-        ],
-      },
-    ],
-  },
-  { id: 'clientes',  label: 'Clientes',           icon: 'bi-people', roles: ADMINISTRACION },
-  { id: 'servicios', label: 'Servicios Técnicos', icon: 'bi-tools',  roles: [...ADMINISTRACION, 'TECNICO'] },
+// Menú de un solo nivel, ordenado por la tarea más frecuente
+const allPages: Page[] = [
+  { id: 'punto-venta', label: 'Punto de Venta',     icon: 'bi-receipt', path: '/',           roles: ADMINISTRACION },
+  { id: 'servicios',   label: 'Servicios Técnicos', icon: 'bi-tools',   path: '/servicios',  roles: [...ADMINISTRACION, 'TECNICO'] },
+  { id: 'clientes',    label: 'Clientes',           icon: 'bi-people',  path: '/clientes',   roles: ADMINISTRACION },
+  { id: 'inventario',  label: 'Inventario',         icon: 'bi-box-seam', path: '/inventario', roles: ADMINISTRACION },
 ]
 
-const pageLabels: Record<string, string> = {
-  'punto-venta': 'Punto de Venta',
-  categorias: 'Categorías', articulos: 'Artículos', stock: 'Stock', clientes: 'Clientes', servicios: 'Servicios Técnicos',
-}
-
-// Mapeo entre ID de página y segmento de URL
-const pageToPath: Record<string, string> = {
-  'punto-venta': '/', categorias: '/categorias', articulos: '/articulos', stock: '/stock', clientes: '/clientes',
-  servicios: '/servicios',
-}
-const pathToPage: Record<string, string> = Object.fromEntries(
-  Object.entries(pageToPath).map(([k, v]) => [v, k])
-)
-
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const sections      = allSections.filter(s => s.roles.includes(user.rol))
+  const pages         = allPages.filter(p => p.roles.includes(user.rol))
   const routerNav     = useNavigate()
   const { pathname }  = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [stockBajo, setStockBajo]     = useState(0)
 
   // La página activa sale de la URL (así funcionan atrás/adelante); si el rol no puede verla, va a su primera página
-  const allowedPages = sections.flatMap(s =>
-    s.children ? s.children.flatMap(sub => sub.children ? sub.children.map(p => p.id) : [sub.id]) : [s.id]
-  )
-  const activePage = allowedPages.includes(pathToPage[pathname]) ? pathToPage[pathname] : allowedPages[0]
-  const [expanded, setExpanded]       = useState<string[]>(['ventas', 'inventario'])
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const activePage = pages.find(p => p.path === pathname) ?? pages[0]
+  const veInventario = pages.some(p => p.id === 'inventario')
 
-  const toggle = (id: string) =>
-    setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  // Cantidad de productos para reponer, visible desde cualquier pantalla y actualizada en tiempo real
+  useEffect(() => {
+    if (!veInventario) return
+    const headers = { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
+    const fetchStockBajo = () =>
+      fetch(`${API}/products/low-stock`, { headers }).then(r => r.json()).then(data => setStockBajo(data.length))
+    fetchStockBajo()
+    socket.on('stock-actualizado', fetchStockBajo)
+    return () => { socket.off('stock-actualizado', fetchStockBajo) }
+  }, [veInventario])
 
-  const isAnyPageActive = (sub: SubSection) =>
-    sub.children?.some(p => p.id === activePage) ?? false
-
-  const navigate = (id: string) => {
+  const navigate = (page: Page) => {
     setSidebarOpen(false)
-    routerNav(pageToPath[id] ?? '/')
+    routerNav(page.path)
   }
 
   const renderContent = () => {
-    if (activePage === 'categorias')   return <Categorias   user={user} />
-    if (activePage === 'articulos')    return <Articulos    user={user} />
-    if (activePage === 'stock')        return <Stock        user={user} />
-    if (activePage === 'clientes')     return <Clientes     user={user} />
-    if (activePage === 'servicios')    return <ServiciosTecnicos user={user} />
+    if (activePage.id === 'servicios')  return <Taller user={user} />
+    if (activePage.id === 'clientes')   return <Clientes user={user} />
+    if (activePage.id === 'inventario') return <Inventario user={user} />
     return <Ventas user={user} />
   }
 
@@ -106,62 +80,19 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           <div style={st.navSection}>
             <p style={st.navLabel}>MENÚ PRINCIPAL</p>
             <nav style={st.nav}>
-              {sections.map(section => {
-                const secExpanded = expanded.includes(section.id)
-                const hasChildren = !!section.children?.length
-                const secHasActive = section.id === activePage || section.children?.some(sub =>
-                  sub.id === activePage || sub.children?.some(p => p.id === activePage)
-                )
-                return (
-                  <div key={section.id}>
-                    <button
-                      style={{ ...st.navItem, ...(secHasActive ? st.navItemActive : {}) }}
-                      onClick={() => hasChildren ? toggle(section.id) : navigate(section.id)}
-                    >
-                      <span style={st.navIcon}><i className={`bi ${section.icon}`} /></span>
-                      <span style={{ flex: 1, textAlign: 'left' }}>{section.label}</span>
-                      {hasChildren && (
-                        <i className="bi bi-chevron-down" style={{ ...st.arrow, transform: secExpanded ? 'rotate(180deg)' : 'none' }} />
-                      )}
-                    </button>
-
-                    {hasChildren && secExpanded && section.children!.map(sub => {
-                      const subExpanded = expanded.includes(sub.id)
-                      const subHasChildren = !!sub.children?.length
-                      const subActive = isAnyPageActive(sub)
-                      return (
-                        <div key={sub.id} style={st.subMenuWrap}>
-                          <button
-                            style={{ ...st.subItem, ...(subActive ? st.subItemActive : {}) }}
-                            onClick={() => subHasChildren ? toggle(sub.id) : navigate(sub.id)}
-                          >
-                            <span style={st.subIcon}><i className={`bi ${sub.icon}`} /></span>
-                            <span style={{ flex: 1, textAlign: 'left' }}>{sub.label}</span>
-                            {subHasChildren && (
-                              <i className="bi bi-chevron-down" style={{ ...st.arrow, fontSize: '10px', transform: subExpanded ? 'rotate(180deg)' : 'none' }} />
-                            )}
-                          </button>
-                          {subHasChildren && subExpanded && (
-                            <div style={st.pageMenuWrap}>
-                              {sub.children!.map(page => (
-                                <button
-                                  key={page.id}
-                                  style={{ ...st.pageItem, ...(activePage === page.id ? st.pageItemActive : {}) }}
-                                  onClick={() => navigate(page.id)}
-                                >
-                                  <span style={st.pageIcon}><i className={`bi ${page.icon}`} /></span>
-                                  <span>{page.label}</span>
-                                  {activePage === page.id && <span style={st.pageDot} />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
+              {pages.map(page => (
+                <button
+                  key={page.id}
+                  style={{ ...st.navItem, ...(page.id === activePage.id ? st.navItemActive : {}) }}
+                  onClick={() => navigate(page)}
+                >
+                  <span style={st.navIcon}><i className={`bi ${page.icon}`} /></span>
+                  <span style={{ flex: 1, textAlign: 'left' }}>{page.label}</span>
+                  {page.id === 'inventario' && stockBajo > 0 && (
+                    <span style={st.navBadge} title="Productos con stock bajo o sin stock">{stockBajo}</span>
+                  )}
+                </button>
+              ))}
             </nav>
           </div>
         </div>
@@ -180,12 +111,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
               <span style={st.hLine} />
               <span style={st.hLine} />
             </button>
-            <div>
-              <h2 style={st.pageTitle}>{pageLabels[activePage] ?? ''}</h2>
-              <p className="db-topbar-path" style={st.pagePath}>
-                SH Servicios &rsaquo; {pageLabels[activePage] ?? ''}
-              </p>
-            </div>
+            <h2 style={st.pageTitle}>{activePage.label}</h2>
           </div>
           <div style={st.topBarRight}>
             <div style={st.topBarUser}>
@@ -227,18 +153,7 @@ const st: Record<string, React.CSSProperties> = {
   navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#B7B7B7', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
   navItemActive:{ background: '#1E1E1E', color: '#FFFFFF', fontWeight: '600' },
   navIcon:      { fontSize: '16px', width: '20px', textAlign: 'center' },
-  arrow:        { fontSize: '10px', color: '#7C7C7C', display: 'inline-block', transition: 'transform 0.2s' },
-
-  subMenuWrap:  { marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid #1D1D1D' },
-  subItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'transparent', border: 'none', borderRadius: '7px', color: '#B7B7B7', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
-  subItemActive:{ background: '#1E1E1E', color: '#F5C400', fontWeight: '600' },
-  subIcon:      { fontSize: '14px', width: '18px', textAlign: 'center' },
-
-  pageMenuWrap: { marginLeft: '8px', paddingLeft: '8px', borderLeft: '1px solid #1A1A1A' },
-  pageItem:     { display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: '6px', color: '#9A9A9A', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%', position: 'relative' },
-  pageItemActive:{ background: '#1E1E1E', color: '#F5C400', fontWeight: '600' },
-  pageIcon:     { fontSize: '12px' },
-  pageDot:      { position: 'absolute', right: '8px', width: '5px', height: '5px', borderRadius: '50%', background: '#F5C400' },
+  navBadge:     { background: '#E08A00', color: '#111111', borderRadius: '10px', padding: '1px 7px', fontSize: '11px', fontWeight: '800' },
 
   logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #1D1D1D', borderRadius: '8px', color: '#B7B7B7', fontSize: '13px', cursor: 'pointer', width: '100%' },
 
@@ -246,7 +161,6 @@ const st: Record<string, React.CSSProperties> = {
 
   topBar:       { padding: '16px 20px', borderBottom: '1px solid #E2E4E8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', flexShrink: 0 },
   pageTitle:    { color: '#111111', fontSize: '18px', fontWeight: '700', margin: 0 },
-  pagePath:     { color: '#6B6B6B', fontSize: '12px', margin: '3px 0 0' },
   topBarRight:  { display: 'flex', alignItems: 'center', gap: '12px' },
   topBarUser:   { display: 'flex', alignItems: 'center', gap: '8px', background: '#F5F5F5', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '6px 12px' },
   topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#111111', color: '#F5C400', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },

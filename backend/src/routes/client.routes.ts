@@ -7,8 +7,9 @@ const router = Router();
 
 router.get('/', authenticate, authorizeAdministracion, clientController.getAll);
 router.get('/:id', authenticate, authorizeAdministracion, clientController.getById);
-router.post('/', authenticate, authorizeAdmin, clientController.create);
-router.put('/:id', authenticate, authorizeAdmin, clientController.update);
+// Administración atiende al cliente de punta a punta; borrar queda solo para el administrador
+router.post('/', authenticate, authorizeAdministracion, clientController.create);
+router.put('/:id', authenticate, authorizeAdministracion, clientController.update);
 router.delete('/:id', authenticate, authorizeAdmin, clientController.remove);
 router.use('/:id/movements', movementRoutes);
 

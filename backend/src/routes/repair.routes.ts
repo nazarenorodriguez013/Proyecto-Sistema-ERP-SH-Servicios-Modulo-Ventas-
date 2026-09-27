@@ -7,9 +7,7 @@ const router = Router();
 // Administración registra, presupuesta, asigna y cobra; el técnico carga repuestos y termina la reparación
 const taller = authorizeRoles('ADMIN', 'TECNICO');
 
-// "technicians" debe declararse antes que "/:id" para que Express no lo confunda con un ID
 router.get('/', authenticate, repairController.getAll);
-router.get('/technicians', authenticate, authorizeAdministracion, repairController.getTecnicos);
 router.get('/:id', authenticate, repairController.getById);
 router.post('/', authenticate, authorizeAdministracion, repairController.create);
 router.put('/:id/presupuesto', authenticate, authorizeAdministracion, repairController.responderPresupuesto);
