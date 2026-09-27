@@ -20,6 +20,7 @@ interface ComprobanteData {
   fecha: Date
   items: ItemCarrito[]
   total: number
+  saldoAplicado: number
   medioPago: string
   montoRecibido: number | null
   vendedor: string
@@ -33,6 +34,7 @@ export default function Ventas({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteId, setClienteId] = useState('')
+  const [usarSaldo, setUsarSaldo] = useState(true)
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [busqueda, setBusqueda] = useState('')
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0)
@@ -48,10 +50,11 @@ export default function Ventas({ user }: { user: User }) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
   const fetchProductos = () => fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
+  const fetchClientes = () => fetch(`${API}/clients`, { headers }).then(r => r.json()).then(setClientes)
 
   useEffect(() => {
     fetchProductos()
-    fetch(`${API}/clients`, { headers }).then(r => r.json()).then(setClientes)
+    fetchClientes()
     // Otra terminal vendió o ajustó stock: se recargan los productos para no ofrecer unidades que ya no existen
     socket.on('stock-actualizado', fetchProductos)
     return () => { socket.off('stock-actualizado', fetchProductos) }
@@ -88,7 +91,13 @@ export default function Ventas({ user }: { user: User }) {
   }
 
   const total = carrito.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0)
-  const vuelto = medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) - total : null
+  // El saldo a favor del cliente se descuenta del total; a cuenta corriente se descuenta siempre (es la misma cuenta)
+  const saldoAFavor = Math.max(0, -(clientes.find(c => String(c.id) === clienteId)?.saldo ?? 0))
+  const saldoAplicado = saldoAFavor && (medioPago === MEDIO_CUENTA_CORRIENTE || usarSaldo) ? Math.min(saldoAFavor, total) : 0
+  const aPagar = total - saldoAplicado
+  const vuelto = medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) - aPagar : null
+
+  const elegirCliente = (id: string) => { setClienteId(id); setUsarSaldo(true) }
 
   const confirmarVenta = async () => {
     if (!carrito.length) { setError('El comprobante está vacío'); return }
@@ -102,6 +111,7 @@ export default function Ventas({ user }: { user: User }) {
           medioPago,
           montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
           clienteId: clienteId ? Number(clienteId) : null,
+          usarSaldo,
         })
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
@@ -111,12 +121,14 @@ export default function Ventas({ user }: { user: User }) {
         fecha: new Date(),
         items: venta.detallesVenta,
         total: venta.total,
+        saldoAplicado: venta.saldoAplicado,
         medioPago,
         montoRecibido: medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
         vendedor: user.nombre,
         cliente: venta.cliente?.nombre ?? null,
       })
-      setCarrito([]); setBusqueda(''); setMontoRecibido(''); setClienteId(''); setMedioPago('Efectivo')
+      setCarrito([]); setBusqueda(''); setMontoRecibido(''); setClienteId(''); setUsarSaldo(true); setMedioPago('Efectivo')
+      fetchClientes()
     } catch (e) { setError((e as Error).message) }
     finally { setProcesando(false) }
   }
@@ -208,8 +220,16 @@ export default function Ventas({ user }: { user: User }) {
         {/* ── Cliente ── */}
         <div style={s.inputGroup}>
           <label style={s.label}>CLIENTE {medioPago === MEDIO_CUENTA_CORRIENTE ? '(obligatorio)' : '(opcional)'}</label>
-          <ClienteSelector clientes={clientes} value={clienteId} onChange={setClienteId}
+          <ClienteSelector clientes={clientes} value={clienteId} onChange={elegirCliente}
             onCreated={c => setClientes(prev => [...prev, { ...c, saldo: 0 }])} />
+          {saldoAFavor > 0 && (medioPago === MEDIO_CUENTA_CORRIENTE
+            ? <span style={s.saldoNota}>A cuenta corriente se descuenta primero su saldo a favor de ${fmt(saldoAFavor)}</span>
+            : (
+              <label style={s.saldoCheck}>
+                <input type="checkbox" checked={usarSaldo} onChange={e => setUsarSaldo(e.target.checked)} />
+                Usar saldo a favor (${fmt(saldoAFavor)})
+              </label>
+            ))}
         </div>
 
         <div style={s.divider} />
@@ -242,8 +262,19 @@ export default function Ventas({ user }: { user: User }) {
 
           <div style={s.totalBlock}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-              <span style={s.totalLabel}>TOTAL</span>
-              <span style={s.totalValor}>${fmt(total)}</span>
+              {saldoAplicado > 0 ? (
+                <>
+                  <span style={s.subtotal}>Total ${fmt(total)}</span>
+                  <span style={s.descuento}>Saldo a favor −${fmt(saldoAplicado)}</span>
+                  <span style={s.totalLabel}>{medioPago === MEDIO_CUENTA_CORRIENTE ? 'A CUENTA CORRIENTE' : 'A PAGAR'}</span>
+                  <span style={s.totalValor}>${fmt(aPagar)}</span>
+                </>
+              ) : (
+                <>
+                  <span style={s.totalLabel}>TOTAL</span>
+                  <span style={s.totalValor}>${fmt(total)}</span>
+                </>
+              )}
               {vuelto !== null && (
                 <div style={{ ...s.vueltoBox, ...(vuelto < 0 ? s.vueltoNeg : s.vueltoPos) }}>
                   <span style={s.vueltoLabel}>{vuelto < 0 ? 'FALTA' : 'VUELTO'}</span>
@@ -342,6 +373,18 @@ export default function Ventas({ user }: { user: User }) {
                 <span>TOTAL</span>
                 <span>${fmt(comprobante.total)}</span>
               </div>
+              {comprobante.saldoAplicado > 0 && (
+                <>
+                  <div style={s.ticketMetaRow}>
+                    <span style={s.ticketMetaKey}>Saldo a favor aplicado</span>
+                    <span style={s.ticketMetaVal}>-${fmt(comprobante.saldoAplicado)}</span>
+                  </div>
+                  <div style={s.ticketTotal}>
+                    <span>{comprobante.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A CTA. CTE.' : 'A PAGAR'}</span>
+                    <span>${fmt(comprobante.total - comprobante.saldoAplicado)}</span>
+                  </div>
+                </>
+              )}
 
               <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
 
@@ -359,7 +402,7 @@ export default function Ventas({ user }: { user: User }) {
                     </div>
                     <div style={s.ticketMetaRow}>
                       <span style={s.ticketMetaKey}>Vuelto</span>
-                      <span style={{ ...s.ticketMetaVal, fontWeight: 700 }}>${fmt(comprobante.montoRecibido - comprobante.total)}</span>
+                      <span style={{ ...s.ticketMetaVal, fontWeight: 700 }}>${fmt(comprobante.montoRecibido - (comprobante.total - comprobante.saldoAplicado))}</span>
                     </div>
                   </>
                 )}
@@ -428,6 +471,10 @@ const s: Record<string, React.CSSProperties> = {
   montoWrap:   { display: 'flex', alignItems: 'center', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', overflow: 'hidden' },
   montoSign:   { color: '#8A6D00', fontWeight: '700', padding: '0 10px', fontSize: '15px' },
   montoInput:  { background: 'transparent', border: 'none', padding: '10px 10px 10px 0', color: '#111111', fontSize: '15px', outline: 'none', width: '130px' },
+  subtotal:    { color: '#6B6B6B', fontSize: '13px' },
+  descuento:   { color: '#1E7A45', fontSize: '13px', fontWeight: '600' },
+  saldoNota:   { color: '#1E7A45', fontSize: '12px' },
+  saldoCheck:  { display: 'flex', alignItems: 'center', gap: '8px', color: '#1E7A45', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   vueltoBox:   { padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' },
   vueltoPos:   { background: '#E4F5EA', border: '1px solid #CDEBD9' },
   vueltoNeg:   { background: '#FBE5E2', border: '1px solid rgba(198,64,47,0.2)' },

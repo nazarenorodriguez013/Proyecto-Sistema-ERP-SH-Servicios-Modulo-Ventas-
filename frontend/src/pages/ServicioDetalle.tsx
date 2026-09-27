@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
-import { API, MEDIOS_PAGO } from '../config'
+import { API, MEDIOS_PAGO, MEDIO_CUENTA_CORRIENTE } from '../config'
 import { socket } from '../socket'
 import { ESTADO_LABEL, ESTADO_COLOR, type Servicio } from '../servicios'
 
@@ -20,6 +20,8 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
   const [repuestoId, setRepuestoId] = useState('')
   const [cantidad, setCantidad] = useState('1')
   const [medioPago, setMedioPago] = useState('Efectivo')
+  const [saldoCliente, setSaldoCliente] = useState(0)
+  const [usarSaldo, setUsarSaldo] = useState(true)
   const [proximoMantenimiento, setProximoMantenimiento] = useState('')
   const [verRecibo, setVerRecibo] = useState(false)
   const [error, setError] = useState('')
@@ -47,6 +49,13 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
     }
   }, [servicioId])
 
+  // Para cobrar hace falta saber si el cliente tiene saldo a favor
+  const clienteId = servicio?.cliente.id
+  const listoParaEntregar = esAdministracion && servicio?.estado === 'REPARADO'
+  useEffect(() => {
+    if (listoParaEntregar) fetch(`${API}/clients/${clienteId}`, { headers }).then(r => r.json()).then(c => setSaldoCliente(c.saldo))
+  }, [listoParaEntregar, clienteId])
+
   // Todas las acciones siguen el mismo patrón: llamar a la API y mostrar el error si falla
   const accion = async (method: string, path: string, body?: object) => {
     setError('')
@@ -69,13 +78,18 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
 
   const entregar = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (await accion('PUT', '/entregar', { medioPago, proximoMantenimiento: proximoMantenimiento || null })) setVerRecibo(true)
+    if (await accion('PUT', '/entregar', { medioPago, usarSaldo, proximoMantenimiento: proximoMantenimiento || null })) setVerRecibo(true)
   }
 
   if (!servicio) return <div style={s.loading}>Cargando servicio...</div>
 
   const subtotalRepuestos = servicio.repuestos.reduce((sum, r) => sum + r.cantidad * r.precioUnitario, 0)
   const total = servicio.total ?? (servicio.enGarantia ? 0 : servicio.costoManoObra + subtotalRepuestos)
+  // Antes de entregar se calcula con el saldo actual del cliente; ya entregado, se usa lo que quedó registrado
+  const saldoAFavor = Math.max(0, -saldoCliente)
+  const saldoAplicado = servicio.estado === 'ENTREGADO'
+    ? servicio.saldoAplicado
+    : saldoAFavor && (medioPago === MEDIO_CUENTA_CORRIENTE || usarSaldo) ? Math.min(saldoAFavor, total) : 0
   const editaRepuestos = esTaller && servicio.estado === 'EN_REPARACION'
 
   return (
@@ -183,7 +197,23 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
             Próximo mantenimiento (opcional)
             <input style={{ ...s.input, width: '180px' }} type="date" value={proximoMantenimiento} onChange={e => setProximoMantenimiento(e.target.value)} />
           </label>
-          <button type="submit" style={s.btnConfirmar}><i className="bi bi-cash-coin" /> Entregar y cobrar ${fmt(total)}</button>
+          {saldoAFavor > 0 && total > 0 && (medioPago === MEDIO_CUENTA_CORRIENTE
+            ? <span style={s.saldoNota}>A cuenta corriente se descuenta primero su saldo a favor de ${fmt(saldoAFavor)}</span>
+            : (
+              <label style={s.saldoCheck}>
+                <input type="checkbox" checked={usarSaldo} onChange={e => setUsarSaldo(e.target.checked)} />
+                Usar saldo a favor (${fmt(saldoAFavor)})
+              </label>
+            ))}
+          {saldoAplicado > 0 && (
+            <div style={s.totales}>
+              <span>Total: ${fmt(total)}</span>
+              <span style={s.saldoNota}>Saldo a favor: −${fmt(saldoAplicado)}</span>
+            </div>
+          )}
+          <button type="submit" style={s.btnConfirmar}>
+            <i className="bi bi-cash-coin" /> Entregar y {medioPago === MEDIO_CUENTA_CORRIENTE ? 'cargar a cuenta corriente' : 'cobrar'} ${fmt(total - saldoAplicado)}
+          </button>
         </form>
       )}
 
@@ -219,6 +249,14 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
               ))}
               <p style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</p>
               <div style={s.ticketTotal}><span>TOTAL</span><span>${fmt(total)}</span></div>
+              {saldoAplicado > 0 && (
+                <>
+                  <div style={s.ticketRow}><span>Saldo a favor aplicado</span><span>-${fmt(saldoAplicado)}</span></div>
+                  <div style={s.ticketTotal}>
+                    <span>{servicio.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A CTA. CTE.' : 'A PAGAR'}</span><span>${fmt(total - saldoAplicado)}</span>
+                  </div>
+                </>
+              )}
               {servicio.enGarantia && <p style={s.ticketNota}>Trabajo cubierto por garantía</p>}
               <div style={s.ticketRow}><span>Medio de pago</span><strong>{servicio.medioPago}</strong></div>
               {servicio.proximoMantenimiento && (
@@ -285,6 +323,8 @@ const s: Record<string, React.CSSProperties> = {
   ticketRow:    { display: 'flex', justifyContent: 'space-between', gap: '8px' },
   ticketSep:    { color: '#9A9A9A', fontSize: '11px', textAlign: 'center', margin: '4px 0' },
   ticketFalla:  { fontStyle: 'italic', margin: '0 0 4px' },
+  saldoNota:    { color: '#1E7A45', fontSize: '12px', fontWeight: '600' },
+  saldoCheck:   { display: 'flex', alignItems: 'center', gap: '8px', color: '#1E7A45', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   ticketTotal:  { display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '900' },
   ticketNota:   { textAlign: 'center', fontSize: '11px', margin: 0 },
 }
