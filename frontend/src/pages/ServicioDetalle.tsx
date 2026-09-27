@@ -37,7 +37,7 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
   useEffect(() => {
     fetchServicio()
     if (esTaller) fetchProductos()
-    if (esAdministracion) fetch(`${API}/repairs/technicians`, { headers }).then(r => r.json()).then(setTecnicos)
+    if (esAdministracion) fetch(`${API}/technicians`, { headers }).then(r => r.json()).then(setTecnicos)
     // Si otra terminal cambia el servicio o el stock, se ve al instante
     socket.on('servicios-actualizados', fetchServicio)
     socket.on('stock-actualizado', fetchProductos)
@@ -93,6 +93,9 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
           {servicio.enGarantia && <span style={s.garantia}>En garantía</span>}
         </div>
         <p style={s.falla}>{servicio.descripcionFalla}</p>
+        {servicio.repuestosSolicitados && (
+          <p style={s.texto}><strong>Repuestos necesarios:</strong> {servicio.repuestosSolicitados}</p>
+        )}
         <div style={s.datosGrid}>
           <span style={s.dato}><i className="bi bi-person" /> {servicio.cliente.nombre}</span>
           <span style={s.dato}><i className="bi bi-calendar3" /> Ingreso {fmtFecha(servicio.fechaIngreso)}</span>

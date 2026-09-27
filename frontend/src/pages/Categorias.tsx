@@ -60,10 +60,7 @@ export default function Categorias({ user }: { user: User }) {
   return (
     <div className="page-container">
       <div className="page-header">
-        <div>
-          <h2 style={s.title}>Categorías</h2>
-          <p style={s.subtitle}>{categorias.length} categorías registradas</p>
-        </div>
+        <p style={s.subtitle}>{categorias.length} categorías registradas</p>
         {isAdmin && <button style={s.btnPrimary} onClick={openCreate}><i className="bi bi-plus-lg" /> Nueva Categoría</button>}
       </div>
 
@@ -136,14 +133,10 @@ export default function Categorias({ user }: { user: User }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' },
   loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
-  header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  title:        { color: '#111111', fontSize: '20px', fontWeight: '700', margin: 0 },
-  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: '3px 0 0' },
+  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: 0 },
   errorBanner:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '12px 16px', borderRadius: '8px', fontSize: '14px' },
   empty:        { color: '#6B6B6B', textAlign: 'center', padding: '60px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E4E8' },
-  grid:         { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' },
   card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' },
   cardIcon:     { fontSize: '20px', flexShrink: 0, width: '44px', height: '44px', background: '#F5F5F5', color: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardBody:     { flex: 1, minWidth: 0 },

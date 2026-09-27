@@ -1,5 +1,6 @@
 import { PrismaClient, EstadoServicio } from '@prisma/client';
 import { getIO } from '../socket';
+import { httpError } from '../utils/http';
 
 const prisma = new PrismaClient();
 
@@ -12,9 +13,6 @@ const includeServicio = {
 };
 
 type Usuario = { id: number; rol: string };
-
-// Error con el código HTTP que corresponde, para que el controller no tenga que adivinarlo
-const httpError = (status: number, message: string) => Object.assign(new Error(message), { status });
 
 // Avisa a todas las pantallas; si cambiaron repuestos, también al inventario
 const notificar = (stock = false) => {
@@ -55,11 +53,9 @@ export const getById = async (id: number, usuario: Usuario) => {
   return servicio;
 };
 
-export const getTecnicos = () =>
-  prisma.usuario.findMany({ where: { rol: 'TECNICO' }, select: { id: true, nombre: true }, orderBy: { nombre: 'asc' } });
-
 export const create = async (data: {
-  clienteId: number; equipo: string; descripcionFalla: string; enGarantia?: boolean; costoManoObra?: number;
+  clienteId: number; equipo: string; descripcionFalla: string; repuestosSolicitados?: string | null;
+  enGarantia?: boolean; costoManoObra?: number;
 }) => {
   if (!data.equipo?.trim()) throw httpError(400, 'El equipo es obligatorio');
   if (!data.descripcionFalla?.trim()) throw httpError(400, 'La descripción de la falla es obligatoria');
@@ -72,6 +68,7 @@ export const create = async (data: {
       clienteId: data.clienteId,
       equipo: data.equipo.trim(),
       descripcionFalla: data.descripcionFalla.trim(),
+      repuestosSolicitados: data.repuestosSolicitados?.trim() || null,
       enGarantia: !!data.enGarantia,
       costoManoObra,
       estado: data.enGarantia ? 'PENDIENTE' : 'PRESUPUESTADO',
