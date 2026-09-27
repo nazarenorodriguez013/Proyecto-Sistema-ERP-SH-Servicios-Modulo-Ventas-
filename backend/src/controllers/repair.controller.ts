@@ -1,24 +1,13 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as repairService from '../services/repair.service';
-
-// Ejecuta la acción y responde con el código HTTP que trae el error (400 si no trae ninguno)
-const responder = async (res: Response, accion: () => Promise<unknown>, status = 200) => {
-  try {
-    res.status(status).json(await accion());
-  } catch (err: any) {
-    res.status(err.status ?? 400).json({ message: err.message });
-  }
-};
+import { responder } from '../utils/http';
 
 export const getAll = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.getAll(req.user!));
 
 export const getById = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.getById(Number(req.params.id), req.user!));
-
-export const getTecnicos = (_req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.getTecnicos());
 
 export const create = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.create({ ...req.body, clienteId: Number(req.body.clienteId) }), 201);

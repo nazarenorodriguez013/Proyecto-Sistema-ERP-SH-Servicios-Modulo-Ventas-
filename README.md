@@ -25,11 +25,22 @@ El sistema se centra en dos pilares críticos para el funcionamiento de SH Servi
 
 **Control de Stock en Tiempo Real:** Validación de disponibilidad antes de confirmar la venta y descuento automático de unidades en la base de datos al completar la transacción.
 
-**Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo.
+**Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo. El cliente puede dejar un anticipo o pagar de más: queda como **saldo a favor** y se descuenta de sus próximas compras o servicios a cuenta corriente.
 
 **Servicio Técnico:** Registro de solicitudes de reparación o mantenimiento. Sin garantía se genera un presupuesto de mano de obra que el cliente acepta o rechaza; con garantía pasa directo al taller sin costo. Administración asigna un técnico, el técnico carga los repuestos que salen del depósito (se descuentan del stock en ese momento) y marca la reparación como terminada. Al entregar el equipo se registra el cobro, la fecha del próximo mantenimiento y se emite el recibo.
 
-**Seguridad y Acceso:** Sistema de autenticación con JWT y tres roles: **Administrador** (acceso total), **Vendedor** (ventas, inventario, clientes y atención de servicios técnicos) y **Técnico** (solo ve los servicios que tiene asignados, carga repuestos y cierra reparaciones).
+**Seguridad y Acceso:** Sistema de autenticación con JWT y tres roles: **Administrador** (acceso total), **Vendedor** (ventas, consulta de inventario, alta y edición de clientes, cobros y atención de servicios técnicos) y **Técnico** (solo ve los servicios que tiene asignados, carga repuestos y cierra reparaciones).
+
+### Navegación
+
+El menú tiene un solo nivel y cada rol ve solo lo que usa:
+
+| Pantalla | Roles | Qué se hace |
+|---|---|---|
+| Punto de Venta | Administrador, Vendedor | Buscar productos (Enter agrega una unidad), elegir o crear el cliente en el momento, cobrar e imprimir el comprobante |
+| Servicios Técnicos | Todos | Arranca mostrando lo que está en curso; el técnico ve directamente sus reparaciones. El administrador tiene además la pestaña **Técnicos** para darlos de alta, editarlos o eliminarlos |
+| Clientes | Administrador, Vendedor | Buscar, crear y abrir la ficha con compras, cuenta corriente y pagos; el saldo se muestra como "Debe", "A favor" o "Al día" |
+| Inventario | Administrador, Vendedor | Artículos con filtros de stock (bajo, sin stock, inactivos) y ajuste rápido; categorías en una pestaña. El menú muestra cuántos productos hay para reponer |
 
 ## 4. Tecnologías Utilizadas
 
@@ -55,7 +66,7 @@ El sistema se apoya en una estructura relacional de 9 tablas:
 - **detalles_venta:** Detalle de los artículos y cantidades incluidas en cada venta.
 - **clientes:** Datos de los clientes (nombre, documento único, teléfono, email y dirección).
 - **movimientos_cuenta:** Cuenta corriente de cada cliente: las ventas y servicios a cuenta suman deuda y los pagos la restan.
-- **servicios_tecnicos:** Solicitudes de reparación (cliente, equipo, falla, garantía, mano de obra, técnico asignado, estado, cobro y próximo mantenimiento).
+- **servicios_tecnicos:** Solicitudes de reparación (cliente, equipo, falla, repuestos necesarios, garantía, mano de obra, técnico asignado, estado, cobro y próximo mantenimiento).
 - **servicio_repuestos:** Repuestos del inventario utilizados en cada servicio, con cantidad y precio.
 
 ## 7. Despliegue en la Nube
@@ -269,10 +280,10 @@ El precio unitario y el total se calculan en el servidor con los precios de la b
 |--------|-------------|------|-------------|
 | GET | `https://shservicios.up.railway.app/api/clients` | 🔒 🧾 | Lista los clientes con su saldo de cuenta corriente |
 | GET | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 🧾 | Ficha del cliente: datos, historial de compras con sus productos, movimientos y saldo |
-| POST | `https://shservicios.up.railway.app/api/clients` | 🔒 👑 | Crea un cliente (el documento no se puede repetir) |
-| PUT | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Edita un cliente |
+| POST | `https://shservicios.up.railway.app/api/clients` | 🔒 🧾 | Crea un cliente (el documento no se puede repetir) |
+| PUT | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 🧾 | Edita un cliente |
 | DELETE | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Elimina un cliente (falla si tiene compras, pagos o servicios registrados) |
-| POST | `https://shservicios.up.railway.app/api/clients/:id/movements` | 🔒 👑 | Registra un pago en la cuenta corriente. Cuerpo: `{ "monto": 10000 }` |
+| POST | `https://shservicios.up.railway.app/api/clients/:id/movements` | 🔒 🧾 | Registra un pago o anticipo en la cuenta corriente. Cuerpo: `{ "monto": 10000 }` |
 
 ### Servicios Técnicos — `/api/repairs`
 
@@ -281,9 +292,8 @@ El técnico solo puede ver y modificar los servicios que tiene asignados.
 | Método | URL completa | Auth | Descripción |
 |--------|-------------|------|-------------|
 | GET | `https://shservicios.up.railway.app/api/repairs` | 🔒 | Lista los servicios (el técnico ve solo los suyos) |
-| GET | `https://shservicios.up.railway.app/api/repairs/technicians` | 🔒 🧾 | Lista los usuarios con rol Técnico |
 | GET | `https://shservicios.up.railway.app/api/repairs/:id` | 🔒 | Obtiene un servicio con cliente, técnico y repuestos |
-| POST | `https://shservicios.up.railway.app/api/repairs` | 🔒 🧾 | Registra una solicitud: `{ "clienteId", "equipo", "descripcionFalla", "enGarantia", "costoManoObra" }` |
+| POST | `https://shservicios.up.railway.app/api/repairs` | 🔒 🧾 | Registra una solicitud: `{ "clienteId", "equipo", "descripcionFalla", "repuestosSolicitados", "enGarantia", "costoManoObra" }` (`repuestosSolicitados` es texto libre y opcional) |
 | PUT | `https://shservicios.up.railway.app/api/repairs/:id/presupuesto` | 🔒 🧾 | Respuesta del cliente al presupuesto: `{ "aceptado": true }` |
 | PUT | `https://shservicios.up.railway.app/api/repairs/:id/tecnico` | 🔒 🧾 | Asigna o reasigna el técnico e inicia la reparación: `{ "tecnicoId" }` |
 | POST | `https://shservicios.up.railway.app/api/repairs/:id/repuestos` | 🔒 🛠 | Carga un repuesto y lo descuenta del stock: `{ "productoId", "cantidad" }` |
@@ -293,13 +303,22 @@ El técnico solo puede ver y modificar los servicios que tiene asignados.
 
 Estados de un servicio: `PRESUPUESTADO` → `PENDIENTE` (o `RECHAZADO`) → `EN_REPARACION` → `REPARADO` → `ENTREGADO`. Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se cobra a `Cuenta Corriente`, el total queda como deuda en la cuenta del cliente.
 
+### Técnicos — `/api/technicians`
+
+| Método | URL completa | Auth | Descripción |
+|--------|-------------|------|-------------|
+| GET | `https://shservicios.up.railway.app/api/technicians` | 🔒 🧾 | Lista los técnicos con la cantidad de servicios asignados |
+| POST | `https://shservicios.up.railway.app/api/technicians` | 🔒 👑 | Crea un técnico: `{ "nombre", "correo", "contrasena" }` (mínimo 6 caracteres) |
+| PUT | `https://shservicios.up.railway.app/api/technicians/:id` | 🔒 👑 | Edita un técnico; si `contrasena` viene vacía se mantiene la actual |
+| DELETE | `https://shservicios.up.railway.app/api/technicians/:id` | 🔒 👑 | Elimina un técnico (falla si tiene servicios asignados) |
+
 ### Tiempo real — Socket.io
 
 El frontend se conecta con Socket.io a la misma URL del servidor.
 
 | Evento | Cuándo se emite | Uso en el frontend |
 |--------|-----------------|--------------------|
-| `stock-actualizado` | Después de confirmar una venta, al crear, editar o eliminar un producto y al cargar o quitar repuestos de un servicio | Punto de Venta, Artículos, Stock y el selector de repuestos recargan los productos al instante en todas las terminales |
+| `stock-actualizado` | Después de confirmar una venta, al crear, editar o eliminar un producto y al cargar o quitar repuestos de un servicio | Punto de Venta, Inventario, el contador de stock bajo del menú y el selector de repuestos se actualizan al instante en todas las terminales |
 | `servicios-actualizados` | Ante cualquier cambio en un servicio técnico | Administración y taller ven al instante el estado, el técnico asignado y los repuestos |
 
 ### Health check

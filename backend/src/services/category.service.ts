@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export const getAll = () => prisma.categoria.findMany();
+export const getAll = () => prisma.categoria.findMany({ orderBy: { nombre: 'asc' } });
 
 export const create = (nombre: string) => {
   if (!nombre?.trim()) throw new Error('El nombre de la categoría es obligatorio');
