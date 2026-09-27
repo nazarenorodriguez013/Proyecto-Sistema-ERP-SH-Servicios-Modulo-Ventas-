@@ -12,13 +12,13 @@ interface Producto {
 interface ProductoForm {
   nombre: string; descripcion: string; categoriaId: string
   precioCosto: string; precio: string; margen: string
-  stock: string; stockMinimo: string; activo: boolean
+  stock: string; stockMinimo: string
 }
 
 const EMPTY_FORM: ProductoForm = {
   nombre: '', descripcion: '', categoriaId: '',
   precioCosto: '', precio: '', margen: '',
-  stock: '0', stockMinimo: '5', activo: true,
+  stock: '0', stockMinimo: '5',
 }
 
 const calcMargen = (costo: number, venta: number) =>
@@ -30,19 +30,15 @@ const calcVenta = (costo: number, margen: number) =>
 const fmt = (n: number) =>
   n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
-// Stock bajo: activo y en el mínimo o por debajo, pero con unidades; sin stock: cero unidades
-const esStockBajo = (p: Producto) => p.activo && p.stock > 0 && p.stock <= p.stockMinimo
-const esSinStock = (p: Producto) => p.activo && p.stock === 0
+// Para reponer: activo y en el stock mínimo o por debajo (incluye sin stock); coincide con el contador del menú
+const paraReponer = (p: Producto) => p.activo && p.stock <= p.stockMinimo
 
-type Filtro = 'activos' | 'bajo' | 'sin' | 'inactivos' | 'todos'
+type Filtro = 'activos' | 'reponer' | 'inactivos'
 const FILTROS: { key: Filtro; label: string; cumple: (p: Producto) => boolean }[] = [
-  { key: 'activos',   label: 'Activos',     cumple: p => p.activo },
-  { key: 'bajo',      label: 'Stock bajo',  cumple: esStockBajo },
-  { key: 'sin',       label: 'Sin stock',   cumple: esSinStock },
-  { key: 'inactivos', label: 'Inactivos',   cumple: p => !p.activo },
-  { key: 'todos',     label: 'Todos',       cumple: () => true },
+  { key: 'activos',   label: 'Activos',      cumple: p => p.activo },
+  { key: 'reponer',   label: 'Para reponer', cumple: paraReponer },
+  { key: 'inactivos', label: 'Inactivos',    cumple: p => !p.activo },
 ]
-
 
 export default function Articulos({ user }: { user: User }) {
   const [productos, setProductos] = useState<Producto[]>([])
@@ -51,15 +47,12 @@ export default function Articulos({ user }: { user: User }) {
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('activos')
-  const [ajuste, setAjuste] = useState<{ id: number; value: string } | null>(null)
-  const [expanded, setExpanded] = useState<number | null>(null)
   const [modal, setModal] = useState<{ open: boolean; editing: Producto | null }>({ open: false, editing: null })
   const [form, setForm] = useState<ProductoForm>(EMPTY_FORM)
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
   const [error, setError] = useState('')
 
-  const token = localStorage.getItem('token') ?? ''
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
   const isAdmin = user.rol === 'ADMIN'
 
   const fetchAll = () =>
@@ -74,17 +67,16 @@ export default function Articulos({ user }: { user: User }) {
     return () => { socket.off('stock-actualizado', fetchAll) }
   }, [])
 
-  const openCreate = () => { setForm(EMPTY_FORM); setError(''); setModal({ open: true, editing: null }) }
-  const openEdit = (p: Producto) => {
-    setForm({
+  const abrir = (p: Producto | null) => {
+    setForm(p ? {
       nombre: p.nombre, descripcion: p.descripcion ?? '', categoriaId: String(p.categoriaId),
       precioCosto: String(p.precioCosto), precio: String(p.precio),
       margen: calcMargen(p.precioCosto, p.precio),
-      stock: String(p.stock), stockMinimo: String(p.stockMinimo), activo: p.activo,
-    })
-    setError(''); setModal({ open: true, editing: p })
+      stock: String(p.stock), stockMinimo: String(p.stockMinimo),
+    } : EMPTY_FORM)
+    setError(''); setConfirmarBorrado(false); setModal({ open: true, editing: p })
   }
-  const closeModal = () => setModal({ open: false, editing: null })
+  const cerrar = () => setModal({ open: false, editing: null })
 
   const handleCostChange = (val: string) => {
     const costo = parseFloat(val) || 0
@@ -100,54 +92,29 @@ export default function Articulos({ user }: { user: User }) {
     setForm(f => ({ ...f, margen: val, precio: calcVenta(costo, parseFloat(val) || 0) }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Todas las acciones sobre un artículo siguen el mismo patrón: llamar a la API y, si sale bien, cerrar y refrescar
+  const guardar = async (method: string, path: string, body?: object) => {
     setError('')
+    const res = await fetch(`${API}/products${path}`, { method, headers, body: body && JSON.stringify(body) })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo guardar el artículo')
+      setConfirmarBorrado(false)
+      return
+    }
+    cerrar(); fetchAll()
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     const body = {
       nombre: form.nombre, descripcion: form.descripcion || undefined,
       categoriaId: Number(form.categoriaId),
       precioCosto: Number(form.precioCosto) || 0, precio: Number(form.precio) || 0,
-      stock: Number(form.stock), stockMinimo: Number(form.stockMinimo), activo: form.activo,
+      stock: Number(form.stock), stockMinimo: Number(form.stockMinimo),
     }
-    const res = modal.editing
-      ? await fetch(`${API}/products/${modal.editing.id}`, { method: 'PUT', headers, body: JSON.stringify(body) })
-      : await fetch(`${API}/products`, { method: 'POST', headers, body: JSON.stringify(body) })
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.message || 'Error al guardar el artículo')
-      return
-    }
-    closeModal(); fetchAll()
-  }
-
-  const handleDelete = async (id: number) => {
-    const res = await fetch(`${API}/products/${id}`, { method: 'DELETE', headers })
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.message || 'No se pudo eliminar el artículo')
-    }
-    setDeleteConfirm(null); fetchAll()
-  }
-
-  const handleToggle = async (p: Producto) => {
-    const res = await fetch(`${API}/products/${p.id}`, { method: 'PUT', headers, body: JSON.stringify({ activo: !p.activo }) })
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.message || 'No se pudo cambiar el estado del artículo')
-    }
-    fetchAll()
-  }
-
-  const handleAjuste = async (id: number, stock: number) => {
-    if (!Number.isInteger(stock) || stock < 0) { setError('El stock debe ser un número entero mayor o igual a 0'); return }
-    setError('')
-    const res = await fetch(`${API}/products/${id}`, { method: 'PUT', headers, body: JSON.stringify({ stock }) })
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.message || 'No se pudo ajustar el stock')
-      return
-    }
-    setAjuste(null); fetchAll()
+    if (modal.editing) guardar('PUT', `/${modal.editing.id}`, body)
+    else guardar('POST', '', body)
   }
 
   const cumpleFiltro = FILTROS.find(f => f.key === filtro)!.cumple
@@ -164,267 +131,139 @@ export default function Articulos({ user }: { user: User }) {
   if (loading) return <div style={s.loading}>Cargando artículos...</div>
 
   return (
-    <div style={s.container}>
-      {/* Encabezado */}
-      <div style={s.header}>
-        <p style={s.subtitle}>{filtered.length} de {productos.length} artículos</p>
-        {isAdmin && <button style={s.btnPrimary} onClick={openCreate}><i className="bi bi-plus-lg" /> Nuevo Artículo</button>}
-      </div>
-
-      {error && !modal.open && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
-
-      {/* Filtros */}
-      <div style={s.filterBar}>
-        <input
-          style={s.searchInput}
-          placeholder="Buscar por nombre o código..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+    <div className="page-container">
+      <div style={s.toolbar}>
+        <input style={s.search} placeholder="Buscar por nombre o código" value={search} onChange={e => setSearch(e.target.value)} />
         <select style={s.select} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="">Todas las categorías</option>
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
-        <div style={s.tabs}>
-          {FILTROS.map(f => (
-            <button key={f.key} style={{ ...s.tab, ...(filtro === f.key ? s.tabActive : {}) }} onClick={() => setFiltro(f.key)}>
-              {f.label} ({productos.filter(f.cumple).length})
-            </button>
-          ))}
-        </div>
+        {isAdmin && <button style={s.btnPrimary} onClick={() => abrir(null)}><i className="bi bi-plus-lg" /> Nuevo artículo</button>}
       </div>
 
-      {/* Grid de cards */}
-      {filtered.length === 0
-        ? <div style={s.empty}>No hay artículos que coincidan con los filtros</div>
-        : (
-          <div style={s.grid}>
-            {filtered.map(p => {
-              const margen = p.precioCosto > 0 ? ((p.precio - p.precioCosto) / p.precioCosto * 100) : null
-              const stockStatus = p.stock === 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : 'ok'
-              const stockPct = Math.min((p.stock / (p.stockMinimo * 3)) * 100, 100)
-              const isExp = expanded === p.id
+      <div style={s.filtros}>
+        {FILTROS.map(f => {
+          const cantidad = productos.filter(f.cumple).length
+          return (
+            <button key={f.key} style={{ ...s.filtro, ...(filtro === f.key ? s.filtroActivo : {}) }} onClick={() => setFiltro(f.key)}>
+              {f.label} <span style={f.key === 'reponer' && cantidad > 0 ? s.contadorAviso : s.contador}>{cantidad}</span>
+            </button>
+          )
+        })}
+      </div>
 
-              return (
-                <div key={p.id} style={{ ...s.card, opacity: p.activo ? 1 : 0.6 }}>
-                  {/* Cabecera de la card */}
-                  <div style={s.cardTop}>
-                    <span style={s.code}>{p.codigo ?? '—'}</span>
-                    <span style={{ ...s.statusDot, ...(p.activo ? s.dotActive : s.dotInactive) }}>
-                      {p.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
+      <div>
+        <div className="inv-row" style={s.thead}>
+          <span>Artículo</span>
+          <span className="inv-precio" style={s.derecha}>Precio</span>
+          <span style={s.derecha}>Stock</span>
+          <span />
+        </div>
+        {filtered.length === 0
+          ? <div style={s.empty}>No hay artículos para mostrar</div>
+          : filtered.map(p => (
+            <button key={p.id} className="inv-row" style={s.row} onClick={() => abrir(p)}>
+              <span style={s.celdaNombre}>
+                <span style={s.nombre}>{p.nombre}</span>
+                <span style={s.meta}>{p.codigo ? `${p.codigo} · ` : ''}{p.categoria.nombre}</span>
+              </span>
+              <span className="inv-precio" style={{ ...s.derecha, ...s.valor }}>${fmt(p.precio)}</span>
+              <span style={{ ...s.derecha, ...s.valor }}>
+                {!p.activo ? <span style={s.meta}>Inactivo</span>
+                  : p.stock === 0 ? <span style={s.sinStock}>Sin stock</span>
+                    : p.stock <= p.stockMinimo ? <span style={s.bajo}>{p.stock} <span style={s.min}>de mín. {p.stockMinimo}</span></span>
+                      : p.stock}
+              </span>
+              <i className="bi bi-chevron-right" style={s.chevron} />
+            </button>
+          ))
+        }
+      </div>
 
-                  {/* Nombre y categoría */}
-                  <div style={s.cardBody}>
-                    <h3 style={s.productName}>{p.nombre}</h3>
-                    <span style={s.catBadge}>{p.categoria.nombre}</span>
-                  </div>
-
-                  {/* Descripción expandible */}
-                  {p.descripcion && (
-                    <button style={s.descToggle} onClick={() => setExpanded(isExp ? null : p.id)}>
-                      <span>{isExp ? 'Ocultar descripción' : 'Ver descripción'}</span>
-                      <i className={`bi ${isExp ? 'bi-chevron-up' : 'bi-chevron-down'}`} />
-                    </button>
-                  )}
-                  {isExp && p.descripcion && (
-                    <p style={s.descText}>{p.descripcion}</p>
-                  )}
-
-                  {/* Divisor */}
-                  <div style={s.divider} />
-
-                  {/* Precios */}
-                  <div style={s.priceRow}>
-                    <div style={s.priceItem}>
-                      <span style={s.priceLabel}>Costo</span>
-                      <span style={s.priceCost}>${fmt(p.precioCosto)}</span>
-                    </div>
-                    <div style={s.priceArrow}><i className="bi bi-arrow-right" /></div>
-                    <div style={s.priceItem}>
-                      <span style={s.priceLabel}>Venta</span>
-                      <span style={s.priceSale}>${fmt(p.precio)}</span>
-                    </div>
-                    {margen !== null && (
-                      <span style={{ ...s.margenBadge, ...(margen >= 0 ? s.margenPos : s.margenNeg) }}>
-                        {margen >= 0 ? '+' : ''}{margen.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Stock */}
-                  <div style={s.stockRow}>
-                    <div style={s.stockInfo}>
-                      <span style={s.stockLabel}>Stock</span>
-                      {ajuste?.id === p.id ? (
-                        <>
-                          <input style={s.ajusteInput} type="number" min="0" value={ajuste.value} autoFocus
-                            onChange={e => setAjuste({ id: p.id, value: e.target.value })}
-                            onKeyDown={e => e.key === 'Enter' && handleAjuste(p.id, Number(ajuste.value))} />
-                          <button style={s.btnMini} title="Guardar" onClick={() => handleAjuste(p.id, Number(ajuste.value))}><i className="bi bi-check-lg" /></button>
-                          <button style={s.btnMini} title="Cancelar" onClick={() => setAjuste(null)}><i className="bi bi-x-lg" /></button>
-                        </>
-                      ) : (
-                        <>
-                          <span style={{ ...s.stockNum, color: stockStatus === 'out' ? '#C6402F' : stockStatus === 'low' ? '#E08A00' : '#2E9E5B' }}>
-                            {p.stock}
-                          </span>
-                          <span style={s.stockMin}>/ mín {p.stockMinimo}</span>
-                          {isAdmin && (
-                            <button style={s.btnMini} title="Ajustar stock" onClick={() => { setError(''); setAjuste({ id: p.id, value: String(p.stock) }) }}>
-                              <i className="bi bi-pencil" />
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {stockStatus === 'out' && <span style={s.badgeOut}>Sin stock</span>}
-                      {stockStatus === 'low' && <span style={s.badgeLow}>Stock bajo</span>}
-                    </div>
-                    <div style={s.stockBarWrap}>
-                      <div style={{ ...s.stockBar, width: `${stockPct}%`, background: stockStatus === 'out' ? '#C6402F' : stockStatus === 'low' ? '#E08A00' : '#2E9E5B' }} />
-                    </div>
-                  </div>
-
-                  {/* Acciones */}
-                  {isAdmin && (
-                    <div style={s.cardActions}>
-                      <button style={s.btnEdit} onClick={() => openEdit(p)}><i className="bi bi-pencil" /> Editar</button>
-                      <button style={s.btnToggle} onClick={() => handleToggle(p)}>
-                        <i className={`bi ${p.activo ? 'bi-lock' : 'bi-unlock'}`} /> {p.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button style={s.btnDelete} onClick={() => { setError(''); setDeleteConfirm(p.id) }}><i className="bi bi-trash" /></button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )
-      }
-
-      {/* Modal crear/editar */}
       {modal.open && (
         <div style={s.overlay}>
           <div style={s.modal}>
             <div style={s.modalHeader}>
-              <h3 style={s.modalTitle}>{modal.editing ? `Editar — ${modal.editing.codigo}` : 'Nuevo Artículo'}</h3>
-              <button style={s.closeBtn} onClick={closeModal}><i className="bi bi-x-lg" /></button>
+              <div>
+                <h3 style={s.modalTitle}>{modal.editing ? modal.editing.nombre : 'Nuevo artículo'}</h3>
+                {modal.editing && <p style={s.meta}>{modal.editing.codigo} · {modal.editing.activo ? 'Activo' : 'Inactivo'}</p>}
+              </div>
+              <button style={s.closeBtn} onClick={cerrar}><i className="bi bi-x-lg" /></button>
             </div>
-            <form onSubmit={handleSubmit} style={s.form}>
-              {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
-
-              <div style={s.section}>
-                <p style={s.sectionTitle}>Datos generales</p>
-                <div style={s.row}>
-                  <div style={s.field}>
-                    <label style={s.label}>Nombre *</label>
-                    <input style={s.input} value={form.nombre}
-                      onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required />
-                  </div>
-                  <div style={s.field}>
-                    <label style={s.label}>Categoría *</label>
-                    <select style={s.input} value={form.categoriaId}
-                      onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))} required>
-                      <option value="">Seleccionar...</option>
-                      {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                    </select>
-                  </div>
+            <form onSubmit={handleSubmit}>
+              {/* El vendedor ve la ficha completa pero no puede modificarla */}
+              <fieldset disabled={!isAdmin} style={s.fieldset}>
+                <div style={s.field}>
+                  <label style={s.label}>Nombre</label>
+                  <input style={s.input} value={form.nombre} required onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Categoría</label>
+                  <select style={s.input} value={form.categoriaId} required onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))}>
+                    <option value="">Seleccionar...</option>
+                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  </select>
                 </div>
                 <div style={s.field}>
                   <label style={s.label}>Descripción</label>
-                  <textarea style={{ ...s.input, resize: 'vertical', minHeight: '70px' }}
-                    value={form.descripcion}
+                  <textarea style={{ ...s.input, resize: 'vertical', minHeight: '60px' }} value={form.descripcion}
                     onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
                 </div>
-              </div>
 
-              <div style={s.section}>
-                <p style={s.sectionTitle}>Precios</p>
-                <div style={s.row}>
+                <p style={s.seccion}>Precio</p>
+                <div style={s.row3}>
                   <div style={s.field}>
-                    <label style={s.label}>Precio de costo</label>
-                    <div style={s.inputGroup}>
-                      <span style={s.inputPrefix}>$</span>
-                      <input style={s.inputInner} type="number" min="0" step="0.01"
-                        value={form.precioCosto} onChange={e => handleCostChange(e.target.value)} />
-                    </div>
+                    <label style={s.label}>Costo</label>
+                    <input style={s.input} type="number" min="0" step="0.01" value={form.precioCosto} onChange={e => handleCostChange(e.target.value)} />
                   </div>
                   <div style={s.field}>
-                    <label style={s.label}>Margen (%)</label>
-                    <div style={s.inputGroup}>
-                      <input style={{ ...s.inputInner, paddingLeft: '12px' }} type="number" step="0.01"
-                        value={form.margen} onChange={e => handleMargenChange(e.target.value)} />
-                      <span style={s.inputSuffix}>%</span>
-                    </div>
+                    <label style={s.label}>Margen %</label>
+                    <input style={s.input} type="number" step="0.01" value={form.margen} onChange={e => handleMargenChange(e.target.value)} />
                   </div>
                   <div style={s.field}>
-                    <label style={s.label}>Precio de venta</label>
-                    <div style={s.inputGroup}>
-                      <span style={s.inputPrefix}>$</span>
-                      <input style={s.inputInner} type="number" min="0" step="0.01"
-                        value={form.precio} onChange={e => handleVentaChange(e.target.value)} />
-                    </div>
+                    <label style={s.label}>Venta</label>
+                    <input style={s.input} type="number" min="0" step="0.01" value={form.precio} required onChange={e => handleVentaChange(e.target.value)} />
                   </div>
                 </div>
-                {form.precioCosto && form.precio && (
-                  <div style={s.margenPreview}>
-                    <span style={{ color: '#6B6B6B', fontSize: '13px' }}>Ganancia por unidad:</span>
-                    <span style={{ color: '#8A6D00', fontWeight: '700', fontSize: '15px' }}>
-                      ${fmt(Number(form.precio) - Number(form.precioCosto))}
-                    </span>
-                    {form.margen && (
-                      <span style={{ ...s.margenBadge, ...(Number(form.margen) >= 0 ? s.margenPos : s.margenNeg), marginLeft: '4px' }}>
-                        {Number(form.margen) >= 0 ? '+' : ''}{Number(form.margen).toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
 
-              <div style={s.section}>
-                <p style={s.sectionTitle}>Stock</p>
-                <div style={s.row}>
+                <p style={s.seccion}>Stock</p>
+                <div style={s.row3}>
                   <div style={s.field}>
-                    <label style={s.label}>Stock actual *</label>
-                    <input style={s.input} type="number" min="0" value={form.stock}
-                      onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} required />
+                    <label style={s.label}>Unidades</label>
+                    <input style={s.input} type="number" min="0" value={form.stock} required onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
                   </div>
                   <div style={s.field}>
-                    <label style={s.label}>Stock mínimo</label>
-                    <input style={s.input} type="number" min="0" value={form.stockMinimo}
-                      onChange={e => setForm(f => ({ ...f, stockMinimo: e.target.value }))} />
+                    <label style={s.label}>Stock mínimo (avisa al llegar)</label>
+                    <input style={s.input} type="number" min="0" value={form.stockMinimo} onChange={e => setForm(f => ({ ...f, stockMinimo: e.target.value }))} />
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
-              <label style={s.checkLabel}>
-                <input type="checkbox" checked={form.activo}
-                  onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} />
-                <span style={{ color: '#333333', fontSize: '14px' }}>Artículo activo</span>
-              </label>
+              {error && <p style={s.errorText}>{error}</p>}
 
-              <div style={s.modalActions}>
-                <button type="button" style={s.btnSecondary} onClick={closeModal}>Cancelar</button>
-                <button type="submit" style={s.btnPrimary}>
-                  {modal.editing ? 'Guardar cambios' : 'Crear artículo'}
-                </button>
-              </div>
+              {confirmarBorrado ? (
+                <div style={s.confirmar}>
+                  <span style={s.texto}>¿Eliminar este artículo? No se puede deshacer.</span>
+                  <button type="button" style={s.btnSecondary} onClick={() => setConfirmarBorrado(false)}>Cancelar</button>
+                  <button type="button" style={s.btnDanger} onClick={() => guardar('DELETE', `/${modal.editing!.id}`)}>Eliminar</button>
+                </div>
+              ) : (
+                <div style={s.modalActions}>
+                  {isAdmin && modal.editing && (
+                    <>
+                      <button type="button" style={s.btnLink}
+                        onClick={() => guardar('PUT', `/${modal.editing!.id}`, { activo: !modal.editing!.activo })}>
+                        {modal.editing.activo ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button type="button" style={{ ...s.btnLink, color: '#C6402F' }} onClick={() => setConfirmarBorrado(true)}>Eliminar</button>
+                    </>
+                  )}
+                  <span style={{ flex: 1 }} />
+                  <button type="button" style={s.btnSecondary} onClick={cerrar}>{isAdmin ? 'Cancelar' : 'Cerrar'}</button>
+                  {isAdmin && <button type="submit" style={s.btnPrimary}>{modal.editing ? 'Guardar' : 'Crear artículo'}</button>}
+                </div>
+              )}
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmar eliminar */}
-      {deleteConfirm !== null && (
-        <div style={s.overlay}>
-          <div style={{ ...s.modal, maxWidth: '400px' }}>
-            <h3 style={{ ...s.modalTitle, marginBottom: '12px' }}>Eliminar artículo</h3>
-            <p style={{ color: '#6B6B6B', fontSize: '14px', margin: '0 0 24px' }}>¿Estás seguro? Esta acción no se puede deshacer.</p>
-            <div style={s.modalActions}>
-              <button style={s.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancelar</button>
-              <button style={s.btnDanger} onClick={() => handleDelete(deleteConfirm)}>Eliminar</button>
-            </div>
           </div>
         </div>
       )}
@@ -433,87 +272,48 @@ export default function Articulos({ user }: { user: User }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px', overflowX: 'hidden' },
   loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
-  header:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: 0 },
-  errorBanner:  { background: 'rgba(198,64,47,0.1)', border: '1px solid rgba(198,64,47,0.3)', color: '#C6402F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px' },
-
-  filterBar:    { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
-  searchInput:  { flex: 1, minWidth: '200px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none' },
+  toolbar:      { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
+  search:       { flex: 1, minWidth: '200px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none' },
   select:       { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#333333', fontSize: '13px', outline: 'none', cursor: 'pointer' },
-  tabs:         { display: 'flex', flexWrap: 'wrap' as const, gap: '4px', background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '3px' },
-  tab:          { background: 'transparent', border: 'none', borderRadius: '6px', padding: '5px 12px', color: '#6B6B6B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
-  tabActive:    { background: '#111111', color: '#F5C400', fontWeight: '600' },
 
-  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '60px 20px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E4E8', fontSize: '14px' },
+  filtros:      { display: 'flex', gap: '20px', borderBottom: '1px solid #E2E4E8' },
+  filtro:       { background: 'transparent', border: 'none', borderBottom: '2px solid transparent', padding: '8px 0', marginBottom: '-1px', color: '#6B6B6B', fontSize: '13px', fontWeight: '500', cursor: 'pointer' },
+  filtroActivo: { color: '#111111', borderBottomColor: '#111111', fontWeight: '600' },
+  contador:     { color: '#9A9A9A', marginLeft: '4px' },
+  contadorAviso:{ color: '#B86E00', fontWeight: '700', marginLeft: '4px' },
 
-  grid:         { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: '16px' },
+  thead:        { color: '#9A9A9A', fontSize: '12px', padding: '8px 12px' },
+  row:          { width: '100%', background: '#FFFFFF', border: 'none', borderBottom: '1px solid #EFF1F4', padding: '12px', cursor: 'pointer', textAlign: 'left', font: 'inherit' },
+  celdaNombre:  { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  nombre:       { color: '#111111', fontSize: '14px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
+  meta:         { color: '#8A8A8A', fontSize: '12px', margin: 0 },
+  derecha:      { textAlign: 'right' as const },
+  valor:        { color: '#111111', fontSize: '14px' },
+  bajo:         { color: '#B86E00', fontWeight: '600' },
+  min:          { fontSize: '12px', fontWeight: '400' },
+  sinStock:     { color: '#C6402F', fontWeight: '600' },
+  chevron:      { color: '#B0B0B0', fontSize: '12px', textAlign: 'right' as const },
+  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '48px 20px', fontSize: '14px' },
 
-  card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'transform 0.2s, box-shadow 0.2s' },
-  cardTop:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  code:         { fontFamily: 'monospace', background: '#F5F5F5', color: '#111111', border: '1px solid #E2E4E8', borderRadius: '6px', padding: '3px 9px', fontSize: '12px', fontWeight: '700', letterSpacing: '1px' },
-  statusDot:    { fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px' },
-  dotActive:    { background: '#E4F5EA', color: '#1E7A45', border: '1px solid #CDEBD9' },
-  dotInactive:  { background: '#ECEEF1', color: '#6B6B6B', border: '1px solid #E2E4E8' },
-
-  cardBody:     { display: 'flex', flexDirection: 'column', gap: '6px' },
-  productName:  { color: '#111111', fontSize: '15px', fontWeight: '700', margin: 0, lineHeight: '1.3' },
-  catBadge:     { display: 'inline-block', background: '#F5F5F5', color: '#6B6B6B', border: '1px solid #E2E4E8', padding: '2px 9px', borderRadius: '20px', fontSize: '11px' },
-
-  descToggle:   { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '11px', cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '4px' },
-  descText:     { color: '#333333', fontSize: '12px', lineHeight: '1.6', background: '#F5F5F5', borderRadius: '8px', padding: '10px 12px' },
-
-  divider:      { height: '1px', background: '#EFF1F4' },
-
-  priceRow:     { display: 'flex', alignItems: 'center', gap: '8px' },
-  priceItem:    { display: 'flex', flexDirection: 'column', gap: '1px' },
-  priceLabel:   { color: '#6B6B6B', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
-  priceCost:    { color: '#6B6B6B', fontWeight: '600', fontSize: '14px' },
-  priceSale:    { color: '#111111', fontWeight: '800', fontSize: '17px' },
-  priceArrow:   { color: '#9A9A9A', fontSize: '14px', margin: '0 2px', alignSelf: 'flex-end', paddingBottom: '2px' },
-  margenBadge:  { padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', marginLeft: 'auto' },
-  margenPos:    { background: '#E4F5EA', color: '#1E7A45', border: '1px solid #CDEBD9' },
-  margenNeg:    { background: '#FBE5E2', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)' },
-
-  stockRow:     { display: 'flex', flexDirection: 'column', gap: '6px' },
-  stockInfo:    { display: 'flex', alignItems: 'center', gap: '6px' },
-  stockLabel:   { color: '#6B6B6B', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' as const, letterSpacing: '0.5px' },
-  stockNum:     { fontWeight: '800', fontSize: '16px' },
-  stockMin:     { color: '#6B6B6B', fontSize: '11px' },
-  ajusteInput:  { width: '64px', background: '#FFFFFF', border: '1px solid #F5C400', borderRadius: '6px', padding: '4px 8px', color: '#111111', fontSize: '13px', outline: 'none' },
-  btnMini:      { background: 'transparent', border: '1px solid #E2E4E8', borderRadius: '6px', padding: '2px 7px', color: '#333333', fontSize: '11px', cursor: 'pointer' },
-  badgeOut:     { background: 'rgba(198,64,47,0.1)', color: '#C6402F', border: '1px solid rgba(198,64,47,0.2)', padding: '1px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' as const },
-  badgeLow:     { background: 'rgba(224,138,0,0.12)', color: '#97640B', border: '1px solid rgba(224,138,0,0.25)', padding: '1px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' as const },
-  stockBarWrap: { height: '4px', background: '#EFF1F4', borderRadius: '2px', overflow: 'hidden' },
-  stockBar:     { height: '100%', borderRadius: '2px', transition: 'width 0.3s' },
-
-  cardActions:  { display: 'flex', gap: '6px', marginTop: '2px' },
-  btnEdit:      { flex: 1, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '7px', padding: '7px 10px', color: '#111111', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
-  btnToggle:    { flex: 1, background: 'transparent', border: '1px solid #E2E4E8', borderRadius: '7px', padding: '7px 10px', color: '#6B6B6B', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
-  btnDelete:    { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '7px 10px', color: '#C6402F', fontSize: '12px', cursor: 'pointer' },
-
-  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
-  btnSecondary: { background: '#FFFFFF', color: '#6B6B6B', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
-  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
-
-  overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-  modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: 0 },
+  overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' },
+  modal:        { background: '#FFFFFF', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
+  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' },
+  modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: '0 0 2px' },
   closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
-  form:         { display: 'flex', flexDirection: 'column', gap: '16px' },
-  section:      { display: 'flex', flexDirection: 'column', gap: '12px', background: '#FAFBFC', border: '1px solid #EFF1F4', borderRadius: '10px', padding: '14px' },
-  sectionTitle: { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
-  row:          { display: 'flex', gap: '10px' },
-  field:        { display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 },
-  label:        { color: '#333333', fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px' },
-  input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '7px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
-  inputGroup:   { display: 'flex', alignItems: 'center', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '7px', overflow: 'hidden' },
-  inputPrefix:  { color: '#8A6D00', fontWeight: '700', padding: '0 8px', fontSize: '13px', flexShrink: 0 },
-  inputSuffix:  { color: '#6B6B6B', fontWeight: '600', padding: '0 8px', fontSize: '13px', flexShrink: 0 },
-  inputInner:   { flex: 1, background: 'transparent', border: 'none', padding: '9px 8px 9px 0', color: '#111111', fontSize: '13px', outline: 'none', width: '100%' },
-  margenPreview:{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'rgba(245,196,0,0.08)', border: '1px solid rgba(245,196,0,0.25)', borderRadius: '7px' },
-  checkLabel:   { display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' },
-  modalActions: { display: 'flex', gap: '10px', justifyContent: 'flex-end' },
+  fieldset:     { border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' },
+  seccion:      { color: '#6B6B6B', fontSize: '12px', fontWeight: '600', margin: '8px 0 -4px' },
+  row3:         { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' },
+  field:        { display: 'flex', flexDirection: 'column', gap: '5px' },
+  label:        { color: '#6B6B6B', fontSize: '12px' },
+  input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
+  errorText:    { color: '#C6402F', fontSize: '13px', margin: '12px 0 0' },
+  texto:        { color: '#333333', fontSize: '13px', flex: 1 },
+
+  modalActions: { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px' },
+  confirmar:    { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px', background: '#FBE5E2', borderRadius: '10px', padding: '10px 12px' },
+  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
+  btnSecondary: { background: '#FFFFFF', color: '#333333', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
+  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
+  btnLink:      { background: 'transparent', border: 'none', color: '#333333', fontSize: '13px', fontWeight: '600', cursor: 'pointer', padding: '9px 4px' },
 }

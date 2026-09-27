@@ -25,7 +25,7 @@ El sistema se centra en dos pilares críticos para el funcionamiento de SH Servi
 
 **Control de Stock en Tiempo Real:** Validación de disponibilidad antes de confirmar la venta y descuento automático de unidades en la base de datos al completar la transacción.
 
-**Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo. El cliente puede dejar un anticipo o pagar de más: queda como **saldo a favor** y se descuenta de sus próximas compras o servicios a cuenta corriente.
+**Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo. El cliente puede dejar un anticipo o pagar de más: queda como **saldo a favor**. Al venderle o entregarle un servicio, la casilla "Usar saldo a favor" (marcada por defecto) lo descuenta del total, y el comprobante muestra el total, el saldo aplicado y lo que queda a pagar. A cuenta corriente el saldo a favor se descuenta siempre, porque es la misma cuenta.
 
 **Servicio Técnico:** Registro de solicitudes de reparación o mantenimiento. Sin garantía se genera un presupuesto de mano de obra que el cliente acepta o rechaza; con garantía pasa directo al taller sin costo. Administración asigna un técnico, el técnico carga los repuestos que salen del depósito (se descuentan del stock en ese momento) y marca la reparación como terminada. Al entregar el equipo se registra el cobro, la fecha del próximo mantenimiento y se emite el recibo.
 
@@ -40,7 +40,7 @@ El menú tiene un solo nivel y cada rol ve solo lo que usa:
 | Punto de Venta | Administrador, Vendedor | Buscar productos (Enter agrega una unidad), elegir o crear el cliente en el momento, cobrar e imprimir el comprobante |
 | Servicios Técnicos | Todos | Arranca mostrando lo que está en curso; el técnico ve directamente sus reparaciones. El administrador tiene además la pestaña **Técnicos** para darlos de alta, editarlos o eliminarlos |
 | Clientes | Administrador, Vendedor | Buscar, crear y abrir la ficha con compras, cuenta corriente y pagos; el saldo se muestra como "Debe", "A favor" o "Al día" |
-| Inventario | Administrador, Vendedor | Artículos con filtros de stock (bajo, sin stock, inactivos) y ajuste rápido; categorías en una pestaña. El menú muestra cuántos productos hay para reponer |
+| Inventario | Administrador, Vendedor | Lista de artículos con precio y stock (resaltado solo cuando hay que reponer) y filtros Activos, Para reponer e Inactivos. Tocar un artículo abre su ficha para editar precio, stock o darlo de baja; categorías en una pestaña. El menú muestra cuántos productos hay para reponer |
 
 ## 4. Tecnologías Utilizadas
 
@@ -62,11 +62,11 @@ El sistema se apoya en una estructura relacional de 9 tablas:
 - **usuarios:** Gestión de credenciales y perfiles de acceso de los empleados.
 - **categorias:** Clasificación organizada de los productos de SH Servicios.
 - **productos:** Registro maestro de artículos (precios, descripción, código único y stock).
-- **ventas:** Registro de cabecera de cada venta (fecha, total, medio de pago, usuario que la realizó y cliente opcional).
+- **ventas:** Registro de cabecera de cada venta (fecha, total, saldo a favor aplicado, medio de pago, usuario que la realizó y cliente opcional).
 - **detalles_venta:** Detalle de los artículos y cantidades incluidas en cada venta.
 - **clientes:** Datos de los clientes (nombre, documento único, teléfono, email y dirección).
 - **movimientos_cuenta:** Cuenta corriente de cada cliente: las ventas y servicios a cuenta suman deuda y los pagos la restan.
-- **servicios_tecnicos:** Solicitudes de reparación (cliente, equipo, falla, repuestos necesarios, garantía, mano de obra, técnico asignado, estado, cobro y próximo mantenimiento).
+- **servicios_tecnicos:** Solicitudes de reparación (cliente, equipo, falla, repuestos necesarios, garantía, mano de obra, técnico asignado, estado, cobro con saldo a favor aplicado y próximo mantenimiento).
 - **servicio_repuestos:** Repuestos del inventario utilizados en cada servicio, con cantidad y precio.
 
 ## 7. Despliegue en la Nube
@@ -268,11 +268,12 @@ Cuerpo de `POST /api/sales`:
   "items": [{ "productoId": 4, "cantidad": 2 }],
   "medioPago": "Efectivo",
   "montoRecibido": 120000,
-  "clienteId": 1
+  "clienteId": 1,
+  "usarSaldo": true
 }
 ```
 
-El precio unitario y el total se calculan en el servidor con los precios de la base. La venta se rechaza completa si algún producto está inactivo o no tiene stock suficiente. `clienteId` es opcional, salvo con `"medioPago": "Cuenta Corriente"`, que exige cliente y registra la deuda en su cuenta.
+El precio unitario y el total se calculan en el servidor con los precios de la base. La venta se rechaza completa si algún producto está inactivo o no tiene stock suficiente. `clienteId` es opcional, salvo con `"medioPago": "Cuenta Corriente"`, que exige cliente y registra la deuda en su cuenta. Si el cliente tiene saldo a favor y `usarSaldo` no es `false`, se descuenta del total; la venta devuelve cuánto se aplicó en `saldoAplicado`.
 
 ### Clientes — `/api/clients`
 
@@ -299,7 +300,7 @@ El técnico solo puede ver y modificar los servicios que tiene asignados.
 | POST | `https://shservicios.up.railway.app/api/repairs/:id/repuestos` | 🔒 🛠 | Carga un repuesto y lo descuenta del stock: `{ "productoId", "cantidad" }` |
 | DELETE | `https://shservicios.up.railway.app/api/repairs/:id/repuestos/:productoId` | 🔒 🛠 | Quita un repuesto y lo devuelve al stock |
 | PUT | `https://shservicios.up.railway.app/api/repairs/:id/reparado` | 🔒 🛠 | Marca la reparación como terminada |
-| PUT | `https://shservicios.up.railway.app/api/repairs/:id/entregar` | 🔒 🧾 | Entrega y cobro: `{ "medioPago", "proximoMantenimiento" }` |
+| PUT | `https://shservicios.up.railway.app/api/repairs/:id/entregar` | 🔒 🧾 | Entrega y cobro: `{ "medioPago", "proximoMantenimiento", "usarSaldo" }` (el saldo a favor usado queda en `saldoAplicado`) |
 
 Estados de un servicio: `PRESUPUESTADO` → `PENDIENTE` (o `RECHAZADO`) → `EN_REPARACION` → `REPARADO` → `ENTREGADO`. Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se cobra a `Cuenta Corriente`, el total queda como deuda en la cuenta del cliente.
 

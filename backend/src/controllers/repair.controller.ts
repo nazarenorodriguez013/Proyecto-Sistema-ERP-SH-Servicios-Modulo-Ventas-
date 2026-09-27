@@ -28,4 +28,4 @@ export const marcarReparado = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.marcarReparado(Number(req.params.id), req.user!));
 
 export const entregar = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.entregar(Number(req.params.id), req.body.medioPago, req.body.proximoMantenimiento));
+  responder(res, () => repairService.entregar(Number(req.params.id), req.body.medioPago, req.body.proximoMantenimiento, req.body.usarSaldo !== false));
