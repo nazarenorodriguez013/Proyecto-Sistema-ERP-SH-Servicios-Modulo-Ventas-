@@ -185,7 +185,7 @@ const s: Record<string, React.CSSProperties> = {
 
   tabs:         { display: 'flex', gap: '6px', flexWrap: 'wrap' as const },
   tab:          { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '7px 14px', color: '#6B6B6B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' },
-  tabActive:    { background: '#111111', borderColor: '#111111', color: '#F5C400', fontWeight: '600' },
+  tabActive:    { background: '#111111', border: '1px solid #111111', color: '#F5C400', fontWeight: '600' },
 
   thead:        { display: 'flex', alignItems: 'center', padding: '10px 16px', background: '#FAFBFC', borderBottom: '2px solid #E7E9ED' },
   th:           { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center' },
