@@ -16,5 +16,5 @@ export default function Tabs<T extends string>({ tabs, active, onChange }: { tab
 const s: Record<string, React.CSSProperties> = {
   tabs:      { display: 'flex', gap: '4px', padding: '16px 28px 0', borderBottom: '1px solid #E2E4E8' },
   tab:       { display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', borderBottom: '2px solid transparent', padding: '8px 14px', color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer', marginBottom: '-1px' },
-  tabActive: { color: '#111111', borderBottomColor: '#F5C400' },
+  tabActive: { color: '#111111', borderBottom: '2px solid #F5C400' },
 }
