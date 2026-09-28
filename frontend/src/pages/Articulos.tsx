@@ -33,6 +33,32 @@ const fmt = (n: number) =>
 // Para reponer: activo y en el stock mínimo o por debajo (incluye sin stock); coincide con el contador del menú
 const paraReponer = (p: Producto) => p.activo && p.stock <= p.stockMinimo
 
+// Números con coma decimal para que Excel en español los tome como números
+const numeroCsv = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',')
+const campoCsv = (valor: string) => `"${valor.replace(/"/g, '""')}"`
+
+// Descarga lo que se está viendo en pantalla; el BOM hace que Excel respete los acentos
+const exportarCsv = (productos: Producto[]) => {
+  const encabezado = ['Código', 'Nombre', 'Categoría', 'Costo', 'Precio de venta', 'Margen %', 'Stock', 'Stock mínimo', 'Estado']
+  const filas = productos.map(p => [
+    p.codigo ?? '', p.nombre, p.categoria.nombre, numeroCsv(p.precioCosto), numeroCsv(p.precio),
+    p.precioCosto ? numeroCsv((p.precio - p.precioCosto) / p.precioCosto * 100) : '',
+    String(p.stock), String(p.stockMinimo), p.activo ? 'Activo' : 'Inactivo',
+  ])
+  const csv = [encabezado, ...filas].map(fila => fila.map(campoCsv).join(';')).join('\r\n')
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }))
+  // Fecha local en formato AAAA-MM-DD (toISOString usaría UTC y de noche daría el día siguiente)
+  link.download = `inventario-${new Date().toLocaleDateString('sv-SE')}.csv`
+  link.click()
+  // Se libera en el ciclo siguiente: revocarlo en el acto puede cancelar la descarga en Firefox y Safari
+  setTimeout(() => URL.revokeObjectURL(link.href))
+}
+
+type Orden = 'asc' | 'desc' | null
+// Cada click en "Stock" pasa a la siguiente: menor a mayor, mayor a menor y de vuelta al orden alfabético
+const SIGUIENTE_ORDEN: Record<string, Orden> = { null: 'asc', asc: 'desc', desc: null }
+
 type Filtro = 'activos' | 'reponer' | 'inactivos'
 const FILTROS: { key: Filtro; label: string; cumple: (p: Producto) => boolean }[] = [
   { key: 'activos',   label: 'Activos',      cumple: p => p.activo },
@@ -47,6 +73,7 @@ export default function Articulos({ user }: { user: User }) {
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('activos')
+  const [orden, setOrden] = useState<Orden>(null)
   const [modal, setModal] = useState<{ open: boolean; editing: Producto | null }>({ open: false, editing: null })
   const [form, setForm] = useState<ProductoForm>(EMPTY_FORM)
   const [confirmarBorrado, setConfirmarBorrado] = useState(false)
@@ -127,6 +154,7 @@ export default function Articulos({ user }: { user: User }) {
     }
     return true
   })
+  const visibles = orden ? [...filtered].sort((a, b) => orden === 'asc' ? a.stock - b.stock : b.stock - a.stock) : filtered
 
   if (loading) return <div style={s.loading}>Cargando artículos...</div>
 
@@ -138,6 +166,9 @@ export default function Articulos({ user }: { user: User }) {
           <option value="">Todas las categorías</option>
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
+        <button style={s.btnSecondary} onClick={() => exportarCsv(visibles)} disabled={!visibles.length}>
+          <i className="bi bi-download" /> Exportar
+        </button>
         {isAdmin && <button style={s.btnPrimary} onClick={() => abrir(null)}><i className="bi bi-plus-lg" /> Nuevo artículo</button>}
       </div>
 
@@ -156,23 +187,23 @@ export default function Articulos({ user }: { user: User }) {
         <div className="inv-row" style={s.thead}>
           <span>Artículo</span>
           <span className="inv-precio" style={s.derecha}>Precio</span>
-          <span style={s.derecha}>Stock</span>
+          <button style={s.ordenStock} onClick={() => setOrden(o => SIGUIENTE_ORDEN[String(o)])} title="Ordenar por stock">
+            Stock <i className={`bi ${orden === 'asc' ? 'bi-arrow-up' : orden === 'desc' ? 'bi-arrow-down' : 'bi-arrow-down-up'}`}
+              style={{ color: orden ? '#111111' : '#C0C0C0' }} />
+          </button>
           <span />
         </div>
-        {filtered.length === 0
+        {visibles.length === 0
           ? <div style={s.empty}>No hay artículos para mostrar</div>
-          : filtered.map(p => (
+          : visibles.map(p => (
             <button key={p.id} className="inv-row" style={s.row} onClick={() => abrir(p)}>
               <span style={s.celdaNombre}>
                 <span style={s.nombre}>{p.nombre}</span>
                 <span style={s.meta}>{p.codigo ? `${p.codigo} · ` : ''}{p.categoria.nombre}</span>
               </span>
               <span className="inv-precio" style={{ ...s.derecha, ...s.valor }}>${fmt(p.precio)}</span>
-              <span style={{ ...s.derecha, ...s.valor }}>
-                {!p.activo ? <span style={s.meta}>Inactivo</span>
-                  : p.stock === 0 ? <span style={s.sinStock}>Sin stock</span>
-                    : p.stock <= p.stockMinimo ? <span style={s.bajo}>{p.stock} <span style={s.min}>de mín. {p.stockMinimo}</span></span>
-                      : p.stock}
+              <span style={{ ...s.derecha, ...s.valor, ...(!p.activo ? s.inactivo : p.stock === 0 ? s.sinStock : p.stock <= p.stockMinimo ? s.bajo : {}) }}>
+                {p.stock} u.
               </span>
               <i className="bi bi-chevron-right" style={s.chevron} />
             </button>
@@ -279,7 +310,7 @@ const s: Record<string, React.CSSProperties> = {
 
   filtros:      { display: 'flex', gap: '20px', borderBottom: '1px solid #E2E4E8' },
   filtro:       { background: 'transparent', border: 'none', borderBottom: '2px solid transparent', padding: '8px 0', marginBottom: '-1px', color: '#6B6B6B', fontSize: '13px', fontWeight: '500', cursor: 'pointer' },
-  filtroActivo: { color: '#111111', borderBottomColor: '#111111', fontWeight: '600' },
+  filtroActivo: { color: '#111111', borderBottom: '2px solid #111111', fontWeight: '600' },
   contador:     { color: '#9A9A9A', marginLeft: '4px' },
   contadorAviso:{ color: '#B86E00', fontWeight: '700', marginLeft: '4px' },
 
@@ -291,7 +322,8 @@ const s: Record<string, React.CSSProperties> = {
   derecha:      { textAlign: 'right' as const },
   valor:        { color: '#111111', fontSize: '14px' },
   bajo:         { color: '#B86E00', fontWeight: '600' },
-  min:          { fontSize: '12px', fontWeight: '400' },
+  inactivo:     { color: '#9A9A9A' },
+  ordenStock:   { background: 'transparent', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifySelf: 'end', gap: '4px' },
   sinStock:     { color: '#C6402F', fontWeight: '600' },
   chevron:      { color: '#B0B0B0', fontSize: '12px', textAlign: 'right' as const },
   empty:        { color: '#6B6B6B', textAlign: 'center', padding: '48px 20px', fontSize: '14px' },
