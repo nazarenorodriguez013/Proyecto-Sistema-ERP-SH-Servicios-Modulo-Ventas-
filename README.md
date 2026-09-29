@@ -1,190 +1,114 @@
-# Proyecto: Sistema ERP - SH Servicios (Módulo de Ventas)
-Sistema de Gestión
+# Sistema ERP – SH Servicios
 
-Alumnos: Rodriguez Nazareno, Mover Leonardo, Jacobo Santiago.
+Sistema de gestión web para **SH Servicios**, empresa dedicada a la provisión de insumos y soluciones técnicas. Centraliza el inventario, las ventas, los clientes con su cuenta corriente y el servicio técnico, y mantiene el stock sincronizado en tiempo real entre todas las terminales.
 
-GRUPO 4.
+**Grupo 4** – Rodriguez Nazareno, Mover Leonardo, Jacobo Santiago.
 
-El presente proyecto consiste en el desarrollo de un sistema ERP especializado en la Gestión de Ventas e Inventario para la empresa SH Servicios. La organización, dedicada a la provisión de insumos y soluciones técnicas, necesita una herramienta digital que centralice sus operaciones comerciales. El sistema busca reemplazar los procesos manuales por una plataforma automatizada que garantice el control total sobre el flujo de mercadería y la transparencia financiera.
+- **Producción:** https://shservicios.up.railway.app
+- **Video demostrativo:** [ver video](https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing)
 
-## 2. Objetivos del Proyecto
+## Objetivo
 
-El objetivo principal es implementar una solución Full-Stack que resuelva la desincronización del inventario. El sistema permitirá:
+Reemplazar los procesos manuales por una plataforma Full-Stack que elimine la desincronización del inventario, digitalice la venta y su comprobante, y dé trazabilidad a las deudas de los clientes y a las reparaciones.
 
-- Digitalizar el catálogo de productos y el proceso de facturación.
-- Automatizar la reducción de existencias ante cada venta realizada.
-- Garantizar la integridad de los datos mediante una arquitectura robusta y segura.
+## Funcionalidades
 
-## 3. Alcance Funcional
+| Módulo | Qué hace |
+|---|---|
+| **Inventario** | ABM de productos y categorías, código autogenerado, stock mínimo, baja lógica. Lista con filtros *Activos*, *Para reponer* e *Inactivos*, orden por stock y exportación a CSV. |
+| **Punto de Venta** | Carrito con varios productos (Enter agrega una unidad), cliente opcional, medios de pago, comprobante imprimible. El total se calcula en el servidor; el stock se valida y descuenta de forma atómica. |
+| **Clientes y cuenta corriente** | ABM de clientes con historial de compras. Las ventas y servicios a cuenta suman deuda; los pagos y anticipos la restan. Un pago de más queda como **saldo a favor**, que se descuenta automáticamente (casilla "Usar saldo a favor"). El saldo se muestra como *Debe*, *A favor* o *Al día*. |
+| **Servicio Técnico** | Solicitud de reparación → presupuesto (sin garantía) → asignación de técnico → carga de repuestos (descuentan stock) → reparación → entrega con cobro, próximo mantenimiento y recibo. |
+| **Técnicos** | Alta, edición y baja de técnicos (solo Administrador). |
+| **Tiempo real** | Socket.io actualiza stock y servicios en todas las terminales sin recargar. |
 
-El sistema se centra en dos pilares críticos para el funcionamiento de SH Servicios:
+### Roles
 
-**Gestión de Inventario (ABM):** Un módulo completo para el control de artículos. Permite el alta, baja, modificación y consulta de productos, categorías y niveles de stock mínimo.
-
-**Venta Transaccional y Facturación:** Interfaz para procesar ventas que vincula múltiples productos, calcula totales de forma automática y genera el registro de la operación.
-
-**Control de Stock en Tiempo Real:** Validación de disponibilidad antes de confirmar la venta y descuento automático de unidades en la base de datos al completar la transacción.
-
-**Clientes y Cuenta Corriente:** ABM de clientes con su historial de compras. Una venta puede asociarse a un cliente y, si se cobra a cuenta corriente, la deuda queda registrada en su cuenta, donde se cargan los pagos y se consulta el saldo. El cliente puede dejar un anticipo o pagar de más: queda como **saldo a favor**. Al venderle o entregarle un servicio, la casilla "Usar saldo a favor" (marcada por defecto) lo descuenta del total, y el comprobante muestra el total, el saldo aplicado y lo que queda a pagar. A cuenta corriente el saldo a favor se descuenta siempre, porque es la misma cuenta.
-
-**Servicio Técnico:** Registro de solicitudes de reparación o mantenimiento. Sin garantía se genera un presupuesto de mano de obra que el cliente acepta o rechaza; con garantía pasa directo al taller sin costo. Administración asigna un técnico, el técnico carga los repuestos que salen del depósito (se descuentan del stock en ese momento) y marca la reparación como terminada. Al entregar el equipo se registra el cobro, la fecha del próximo mantenimiento y se emite el recibo.
-
-**Seguridad y Acceso:** Sistema de autenticación con JWT y tres roles: **Administrador** (acceso total), **Vendedor** (ventas, consulta de inventario, alta y edición de clientes, cobros y atención de servicios técnicos) y **Técnico** (solo ve los servicios que tiene asignados, carga repuestos y cierra reparaciones).
+| Rol | Alcance |
+|---|---|
+| **Administrador** | Acceso total, incluida la gestión de productos, categorías, técnicos y baja de clientes. |
+| **Vendedor** | Ventas, consulta de inventario, clientes, cobros y circuito de servicio técnico (registrar, presupuestar, asignar, entregar). |
+| **Técnico** | Solo ve sus servicios asignados, carga repuestos y marca la reparación como terminada. |
 
 ### Navegación
 
-El menú tiene un solo nivel y cada rol ve solo lo que usa:
+| Pantalla | Roles |
+|---|---|
+| Punto de Venta | Administrador, Vendedor |
+| Servicios Técnicos (el Administrador ve además la pestaña *Técnicos*) | Todos |
+| Clientes | Administrador, Vendedor |
+| Inventario (con contador de productos para reponer) | Administrador, Vendedor |
 
-| Pantalla | Roles | Qué se hace |
-|---|---|---|
-| Punto de Venta | Administrador, Vendedor | Buscar productos (Enter agrega una unidad), elegir o crear el cliente en el momento, cobrar e imprimir el comprobante |
-| Servicios Técnicos | Todos | Arranca mostrando lo que está en curso; el técnico ve directamente sus reparaciones. El administrador tiene además la pestaña **Técnicos** para darlos de alta, editarlos o eliminarlos |
-| Clientes | Administrador, Vendedor | Buscar, crear y abrir la ficha con compras, cuenta corriente y pagos; el saldo se muestra como "Debe", "A favor" o "Al día" |
-| Inventario | Administrador, Vendedor | Lista de artículos con precio y stock (resaltado solo cuando hay que reponer) y filtros Activos, Para reponer e Inactivos. Tocar un artículo abre su ficha para editar precio, stock o darlo de baja; categorías en una pestaña. El menú muestra cuántos productos hay para reponer |
+### Estados del servicio técnico
 
-## 4. Tecnologías Utilizadas
+`PRESUPUESTADO` → `PENDIENTE` (o `RECHAZADO`) → `EN_REPARACION` → `REPARADO` → `ENTREGADO`
 
-Para cumplir con los requisitos de alta disponibilidad y solidez técnica, se utilizó el siguiente stack:
+Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se cobra a *Cuenta Corriente*, el total queda como deuda del cliente.
 
-- **Backend:** Node.js con Express y TypeScript (arquitectura en capas: Controladores, Servicios, Rutas).
-- **Base de Datos:** PostgreSQL gestionado a través de Prisma ORM para asegurar un tipado estricto de los modelos de datos.
-- **Frontend:** React con TypeScript, orientado a una experiencia de usuario ágil y responsiva.
-- **Comunicación en Tiempo Real:** Uso de WebSockets con Socket.io para notificar instantáneamente la actualización de stock en todos los terminales cuando se realiza una venta.
+## Tecnologías
 
-## 5. Diagrama Entidad-Relación (DER)
+| Capa | Stack |
+|---|---|
+| Backend | Node.js 20, Express 5, TypeScript, arquitectura en capas (rutas → controladores → servicios) |
+| Base de datos | PostgreSQL con Prisma ORM y migraciones |
+| Frontend | React 19, TypeScript, Vite, React Router |
+| Seguridad | JWT (8 h) + bcrypt, autorización por rol |
+| Tiempo real | Socket.io |
+| Despliegue | Railway (Nixpacks) |
+
+## Base de datos
 
 ![Diagrama Entidad-Relación](diagrama_Prog3_sh.png)
 
-## 6. Estructura de la Base de Datos
+Nueve tablas: `usuarios`, `categorias`, `productos`, `ventas`, `detalles_venta`, `clientes`, `movimientos_cuenta`, `servicios_tecnicos` y `servicio_repuestos`. El esquema completo está en [`backend/prisma/schema.prisma`](backend/prisma/schema.prisma).
 
-El sistema se apoya en una estructura relacional de 9 tablas:
+## Estructura del proyecto
 
-- **usuarios:** Gestión de credenciales y perfiles de acceso de los empleados.
-- **categorias:** Clasificación organizada de los productos de SH Servicios.
-- **productos:** Registro maestro de artículos (precios, descripción, código único y stock).
-- **ventas:** Registro de cabecera de cada venta (fecha, total, saldo a favor aplicado, medio de pago, usuario que la realizó y cliente opcional).
-- **detalles_venta:** Detalle de los artículos y cantidades incluidas en cada venta.
-- **clientes:** Datos de los clientes (nombre, documento único, teléfono, email y dirección).
-- **movimientos_cuenta:** Cuenta corriente de cada cliente: las ventas y servicios a cuenta suman deuda y los pagos la restan.
-- **servicios_tecnicos:** Solicitudes de reparación (cliente, equipo, falla, repuestos necesarios, garantía, mano de obra, técnico asignado, estado, cobro con saldo a favor aplicado y próximo mantenimiento).
-- **servicio_repuestos:** Repuestos del inventario utilizados en cada servicio, con cantidad y precio.
+```
+backend/
+├── prisma/            schema.prisma y migraciones
+├── src/
+│   ├── controllers/   capa HTTP
+│   ├── routes/        endpoints y middlewares por ruta
+│   ├── services/      reglas de negocio y acceso a datos
+│   ├── middlewares/   autenticación y roles
+│   ├── socket.ts      instancia de Socket.io
+│   ├── seed.ts        datos iniciales
+│   └── index.ts
+└── .env.example
+frontend/
+└── src/               pages/, components/, config.ts, saldo.ts, servicios.ts, socket.ts, types.ts
+```
 
-## 7. Despliegue en la Nube
+## Instalación y ejecución local
 
-- **Infraestructura:** Railway.
-- **Persistencia:** PostgreSQL.
-- **URL en producción:** https://shservicios.up.railway.app
-- **Video demostrativo:** https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing
-
-## Conclusión
-
-Este sistema proporciona a SH Servicios una herramienta técnica avanzada para el control de su activo más importante: el stock. La integración de WebSockets y la arquitectura en TypeScript aseguran una plataforma escalable, rápida y libre de errores de sincronización, cumpliendo con los estándares actuales de desarrollo de software.
-
----
-
-## Contribuciones Individuales (Plus de Promoción)
-
-### Rodriguez Nazareno
-Desarrolló el módulo de **Ventas**: registro de comprobantes con múltiples productos, cálculo automático de totales, validación de stock antes de confirmar y descuento automático de unidades al completar la transacción.
-
-**Plus individual — Comprobantes, documentos fiscales y configuración de empresa:**
-
-- **Listado de comprobantes** (`frontend/src/pages/Comprobantes.tsx`): historial completo de ventas con modal de detalle y reimpresión. Consume `GET /sales` que trae ventas con sus ítems (tabla `detalles_venta`) via `backend/src/services/sale.service.ts`.
-- **Selector Factura / Remito en Punto de Venta** (`frontend/src/utils/print.ts`): antes de confirmar la venta el usuario elige el tipo de comprobante. La **Factura** genera un documento A4 con formato ARCA/AFIP (CUIT, razón social, IVA 21%, CAE, totales). El **Remito** genera un A5 simplificado sin datos fiscales. El tipo queda persistido en la base de datos (campo `tipo_comprobante` en la tabla `ventas`, agregado via `backend/prisma/migrations/`) para poder reimprimir correctamente desde Comprobantes.
-- **Configuración de empresa** (`Configuracion.tsx`): pantalla exclusiva para ADMIN donde se cargan los datos que aparecen en las facturas (razón social, CUIT, condición IVA, domicilio, punto de venta, letra de factura, etc.). Los datos se persisten en `localStorage` bajo la clave `sh_config` y los lee `print.ts` al generar cada documento.
-
----
-
-### Mover Leonardo
-Desarrolló los módulos de **Inventario y Artículos**: ABM completo de productos y categorías, control de stock mínimo y visualización del inventario desde el frontend.
-
-> _(plus individual — completar)_
-
----
-
-### Jacobo Santiago
-Desarrolló el sistema de **Login y autenticación JWT**: registro de usuarios, inicio de sesión con contraseñas encriptadas (Bcrypt), generación y validación de tokens JWT, y protección de rutas por rol (ADMIN / VENDEDOR).
-
-Plus individual — Temas visuales, mensajería en tiempo real y alertas de stock:
-
-Sistema de Temas Claro/Oscuro (frontend/src/mejoras_individuales/02_dark_mode/ThemeContext.tsx): implementación de un sistema global de temas mediante React Context y variables CSS. Permite alternar entre modo oscuro y claro desde Configuración, aplicando los cambios en toda la interfaz y persistiendo la preferencia en localStorage.
-Tablón de Avisos con Imágenes (frontend/src/pages/Avisos.tsx): desarrollo de una nueva sección de noticias internas accesible desde el sidebar. Permite visualizar publicaciones con título, contenido, imagen, autor y rol. Los administradores pueden crear, editar y eliminar avisos mediante una interfaz dedicada, mientras que el resto de los usuarios dispone de acceso de solo lectura.
-Alertas
-Alertas de Stock Bajo en Tiempo Real (frontend/src/components/AlertBell.tsx): implementación de alertas automáticas cuando un producto alcanza o supera su stock mínimo. Las notificaciones se envían mediante Socket.io, se visualizan desde una campana de alertas exclusiva para administradores y permiten navegar directamente al producto afectado dentro del módulo de Stock.
----
-
-## Guía de instalación y ejecución local
-
-### Requisitos previos
-
-- [Node.js](https://nodejs.org/) v20 o superior
-- npm v9 o superior
-- [PostgreSQL](https://www.postgresql.org/) v14 o superior, con una base creada para el proyecto (por ejemplo `sh_servicios`)
-
-### 1. Clonar el repositorio
+**Requisitos:** Node.js 20+, npm 9+ y PostgreSQL 14+ con una base creada (por ejemplo `sh_servicios`).
 
 ```bash
 git clone https://github.com/nazarenorodriguez013/Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
 cd Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
-```
 
-### 2. Instalar dependencias del backend
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
 
-```bash
 cd backend
-npm install
-cd ..
+cp .env.example .env      # completar DATABASE_URL y JWT_SECRET
+npm run db:migrate        # crea las tablas
 ```
-
-### 3. Instalar dependencias del frontend
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-### 4. Configurar variables de entorno
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Editar `backend/.env` con los datos de la base PostgreSQL local:
 
 | Variable | Descripción |
 |---|---|
-| `DATABASE_URL` | Conexión a PostgreSQL, por ejemplo `postgresql://postgres:postgres@localhost:5432/sh_servicios` |
-| `JWT_SECRET` | Clave con la que se firman los tokens JWT |
+| `DATABASE_URL` | Conexión a PostgreSQL, ej. `postgresql://postgres:postgres@localhost:5432/sh_servicios` |
+| `JWT_SECRET` | Clave con la que se firman los tokens |
 
-Crear las tablas aplicando las migraciones:
+Al iniciar el backend con la base vacía se cargan usuarios de prueba, 3 categorías y 9 productos.
+
+En dos terminales:
 
 ```bash
-npm run db:migrate
+cd backend && npm run dev     # http://localhost:3000
+cd frontend && npm run dev    # http://localhost:5173
 ```
-
-Al levantar el backend por primera vez, si la base está vacía se cargan automáticamente los usuarios de prueba, 3 categorías y 9 productos.
-
-### 5. Correr el proyecto
-
-Abrir **dos terminales** en la carpeta raíz del proyecto.
-
-**Terminal 1 — Backend:**
-```bash
-cd backend
-npm run dev
-```
-El servidor se levanta en `http://localhost:3000`
-
-**Terminal 2 — Frontend:**
-```bash
-cd frontend
-npm run dev
-```
-El frontend se levanta en `http://localhost:5173`
-
-Abrir el navegador en **http://localhost:5173**
 
 ### Usuarios de prueba
 
@@ -194,74 +118,54 @@ Abrir el navegador en **http://localhost:5173**
 | Vendedor | vendedor@shservicios.com | vendedor123 |
 | Técnico | tecnico@shservicios.com | tecnico123 |
 
-Si faltan, estos usuarios se crean al levantar el backend, aunque la base ya tenga datos.
+### Scripts de base de datos (desde `backend/`)
 
-### Base de datos
+| Comando | Acción |
+|---|---|
+| `npm run db:migrate` | Aplica las migraciones |
+| `npm run db:reset` | Borra todo, recrea las tablas y recarga los datos de prueba |
+| `npm run db:seed` | Carga los datos de prueba en una base vacía |
+| `npm run db:studio` | Abre la interfaz visual de Prisma |
 
-Para borrar todos los datos, recrear las tablas y volver a cargar los datos de prueba:
-```bash
-cd backend
-npm run db:reset
-```
+## API
 
-Para cargar solo los datos de prueba en una base vacía:
-```bash
-cd backend
-npm run db:seed
-```
+Base URL: `https://shservicios.up.railway.app/api` (desarrollo: `http://localhost:3000/api`). Todas las rutas requieren `Authorization: Bearer <token>`, salvo `auth` y `/health`.
 
-Para abrir la interfaz visual de la base de datos:
-```bash
-cd backend
-npm run db:studio
-```
+Roles: **A** Administrador · **V** Vendedor · **T** Técnico.
 
----
+### Autenticación – `/api/auth`
 
-## API — Listado de Endpoints
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/register` | Crea un usuario (rol Vendedor por defecto) |
+| POST | `/login` | Devuelve el token JWT y los datos del usuario |
 
-Base URL en producción: `https://shservicios.up.railway.app`  
-Base URL en desarrollo: `http://localhost:3000`
+### Categorías – `/api/categories`
 
-Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.  
-Las rutas marcadas con 👑 requieren además rol **ADMIN**.  
-Las rutas marcadas con 🧾 son para **ADMIN** y **VENDEDOR**; las marcadas con 🛠, para **ADMIN** y **TECNICO**.
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/` | Todos | Lista las categorías |
+| POST | `/` | A | Crea una categoría |
+| PUT | `/:id` | A | Edita una categoría |
+| DELETE | `/:id` | A | Elimina (falla si tiene productos) |
 
-### Autenticación — `/api/auth`
+### Productos – `/api/products`
 
-| Método | URL completa | Descripción |
-|--------|-------------|-------------|
-| POST | `https://shservicios.up.railway.app/api/auth/register` | Crea un nuevo usuario |
-| POST | `https://shservicios.up.railway.app/api/auth/login` | Inicia sesión y devuelve el token JWT |
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/` | Todos | Lista los productos con su categoría |
+| GET | `/low-stock` | Todos | Productos activos con stock ≤ mínimo |
+| GET | `/:id` | Todos | Obtiene un producto |
+| POST | `/` | A | Crea un producto (código automático) |
+| PUT | `/:id` | A | Edita un producto |
+| DELETE | `/:id` | A | Elimina; si tiene ventas o servicios responde 409 y conviene desactivarlo |
 
-### Categorías — `/api/categories`
+### Ventas – `/api/sales`
 
-| Método | URL completa | Auth | Descripción |
-|--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/categories` | 🔒 | Lista todas las categorías |
-| POST | `https://shservicios.up.railway.app/api/categories` | 🔒 👑 | Crea una nueva categoría |
-| PUT | `https://shservicios.up.railway.app/api/categories/:id` | 🔒 👑 | Edita el nombre de una categoría |
-| DELETE | `https://shservicios.up.railway.app/api/categories/:id` | 🔒 👑 | Elimina una categoría (falla si tiene productos asignados) |
-
-### Productos — `/api/products`
-
-| Método | URL completa | Auth | Descripción |
-|--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/products` | 🔒 | Lista todos los productos con su categoría |
-| GET | `https://shservicios.up.railway.app/api/products/low-stock` | 🔒 | Lista productos activos con stock ≤ stock mínimo |
-| GET | `https://shservicios.up.railway.app/api/products/:id` | 🔒 | Obtiene un producto por ID |
-| POST | `https://shservicios.up.railway.app/api/products` | 🔒 👑 | Crea un producto (código se genera automáticamente) |
-| PUT | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Edita un producto |
-| DELETE | `https://shservicios.up.railway.app/api/products/:id` | 🔒 👑 | Elimina un producto (falla si tiene ventas o servicios registrados; en ese caso se desactiva) |
-
-### Ventas — `/api/sales`
-
-| Método | URL completa | Auth | Descripción |
-|--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/sales` | 🔒 🧾 | Lista todas las ventas con sus detalles |
-| POST | `https://shservicios.up.railway.app/api/sales` | 🔒 🧾 | Registra una venta y descuenta el stock |
-
-Cuerpo de `POST /api/sales`:
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/` | A, V | Lista las ventas con sus detalles |
+| POST | `/` | A, V | Registra una venta y descuenta el stock |
 
 ```json
 {
@@ -273,57 +177,55 @@ Cuerpo de `POST /api/sales`:
 }
 ```
 
-El precio unitario y el total se calculan en el servidor con los precios de la base. La venta se rechaza completa si algún producto está inactivo o no tiene stock suficiente. `clienteId` es opcional, salvo con `"medioPago": "Cuenta Corriente"`, que exige cliente y registra la deuda en su cuenta. Si el cliente tiene saldo a favor y `usarSaldo` no es `false`, se descuenta del total; la venta devuelve cuánto se aplicó en `saldoAplicado`.
+Precio y total se calculan en el servidor. La venta se rechaza completa si algún producto está inactivo o sin stock suficiente. `clienteId` es opcional, salvo con `"medioPago": "Cuenta Corriente"`. Si el cliente tiene saldo a favor y `usarSaldo` no es `false`, se descuenta y se devuelve en `saldoAplicado`.
 
-### Clientes — `/api/clients`
+### Clientes – `/api/clients`
 
-| Método | URL completa | Auth | Descripción |
-|--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/clients` | 🔒 🧾 | Lista los clientes con su saldo de cuenta corriente |
-| GET | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 🧾 | Ficha del cliente: datos, historial de compras con sus productos, movimientos y saldo |
-| POST | `https://shservicios.up.railway.app/api/clients` | 🔒 🧾 | Crea un cliente (el documento no se puede repetir) |
-| PUT | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 🧾 | Edita un cliente |
-| DELETE | `https://shservicios.up.railway.app/api/clients/:id` | 🔒 👑 | Elimina un cliente (falla si tiene compras, pagos o servicios registrados) |
-| POST | `https://shservicios.up.railway.app/api/clients/:id/movements` | 🔒 🧾 | Registra un pago o anticipo en la cuenta corriente. Cuerpo: `{ "monto": 10000 }` |
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/` | A, V | Lista los clientes con su saldo |
+| GET | `/:id` | A, V | Ficha: datos, compras, movimientos y saldo |
+| POST | `/` | A, V | Crea un cliente (documento único) |
+| PUT | `/:id` | A, V | Edita un cliente |
+| DELETE | `/:id` | A | Elimina (falla si tiene compras, pagos o servicios) |
+| POST | `/:id/movements` | A, V | Registra un pago o anticipo: `{ "monto": 10000 }` |
 
-### Servicios Técnicos — `/api/repairs`
+### Servicios técnicos – `/api/repairs`
 
-El técnico solo puede ver y modificar los servicios que tiene asignados.
+El técnico solo ve y modifica los servicios que tiene asignados.
 
-| Método | URL completa | Auth | Descripción |
-|--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/repairs` | 🔒 | Lista los servicios (el técnico ve solo los suyos) |
-| GET | `https://shservicios.up.railway.app/api/repairs/:id` | 🔒 | Obtiene un servicio con cliente, técnico y repuestos |
-| POST | `https://shservicios.up.railway.app/api/repairs` | 🔒 🧾 | Registra una solicitud: `{ "clienteId", "equipo", "descripcionFalla", "repuestosSolicitados", "enGarantia", "costoManoObra" }` (`repuestosSolicitados` es texto libre y opcional) |
-| PUT | `https://shservicios.up.railway.app/api/repairs/:id/presupuesto` | 🔒 🧾 | Respuesta del cliente al presupuesto: `{ "aceptado": true }` |
-| PUT | `https://shservicios.up.railway.app/api/repairs/:id/tecnico` | 🔒 🧾 | Asigna o reasigna el técnico e inicia la reparación: `{ "tecnicoId" }` |
-| POST | `https://shservicios.up.railway.app/api/repairs/:id/repuestos` | 🔒 🛠 | Carga un repuesto y lo descuenta del stock: `{ "productoId", "cantidad" }` |
-| DELETE | `https://shservicios.up.railway.app/api/repairs/:id/repuestos/:productoId` | 🔒 🛠 | Quita un repuesto y lo devuelve al stock |
-| PUT | `https://shservicios.up.railway.app/api/repairs/:id/reparado` | 🔒 🛠 | Marca la reparación como terminada |
-| PUT | `https://shservicios.up.railway.app/api/repairs/:id/entregar` | 🔒 🧾 | Entrega y cobro: `{ "medioPago", "proximoMantenimiento", "usarSaldo" }` (el saldo a favor usado queda en `saldoAplicado`) |
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/` | Todos | Lista los servicios |
+| GET | `/:id` | Todos | Servicio con cliente, técnico y repuestos |
+| POST | `/` | A, V | Registra la solicitud: `clienteId`, `equipo`, `descripcionFalla`, `repuestosSolicitados?`, `enGarantia`, `costoManoObra` |
+| PUT | `/:id/presupuesto` | A, V | Respuesta del cliente: `{ "aceptado": true }` |
+| PUT | `/:id/tecnico` | A, V | Asigna el técnico e inicia la reparación: `{ "tecnicoId" }` |
+| POST | `/:id/repuestos` | A, T | Carga un repuesto y descuenta stock: `{ "productoId", "cantidad" }` |
+| DELETE | `/:id/repuestos/:productoId` | A, T | Quita un repuesto y lo devuelve al stock |
+| PUT | `/:id/reparado` | A, T | Marca la reparación como terminada |
+| PUT | `/:id/entregar` | A, V | Entrega y cobro: `{ "medioPago", "proximoMantenimiento", "usarSaldo" }` |
 
-Estados de un servicio: `PRESUPUESTADO` → `PENDIENTE` (o `RECHAZADO`) → `EN_REPARACION` → `REPARADO` → `ENTREGADO`. Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se cobra a `Cuenta Corriente`, el total queda como deuda en la cuenta del cliente.
+### Técnicos – `/api/technicians`
 
-### Técnicos — `/api/technicians`
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/` | A, V | Lista los técnicos con su cantidad de servicios |
+| POST | `/` | A | Crea un técnico: `{ "nombre", "correo", "contrasena" }` (mín. 6 caracteres) |
+| PUT | `/:id` | A | Edita; con `contrasena` vacía se mantiene la actual |
+| DELETE | `/:id` | A | Elimina (falla si tiene servicios asignados) |
 
-| Método | URL completa | Auth | Descripción |
-|--------|-------------|------|-------------|
-| GET | `https://shservicios.up.railway.app/api/technicians` | 🔒 🧾 | Lista los técnicos con la cantidad de servicios asignados |
-| POST | `https://shservicios.up.railway.app/api/technicians` | 🔒 👑 | Crea un técnico: `{ "nombre", "correo", "contrasena" }` (mínimo 6 caracteres) |
-| PUT | `https://shservicios.up.railway.app/api/technicians/:id` | 🔒 👑 | Edita un técnico; si `contrasena` viene vacía se mantiene la actual |
-| DELETE | `https://shservicios.up.railway.app/api/technicians/:id` | 🔒 👑 | Elimina un técnico (falla si tiene servicios asignados) |
+### Tiempo real (Socket.io)
 
-### Tiempo real — Socket.io
-
-El frontend se conecta con Socket.io a la misma URL del servidor.
-
-| Evento | Cuándo se emite | Uso en el frontend |
-|--------|-----------------|--------------------|
-| `stock-actualizado` | Después de confirmar una venta, al crear, editar o eliminar un producto y al cargar o quitar repuestos de un servicio | Punto de Venta, Inventario, el contador de stock bajo del menú y el selector de repuestos se actualizan al instante en todas las terminales |
-| `servicios-actualizados` | Ante cualquier cambio en un servicio técnico | Administración y taller ven al instante el estado, el técnico asignado y los repuestos |
+| Evento | Se emite cuando | Efecto |
+|---|---|---|
+| `stock-actualizado` | Se confirma una venta, se crea/edita/elimina un producto o se cargan/quitan repuestos | Punto de Venta, Inventario y contador de reposición se actualizan en todas las terminales |
+| `servicios-actualizados` | Cambia cualquier servicio técnico | Administración y taller ven el estado al instante |
 
 ### Health check
 
-| Método | URL completa | Descripción |
-|--------|-------------|-------------|
-| GET | `https://shservicios.up.railway.app/health` | Confirma que el servidor está corriendo |
+`GET /health` confirma que el servidor está activo.
+
+## Despliegue
+
+Railway compila con Nixpacks (`nixpacks.toml`): genera el cliente Prisma, construye el frontend y compila el backend. Al arrancar aplica las migraciones (`prisma migrate deploy`) y el mismo servidor Express sirve el frontend compilado. Variables necesarias: `DATABASE_URL` y `JWT_SECRET`.
