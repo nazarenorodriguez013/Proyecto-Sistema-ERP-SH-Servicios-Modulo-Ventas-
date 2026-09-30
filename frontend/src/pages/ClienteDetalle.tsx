@@ -21,12 +21,18 @@ const TIPO_LABEL: Record<Movimiento['tipo'], string> = { VENTA: 'Compra', SERVIC
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+type Evento =
+  | { kind: 'compra'; fecha: string; venta: Venta }
+  | { kind: 'movimiento'; fecha: string; movimiento: Movimiento }
+
 export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId: number; user: User; onBack: () => void }) {
   const [cliente, setCliente] = useState<ClienteFicha | null>(null)
   const [editando, setEditando] = useState(false)
   const [confirmarBorrado, setConfirmarBorrado] = useState(false)
+  const [confirmarBorrarVenta, setConfirmarBorrarVenta] = useState<number | null>(null)
   const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
+  const esAdmin = user.rol === 'ADMIN'
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
@@ -63,7 +69,25 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
     onBack()
   }
 
+  const handleDeleteVenta = async (ventaId: number) => {
+    const res = await fetch(`${API}/sales/${ventaId}`, { method: 'DELETE', headers })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo eliminar el comprobante')
+    }
+    setConfirmarBorrarVenta(null); fetchCliente()
+  }
+
   if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
+
+  // Un único historial cronológico: las compras se muestran una sola vez (no se repite el cargo VENTA
+  // que generaron en la cuenta corriente), junto con los pagos y servicios técnicos de la cuenta
+  const eventos: Evento[] = [
+    ...cliente.ventas.map(venta => ({ kind: 'compra' as const, fecha: venta.creadoEn, venta })),
+    ...cliente.movimientos
+      .filter(m => m.tipo !== 'VENTA')
+      .map(movimiento => ({ kind: 'movimiento' as const, fecha: movimiento.creadoEn, movimiento })),
+  ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
   return (
     <div className="page-container">
@@ -71,7 +95,7 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
         <div style={s.botones}>
           <button style={s.btnVolver} onClick={onBack}><i className="bi bi-arrow-left" /> Volver</button>
           <button style={s.btnVolver} onClick={() => setEditando(true)}><i className="bi bi-pencil" /> Editar</button>
-          {user.rol === 'ADMIN' && (
+          {esAdmin && (
             <button style={s.btnEliminar} onClick={() => { setError(''); setConfirmarBorrado(true) }}><i className="bi bi-trash" /> Eliminar</button>
           )}
         </div>
@@ -94,43 +118,45 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
       </div>
 
       <div style={s.card}>
-        <p style={s.sectionTitle}>Historial de compras ({cliente.ventas.length})</p>
-        {cliente.ventas.length === 0
-          ? <div style={s.empty}>Todavía no realizó compras</div>
-          : cliente.ventas.map(v => (
-            <div key={v.id} style={s.ventaRow}>
-              <div style={s.ventaHead}>
-                <span style={s.ventaId}>Venta #{String(v.id).padStart(6, '0')}</span>
-                <span style={s.ventaFecha}>{fmtFecha(v.creadoEn)}</span>
-                <span style={s.ventaMedio}>{v.medioPago}</span>
-                <span style={s.ventaTotal}>${fmt(v.total)}</span>
-              </div>
-              {v.detallesVenta.map(d => (
-                <p key={d.id} style={s.ventaItem}>
-                  {d.cantidad} × {d.producto.nombre} <span style={s.ventaItemPrecio}>${fmt(d.precioUnitario)} c/u</span>
-                </p>
-              ))}
-            </div>
-          ))
-        }
-      </div>
-
-      <div style={s.card}>
         <p style={s.sectionTitle}>Cuenta corriente</p>
         <form onSubmit={handlePago} style={s.form}>
           <input style={s.inputMonto} type="number" min="0.01" step="0.01" placeholder="Monto" value={montoPago}
             onChange={e => setMontoPago(e.target.value)} required />
           <button type="submit" style={s.btnPrimary}>Registrar pago o anticipo</button>
         </form>
-        {cliente.movimientos.length === 0
-          ? <div style={s.empty}>Sin compras a cuenta corriente ni pagos</div>
-          : cliente.movimientos.map(m => (
-            <div key={m.id} style={s.movRow}>
-              <span style={s.movTipo}>{TIPO_LABEL[m.tipo]}</span>
-              <span style={s.movConcepto}>{m.concepto}</span>
-              <span style={s.movFecha}>{fmtFecha(m.creadoEn)}</span>
-              <span style={{ ...s.movMonto, color: m.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
-                {m.tipo === 'PAGO' ? '-' : '+'}${fmt(m.monto)}
+      </div>
+
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Historial ({eventos.length})</p>
+        {eventos.length === 0
+          ? <div style={s.empty}>Todavía no hay compras, pagos ni servicios registrados</div>
+          : eventos.map(ev => ev.kind === 'compra' ? (
+            <div key={`venta-${ev.venta.id}`} style={s.ventaRow}>
+              <div style={s.ventaHead}>
+                <span style={s.ventaId}>Compra #{String(ev.venta.id).padStart(6, '0')}</span>
+                <span style={s.ventaFecha}>{fmtFecha(ev.venta.creadoEn)}</span>
+                <span style={s.ventaMedio}>{ev.venta.medioPago}</span>
+                <span style={s.ventaTotal}>${fmt(ev.venta.total)}</span>
+                {esAdmin && (
+                  <button style={s.btnIconDanger} title="Eliminar comprobante"
+                    onClick={() => { setError(''); setConfirmarBorrarVenta(ev.venta.id) }}>
+                    <i className="bi bi-trash" />
+                  </button>
+                )}
+              </div>
+              {ev.venta.detallesVenta.map(d => (
+                <p key={d.id} style={s.ventaItem}>
+                  {d.cantidad} × {d.producto.nombre} <span style={s.ventaItemPrecio}>${fmt(d.precioUnitario)} c/u</span>
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div key={`mov-${ev.movimiento.id}`} style={s.movRow}>
+              <span style={s.movTipo}>{TIPO_LABEL[ev.movimiento.tipo]}</span>
+              <span style={s.movConcepto}>{ev.movimiento.concepto}</span>
+              <span style={s.movFecha}>{fmtFecha(ev.movimiento.creadoEn)}</span>
+              <span style={{ ...s.movMonto, color: ev.movimiento.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
+                {ev.movimiento.tipo === 'PAGO' ? '-' : '+'}${fmt(ev.movimiento.monto)}
               </span>
             </div>
           ))
@@ -149,6 +175,19 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
             <div style={s.modalActions}>
               <button style={s.btnVolver} onClick={() => setConfirmarBorrado(false)}>Cancelar</button>
               <button style={s.btnDanger} onClick={handleDelete}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarBorrarVenta !== null && (
+        <div style={s.overlay}>
+          <div className="page-modal">
+            <h3 style={s.modalTitle}>Eliminar comprobante</h3>
+            <p style={s.texto}>¿Estás seguro? Se devuelve el stock vendido y se saca la deuda que generó en la cuenta del cliente. No se puede deshacer.</p>
+            <div style={s.modalActions}>
+              <button style={s.btnVolver} onClick={() => setConfirmarBorrarVenta(null)}>Cancelar</button>
+              <button style={s.btnDanger} onClick={() => handleDeleteVenta(confirmarBorrarVenta)}>Eliminar</button>
             </div>
           </div>
         </div>
@@ -185,6 +224,7 @@ const s: Record<string, React.CSSProperties> = {
   ventaFecha:     { color: '#6B6B6B', fontSize: '12px' },
   ventaMedio:     { color: '#8A6D00', fontSize: '11px', fontWeight: '700', background: '#FFFDF3', border: '1px solid rgba(245,196,0,0.3)', borderRadius: '20px', padding: '3px 10px' },
   ventaTotal:     { color: '#111111', fontSize: '14px', fontWeight: '800', minWidth: '100px', textAlign: 'right' as const },
+  btnIconDanger:  { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '5px 9px', cursor: 'pointer', color: '#C6402F', fontSize: '13px', flexShrink: 0 },
   ventaItem:      { color: '#333333', fontSize: '12px', margin: 0 },
   ventaItemPrecio:{ color: '#9A9A9A' },
 
