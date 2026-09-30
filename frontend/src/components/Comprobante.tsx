@@ -1,4 +1,4 @@
-export type TipoComprobante = 'FACTURA' | 'REMITO' | 'CTA_CTE' | 'PRESUPUESTO'
+import { MEDIO_CUENTA_CORRIENTE, type TipoComprobante } from '../config'
 
 interface ItemComprobante {
   id: number; cantidad: number; precioUnitario: number
@@ -18,7 +18,7 @@ export interface ComprobanteData {
 }
 
 const TIPO_TITULO: Record<TipoComprobante, string> = {
-  FACTURA: 'FACTURA', REMITO: 'REMITO', CTA_CTE: 'CUENTA CORRIENTE', PRESUPUESTO: 'PRESUPUESTO',
+  FACTURA: 'FACTURA', REMITO: 'REMITO', PRESUPUESTO: 'PRESUPUESTO',
 }
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -99,7 +99,7 @@ export default function Comprobante({ data, onClose }: { data: ComprobanteData; 
                 <span style={s.ticketMetaVal}>-${fmt(data.saldoAplicado)}</span>
               </div>
               <div style={s.ticketTotal}>
-                <span>{data.tipoComprobante === 'CTA_CTE' ? 'A CTA. CTE.' : 'A PAGAR'}</span>
+                <span>{data.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A CTA. CTE.' : 'A PAGAR'}</span>
                 <span>${fmt(aPagar)}</span>
               </div>
             </>

@@ -31,7 +31,7 @@ export const createSale = async (
   usarSaldo = true,
   tipoComprobante: TipoComprobante | 'PRESUPUESTO' = 'FACTURA',
 ) => {
-  if (tipoComprobante === 'CTA_CTE' && !clienteId)
+  if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId)
     throw new Error('Para vender a cuenta corriente hay que seleccionar un cliente');
 
   const cantidades = unificarCantidades(items);
@@ -54,9 +54,6 @@ export const createSale = async (
       detallesVenta, cliente, usuario: await prisma.usuario.findUnique({ where: { id: usuarioId } }),
     };
   }
-
-  // A cuenta corriente el medio de pago real no aplica: el cargo va siempre a la cuenta del cliente
-  const medioPagoEfectivo = tipoComprobante === 'CTA_CTE' ? MEDIO_CUENTA_CORRIENTE : medioPago;
 
   // Todo en una transacción: si falla el descuento de stock de cualquier ítem, se revierte la venta entera
   const venta = await prisma.$transaction(async (tx) => {
@@ -86,7 +83,7 @@ export const createSale = async (
       data: {
         total,
         tipoComprobante,
-        medioPago: medioPagoEfectivo,
+        medioPago,
         montoRecibido: montoRecibido ?? null,
         usuarioId,
         clienteId: clienteId ?? null,
@@ -99,7 +96,7 @@ export const createSale = async (
 
     // Con cliente: la venta pasa por su cuenta corriente, que descuenta primero el saldo a favor
     const saldoAplicado = await registrarCargo(tx, {
-      clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, total, medioPago: medioPagoEfectivo, usarSaldo, ventaId: nueva.id,
+      clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, total, medioPago, usarSaldo, ventaId: nueva.id,
     });
     if (!saldoAplicado) return nueva;
     return tx.venta.update({ where: { id: nueva.id }, data: { saldoAplicado }, include: includeVenta });

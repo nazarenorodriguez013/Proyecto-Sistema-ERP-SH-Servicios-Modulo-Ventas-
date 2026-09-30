@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { User } from '../types'
-import { API, MEDIOS_PAGO, TIPOS_COMPROBANTE, TIPO_COMPROBANTE_LABEL, type TipoComprobante } from '../config'
+import { API, MEDIOS_PAGO, MEDIO_CUENTA_CORRIENTE, TIPOS_COMPROBANTE, TIPO_COMPROBANTE_LABEL, type TipoComprobante } from '../config'
 import { socket } from '../socket'
 import ClienteSelector from '../components/ClienteSelector'
 import Comprobante, { type ComprobanteData } from '../components/Comprobante'
@@ -39,9 +39,9 @@ export default function Ventas({ user }: { user: User }) {
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
-  const esCtaCte = tipoComprobante === 'CTA_CTE'
   const esPresupuesto = tipoComprobante === 'PRESUPUESTO'
-  const requierePago = !esCtaCte && !esPresupuesto
+  const requierePago = !esPresupuesto
+  const esCuentaCorriente = requierePago && medioPago === MEDIO_CUENTA_CORRIENTE
 
   const fetchProductos = () => fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
   const fetchClientes = () => fetch(`${API}/clients`, { headers }).then(r => r.json()).then(setClientes)
@@ -87,7 +87,7 @@ export default function Ventas({ user }: { user: User }) {
   const total = carrito.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0)
   // El saldo a favor del cliente se descuenta del total; a cuenta corriente se descuenta siempre (es la misma cuenta)
   const saldoAFavor = Math.max(0, -(clientes.find(c => String(c.id) === clienteId)?.saldo ?? 0))
-  const saldoAplicado = !esPresupuesto && saldoAFavor && (esCtaCte || usarSaldo) ? Math.min(saldoAFavor, total) : 0
+  const saldoAplicado = !esPresupuesto && saldoAFavor && (esCuentaCorriente || usarSaldo) ? Math.min(saldoAFavor, total) : 0
   const aPagar = total - saldoAplicado
   const vuelto = requierePago && medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) - aPagar : null
 
@@ -100,7 +100,7 @@ export default function Ventas({ user }: { user: User }) {
 
   const confirmarVenta = async () => {
     if (!carrito.length) { setError(esPresupuesto ? 'El presupuesto está vacío' : 'El comprobante está vacío'); return }
-    if (esCtaCte && !clienteId) { setError('Seleccioná un cliente para vender a cuenta corriente'); return }
+    if (esCuentaCorriente && !clienteId) { setError('Seleccioná un cliente para vender a cuenta corriente'); return }
     setProcesando(true); setError('')
     try {
       const res = await fetch(`${API}/sales`, {
@@ -164,10 +164,10 @@ export default function Ventas({ user }: { user: User }) {
             </div>
           </div>
           <div style={{ ...s.inputGroup, flex: 1, minWidth: '260px' }}>
-            <label style={s.label}>CLIENTE {esCtaCte ? '(obligatorio)' : '(opcional)'}</label>
+            <label style={s.label}>CLIENTE {esCuentaCorriente ? '(obligatorio)' : '(opcional)'}</label>
             <ClienteSelector clientes={clientes} value={clienteId} onChange={elegirCliente}
               onCreated={c => setClientes(prev => [...prev, { ...c, saldo: 0 }])} />
-            {saldoAFavor > 0 && !esPresupuesto && (esCtaCte
+            {saldoAFavor > 0 && !esPresupuesto && (esCuentaCorriente
               ? <span style={s.saldoNota}>A cuenta corriente se descuenta primero su saldo a favor de ${fmt(saldoAFavor)}</span>
               : (
                 <label style={s.saldoCheck}>
@@ -282,7 +282,7 @@ export default function Ventas({ user }: { user: User }) {
                 <>
                   <span style={s.subtotal}>Total ${fmt(total)}</span>
                   <span style={s.descuento}>Saldo a favor −${fmt(saldoAplicado)}</span>
-                  <span style={s.totalLabel}>{esCtaCte ? 'A CUENTA CORRIENTE' : 'A PAGAR'}</span>
+                  <span style={s.totalLabel}>{esCuentaCorriente ? 'A CUENTA CORRIENTE' : 'A PAGAR'}</span>
                   <span style={s.totalValor}>${fmt(aPagar)}</span>
                 </>
               ) : (
