@@ -10,13 +10,10 @@ export const getById = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.getById(Number(req.params.id), req.user!));
 
 export const create = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.create({ ...req.body, clienteId: Number(req.body.clienteId) }), 201);
+  responder(res, () => repairService.create({ ...req.body, clienteId: Number(req.body.clienteId), tecnicoId: Number(req.body.tecnicoId) }), 201);
 
-export const responderPresupuesto = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.responderPresupuesto(Number(req.params.id), !!req.body.aceptado));
-
-export const asignarTecnico = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.asignarTecnico(Number(req.params.id), Number(req.body.tecnicoId)));
+export const presupuesto = (req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.presupuesto({ ...req.body, clienteId: Number(req.body.clienteId) }), 201);
 
 export const agregarRepuesto = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.agregarRepuesto(Number(req.params.id), Number(req.body.productoId), Number(req.body.cantidad), req.user!));
@@ -24,8 +21,11 @@ export const agregarRepuesto = (req: AuthRequest, res: Response) =>
 export const quitarRepuesto = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.quitarRepuesto(Number(req.params.id), Number(req.params.productoId), req.user!));
 
-export const marcarReparado = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.marcarReparado(Number(req.params.id), req.user!));
+export const finalizar = (req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.finalizar(Number(req.params.id), req.body));
 
-export const entregar = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.entregar(Number(req.params.id), req.body.medioPago, req.body.proximoMantenimiento, req.body.usarSaldo !== false));
+export const getRetiros = (_req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.getRetiros());
+
+export const marcarRetiro = (req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.marcarRetiro(Number(req.params.id), req.body.estado));

@@ -142,32 +142,41 @@ model MovimientoCuenta {
   @@map("movimientos_cuenta")
 }
 
-// Flujo del taller: sin garantía se presupuesta y el cliente decide; con garantía pasa directo a pendiente
+// Flujo simplificado: se crea EN_CURSO (con técnico y repuestos ya asignados) y se cierra al FINALIZADO,
+// que es cuando se genera la factura/remito y se cobra. Antes de eso es solo un estimado.
 enum EstadoServicio {
-  PRESUPUESTADO
+  EN_CURSO
+  FINALIZADO
+}
+
+// Cuando el servicio lleva repuestos, retirarlos del depósito pasa por esta cola:
+// PENDIENTE (recién creado) -> LISTO (el área de repuestos ya los preparó) -> RETIRADO
+enum EstadoRetiro {
   PENDIENTE
-  RECHAZADO
-  EN_REPARACION
-  REPARADO
-  ENTREGADO
+  LISTO
+  RETIRADO
 }
 
 model ServicioTecnico {
-  id                   Int            @id @default(autoincrement())
-  clienteId            Int            @map("cliente_id")
-  tecnicoId            Int?           @map("tecnico_id")
+  id                   Int             @id @default(autoincrement())
+  clienteId            Int             @map("cliente_id")
+  tecnicoId            Int?            @map("tecnico_id")
   equipo               String
-  descripcionFalla     String         @map("descripcion_falla")
-  repuestosSolicitados String?        @map("repuestos_solicitados")
-  enGarantia           Boolean        @default(false) @map("en_garantia")
-  costoManoObra        Float          @default(0) @map("costo_mano_obra")
-  estado               EstadoServicio
-  medioPago            String?        @map("medio_pago")
+  descripcionFalla     String          @map("descripcion_falla")
+  tareas               String?         @map("tareas")
+  enGarantia           Boolean         @default(false) @map("en_garantia")
+  costoManoObra        Float           @default(0) @map("costo_mano_obra")
+  estado               EstadoServicio  @default(EN_CURSO)
+  fechaEstimadaFin      DateTime?      @map("fecha_estimada_fin")
+  tipoComprobante      TipoComprobante? @map("tipo_comprobante")
+  medioPago            String?         @map("medio_pago")
   total                Float?
-  saldoAplicado        Float          @default(0) @map("saldo_aplicado")
-  proximoMantenimiento DateTime?      @map("proximo_mantenimiento")
-  fechaIngreso         DateTime       @default(now()) @map("fecha_ingreso")
-  entregadoEn          DateTime?      @map("entregado_en")
+  saldoAplicado        Float           @default(0) @map("saldo_aplicado")
+  proximoMantenimiento DateTime?       @map("proximo_mantenimiento")
+  codigoRetiro         String?         @unique @map("codigo_retiro")
+  estadoRetiro         EstadoRetiro?   @map("estado_retiro")
+  fechaIngreso         DateTime        @default(now()) @map("fecha_ingreso")
+  finalizadoEn         DateTime?       @map("entregado_en")
 
   cliente     Cliente            @relation(fields: [clienteId], references: [id])
   tecnico     Usuario?           @relation(fields: [tecnicoId], references: [id])

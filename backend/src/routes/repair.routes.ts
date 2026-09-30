@@ -4,17 +4,18 @@ import { authenticate, authorizeAdministracion, authorizeRoles } from '../middle
 
 const router = Router();
 
-// Administración registra, presupuesta, asigna y cobra; el técnico carga repuestos y termina la reparación
+// Administración crea, asigna técnico y factura; el técnico carga o devuelve repuestos del suyo
 const taller = authorizeRoles('ADMIN', 'TECNICO');
+
+router.get('/retiros', authenticate, authorizeAdministracion, repairController.getRetiros);
+router.put('/retiros/:id', authenticate, authorizeAdministracion, repairController.marcarRetiro);
 
 router.get('/', authenticate, repairController.getAll);
 router.get('/:id', authenticate, repairController.getById);
 router.post('/', authenticate, authorizeAdministracion, repairController.create);
-router.put('/:id/presupuesto', authenticate, authorizeAdministracion, repairController.responderPresupuesto);
-router.put('/:id/tecnico', authenticate, authorizeAdministracion, repairController.asignarTecnico);
+router.post('/presupuesto', authenticate, authorizeAdministracion, repairController.presupuesto);
 router.post('/:id/repuestos', authenticate, taller, repairController.agregarRepuesto);
 router.delete('/:id/repuestos/:productoId', authenticate, taller, repairController.quitarRepuesto);
-router.put('/:id/reparado', authenticate, taller, repairController.marcarReparado);
-router.put('/:id/entregar', authenticate, authorizeAdministracion, repairController.entregar);
+router.put('/:id/finalizar', authenticate, authorizeAdministracion, repairController.finalizar);
 
 export default router;
