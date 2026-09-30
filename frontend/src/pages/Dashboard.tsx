@@ -5,6 +5,7 @@ import { API } from '../config'
 import { socket } from '../socket'
 import Inventario from './Inventario'
 import Ventas from './Ventas'
+import HistorialVentas from './HistorialVentas'
 import Clientes from './Clientes'
 import Taller from './Taller'
 
@@ -15,10 +16,11 @@ const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'V
 
 // Menú de un solo nivel, ordenado por la tarea más frecuente
 const allPages: Page[] = [
-  { id: 'punto-venta', label: 'Punto de Venta',     icon: 'bi-receipt', path: '/',           roles: ADMINISTRACION },
-  { id: 'servicios',   label: 'Servicios Técnicos', icon: 'bi-tools',   path: '/servicios',  roles: [...ADMINISTRACION, 'TECNICO'] },
-  { id: 'clientes',    label: 'Clientes',           icon: 'bi-people',  path: '/clientes',   roles: ADMINISTRACION },
-  { id: 'inventario',  label: 'Inventario',         icon: 'bi-box-seam', path: '/inventario', roles: ADMINISTRACION },
+  { id: 'punto-venta',      label: 'Punto de Venta',     icon: 'bi-receipt',    path: '/',                 roles: ADMINISTRACION },
+  { id: 'historial-ventas', label: 'Historial de Ventas', icon: 'bi-clock-history', path: '/historial-ventas', roles: ADMINISTRACION },
+  { id: 'servicios',        label: 'Servicios Técnicos', icon: 'bi-tools',      path: '/servicios',        roles: [...ADMINISTRACION, 'TECNICO'] },
+  { id: 'clientes',         label: 'Clientes',           icon: 'bi-people',     path: '/clientes',         roles: ADMINISTRACION },
+  { id: 'inventario',       label: 'Inventario',         icon: 'bi-box-seam',   path: '/inventario',       roles: ADMINISTRACION },
 ]
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
@@ -49,6 +51,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   }
 
   const renderContent = () => {
+    if (activePage.id === 'historial-ventas') return <HistorialVentas />
     if (activePage.id === 'servicios')  return <Taller user={user} />
     if (activePage.id === 'clientes')   return <Clientes user={user} />
     if (activePage.id === 'inventario') return <Inventario user={user} />
