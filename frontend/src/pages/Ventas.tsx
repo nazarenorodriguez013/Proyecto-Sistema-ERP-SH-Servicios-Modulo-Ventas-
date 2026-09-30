@@ -26,6 +26,7 @@ export default function Ventas({ user }: { user: User }) {
   const [usarSaldo, setUsarSaldo] = useState(true)
   const [tipoComprobante, setTipoComprobante] = useState<TipoComprobante>('FACTURA')
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
+  const [cantidad, setCantidad] = useState('1')
   const [busqueda, setBusqueda] = useState('')
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0)
   const [medioPago, setMedioPago] = useState('Efectivo')
@@ -34,6 +35,7 @@ export default function Ventas({ user }: { user: User }) {
   const [procesando, setProcesando] = useState(false)
   const [comprobante, setComprobante] = useState<ComprobanteData | null>(null)
 
+  const cantidadRef = useRef<HTMLInputElement>(null)
   const busquedaRef = useRef<HTMLInputElement>(null)
 
   const token = localStorage.getItem('token') ?? ''
@@ -63,25 +65,34 @@ export default function Ventas({ user }: { user: User }) {
 
   const cambiarBusqueda = (valor: string) => { setBusqueda(valor); setSugerenciaIdx(0) }
 
-  // Cada Enter agrega una unidad (si el producto ya está, suma una); la cantidad se ajusta en el carrito
+  // Agrega la cantidad tipeada arriba (si el producto ya está, la suma); después vuelve el foco a CANT.
   const agregarProducto = (producto: Producto) => {
+    const cant = Math.max(1, parseInt(cantidad) || 1)
     const enCarrito = carrito.find(i => i.producto.id === producto.id)
-    if ((enCarrito?.cantidad ?? 0) + 1 > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return }
+    if ((enCarrito?.cantidad ?? 0) + cant > producto.stock) { setError(`Stock insuficiente (disponible: ${producto.stock})`); return }
     setCarrito(prev => enCarrito
-      ? prev.map(i => i.producto.id === producto.id ? { ...i, cantidad: i.cantidad + 1 } : i)
-      : [...prev, { producto, cantidad: 1, precioUnitario: producto.precio }])
-    setError(''); setBusqueda('')
-    busquedaRef.current?.focus()
+      ? prev.map(i => i.producto.id === producto.id ? { ...i, cantidad: i.cantidad + cant } : i)
+      : [...prev, { producto, cantidad: cant, precioUnitario: producto.precio }])
+    setError(''); setBusqueda(''); setCantidad('1')
+    cantidadRef.current?.focus(); cantidadRef.current?.select()
   }
 
   const quitarItem = (idx: number) => setCarrito(prev => prev.filter((_, i) => i !== idx))
 
-  const cambiarCantidadItem = (idx: number, val: string) => {
-    const n = parseInt(val)
-    if (isNaN(n) || n < 1) return
-    if (n > carrito[idx].producto.stock) { setError(`Stock insuficiente (disponible: ${carrito[idx].producto.stock})`); return }
+  const incrementarCantidad = (idx: number) => {
+    const item = carrito[idx]
+    if (item.cantidad + 1 > item.producto.stock) { setError(`Stock insuficiente (disponible: ${item.producto.stock})`); return }
     setError('')
-    setCarrito(prev => { const c = [...prev]; c[idx] = { ...c[idx], cantidad: n }; return c })
+    setCarrito(prev => { const c = [...prev]; c[idx] = { ...c[idx], cantidad: c[idx].cantidad + 1 }; return c })
+  }
+
+  const decrementarCantidad = (idx: number) => {
+    setError('')
+    setCarrito(prev => { const c = [...prev]; c[idx] = { ...c[idx], cantidad: Math.max(1, c[idx].cantidad - 1) }; return c })
+  }
+
+  const onCantidadKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); busquedaRef.current?.focus(); busquedaRef.current?.select() }
   }
 
   const total = carrito.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0)
@@ -128,7 +139,7 @@ export default function Ventas({ user }: { user: User }) {
         vendedor: user.nombre,
         cliente: venta.cliente?.nombre ?? null,
       })
-      setCarrito([]); setBusqueda(''); setMontoRecibido(''); setClienteId(''); setUsarSaldo(true); setMedioPago('Efectivo'); setTipoComprobante('FACTURA')
+      setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido(''); setClienteId(''); setUsarSaldo(true); setMedioPago('Efectivo'); setTipoComprobante('FACTURA')
       if (!esPresupuesto) fetchClientes()
     } catch (e) { setError((e as Error).message) }
     finally { setProcesando(false) }
@@ -136,7 +147,7 @@ export default function Ventas({ user }: { user: User }) {
 
   const cerrarComprobante = () => {
     setComprobante(null)
-    setTimeout(() => { busquedaRef.current?.focus() }, 100)
+    setTimeout(() => { cantidadRef.current?.focus() }, 100)
   }
 
   const onBusquedaKeyDown = (e: React.KeyboardEvent) => {
@@ -181,34 +192,46 @@ export default function Ventas({ user }: { user: User }) {
         <div style={s.divider} />
 
         {/* ── Ingreso ── */}
-        <div style={{ ...s.inputGroup, position: 'relative' }}>
-          <label style={s.label}>PRODUCTO — buscá por nombre o código y presioná Enter</label>
-          <input
-            ref={busquedaRef} style={s.inputBusqueda}
-            type="text" placeholder="Ej: compresor, 0006..."
-            value={busqueda}
-            onChange={e => cambiarBusqueda(e.target.value)}
-            onKeyDown={onBusquedaKeyDown}
-            autoComplete="off"
-            autoFocus
-          />
-            {sugerencias.length > 0 && (
-              <div style={s.dropdown}>
-                {sugerencias.map((p, i) => (
-                  <div key={p.id}
-                    style={{ ...s.dropItem, ...(i === sugerenciaIdx ? s.dropActive : {}) }}
-                    onMouseEnter={() => setSugerenciaIdx(i)}
-                    onMouseDown={() => agregarProducto(p)}
-                  >
-                    <span style={s.dropCod}>{p.codigo ?? '—'}</span>
-                    <span style={s.dropNom}>{p.nombre}</span>
-                    <span style={s.dropCat}>{p.categoria.nombre}</span>
-                    <span style={s.dropPrecio}>${fmt(p.precio)}</span>
-                    <span style={{ ...s.dropStock, color: p.stock <= 5 ? '#97640B' : '#1E7A45' }}>{p.stock} u.</span>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div style={s.ingresoRow}>
+          <div style={s.inputGroup}>
+            <label style={s.label}>CANT.</label>
+            <input
+              ref={cantidadRef} style={s.inputCant}
+              type="number" min="1" value={cantidad}
+              onChange={e => setCantidad(e.target.value)}
+              onKeyDown={onCantidadKeyDown}
+              onFocus={e => e.target.select()}
+              autoFocus
+            />
+          </div>
+          <div style={{ ...s.inputGroup, flex: 1, position: 'relative' }}>
+            <label style={s.label}>PRODUCTO — buscá por nombre o código y presioná Enter</label>
+            <input
+              ref={busquedaRef} style={s.inputBusqueda}
+              type="text" placeholder="Ej: compresor, 0006..."
+              value={busqueda}
+              onChange={e => cambiarBusqueda(e.target.value)}
+              onKeyDown={onBusquedaKeyDown}
+              autoComplete="off"
+            />
+              {sugerencias.length > 0 && (
+                <div style={s.dropdown}>
+                  {sugerencias.map((p, i) => (
+                    <div key={p.id}
+                      style={{ ...s.dropItem, ...(i === sugerenciaIdx ? s.dropActive : {}) }}
+                      onMouseEnter={() => setSugerenciaIdx(i)}
+                      onMouseDown={() => agregarProducto(p)}
+                    >
+                      <span style={s.dropCod}>{p.codigo ?? '—'}</span>
+                      <span style={s.dropNom}>{p.nombre}</span>
+                      <span style={s.dropCat}>{p.categoria.nombre}</span>
+                      <span style={s.dropPrecio}>${fmt(p.precio)}</span>
+                      <span style={{ ...s.dropStock, color: p.stock <= 5 ? '#97640B' : '#1E7A45' }}>{p.stock} u.</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+          </div>
         </div>
 
         {error && <div style={s.errorBanner}><i className="bi bi-exclamation-triangle-fill" /> {error}</div>}
@@ -218,7 +241,7 @@ export default function Ventas({ user }: { user: User }) {
         {/* ── Comprobante ── */}
         <div style={s.comprobanteHead}>
           <span style={{ ...s.th, flex: 1 }}>Producto</span>
-          <span style={{ ...s.th, width: '80px', textAlign: 'center' }}>Cant.</span>
+          <span style={{ ...s.th, width: '96px', textAlign: 'center' }}>Cant.</span>
           <span style={{ ...s.th, width: '110px', textAlign: 'right' }}>P. Unit.</span>
           <span style={{ ...s.th, width: '120px', textAlign: 'right' }}>Subtotal</span>
           <span style={{ width: '32px' }} />
@@ -233,9 +256,12 @@ export default function Ventas({ user }: { user: User }) {
                 <p style={s.itemNombre}>{item.producto.nombre}</p>
                 <p style={s.itemSub}>{item.producto.codigo ?? ''}{item.producto.codigo ? ' · ' : ''}{item.producto.categoria.nombre}</p>
               </div>
-              <div style={{ width: '80px', display: 'flex', justifyContent: 'center' }}>
-                <input style={s.cantItem} type="number" min="1" max={item.producto.stock}
-                  value={item.cantidad} onChange={e => cambiarCantidadItem(idx, e.target.value)} />
+              <div style={{ width: '96px', display: 'flex', justifyContent: 'center' }}>
+                <div style={s.cantControl}>
+                  <button type="button" style={s.cantBtn} onClick={() => decrementarCantidad(idx)}>−</button>
+                  <span style={s.cantValor}>{item.cantidad}</span>
+                  <button type="button" style={s.cantBtn} onClick={() => incrementarCantidad(idx)}>+</button>
+                </div>
               </div>
               <span style={{ ...s.cell, width: '110px', textAlign: 'right' }}>${fmt(item.precioUnitario)}</span>
               <span style={{ ...s.cell, width: '120px', textAlign: 'right', color: '#111111', fontWeight: 700 }}>
@@ -340,6 +366,8 @@ const s: Record<string, React.CSSProperties> = {
   inputGroup:  { display: 'flex', flexDirection: 'column', gap: '5px' },
   label:       { color: '#6B6B6B', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' },
   inputBusqueda: { width: '100%', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const },
+  ingresoRow:  { display: 'flex', gap: '10px', alignItems: 'flex-end' },
+  inputCant:   { width: '64px', background: '#FFFFFF', border: '2px solid #F5C400', borderRadius: '8px', padding: '9px', color: '#8A6D00', fontSize: '15px', fontWeight: '700', outline: 'none', textAlign: 'center' as const },
 
   dropdown:    { position: 'absolute', top: '100%', left: 0, right: 0, background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', zIndex: 100, marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(17,17,17,.18)' },
   dropItem:    { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #EFF1F4' },
@@ -361,7 +389,9 @@ const s: Record<string, React.CSSProperties> = {
   itemNombre:  { color: '#111111', fontSize: '14px', fontWeight: '600', margin: 0 },
   itemSub:     { color: '#6B6B6B', fontSize: '11px', margin: '2px 0 0' },
   cell:        { color: '#333333', fontSize: '14px', display: 'flex', alignItems: 'center' },
-  cantItem:    { width: '54px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '6px', padding: '5px', color: '#111111', fontSize: '13px', outline: 'none', textAlign: 'center' },
+  cantControl: { display: 'flex', alignItems: 'center', gap: '6px' },
+  cantBtn:     { width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '6px', color: '#111111', fontSize: '14px', fontWeight: '700', cursor: 'pointer', padding: 0, lineHeight: 1 },
+  cantValor:   { minWidth: '20px', textAlign: 'center' as const, color: '#111111', fontSize: '13px', fontWeight: '600' },
   btnX:        { background: 'transparent', border: 'none', color: '#6B6B6B', cursor: 'pointer', fontSize: '13px', padding: '4px 6px', borderRadius: '4px', width: '32px' },
 
   totalPagoRow:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' as const },

@@ -9,3 +9,12 @@ export const createPago = async (req: Request, res: Response): Promise<void> => 
     res.status(400).json({ message: err.message });
   }
 };
+
+export const remove = async (req: Request, res: Response): Promise<void> => {
+  try {
+    await movementService.remove(Number(req.params.movementId));
+    res.status(204).send();
+  } catch (err: any) {
+    res.status(err.message === 'Movimiento no encontrado' ? 404 : 400).json({ message: err.message });
+  }
+};

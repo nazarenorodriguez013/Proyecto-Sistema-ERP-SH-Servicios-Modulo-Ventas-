@@ -10,6 +10,7 @@ interface Venta {
 }
 interface Movimiento {
   id: number; tipo: 'VENTA' | 'SERVICIO' | 'PAGO'; concepto: string; monto: number; creadoEn: string
+  ventaId: number | null; servicioId: number | null
 }
 interface ClienteFicha {
   id: number; nombre: string; documento: string | null; telefono: string | null
@@ -30,6 +31,7 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
   const [editando, setEditando] = useState(false)
   const [confirmarBorrado, setConfirmarBorrado] = useState(false)
   const [confirmarBorrarVenta, setConfirmarBorrarVenta] = useState<number | null>(null)
+  const [confirmarBorrarMovimiento, setConfirmarBorrarMovimiento] = useState<number | null>(null)
   const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
   const esAdmin = user.rol === 'ADMIN'
@@ -76,6 +78,15 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
       setError(data.message || 'No se pudo eliminar el comprobante')
     }
     setConfirmarBorrarVenta(null); fetchCliente()
+  }
+
+  const handleDeleteMovimiento = async (movementId: number) => {
+    const res = await fetch(`${API}/clients/${clienteId}/movements/${movementId}`, { method: 'DELETE', headers })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo eliminar el movimiento')
+    }
+    setConfirmarBorrarMovimiento(null); fetchCliente()
   }
 
   if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
@@ -158,6 +169,12 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
               <span style={{ ...s.movMonto, color: ev.movimiento.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
                 {ev.movimiento.tipo === 'PAGO' ? '-' : '+'}${fmt(ev.movimiento.monto)}
               </span>
+              {esAdmin && !ev.movimiento.ventaId && !ev.movimiento.servicioId && (
+                <button style={s.btnIconDanger} title="Eliminar movimiento"
+                  onClick={() => { setError(''); setConfirmarBorrarMovimiento(ev.movimiento.id) }}>
+                  <i className="bi bi-trash" />
+                </button>
+              )}
             </div>
           ))
         }
@@ -188,6 +205,19 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
             <div style={s.modalActions}>
               <button style={s.btnVolver} onClick={() => setConfirmarBorrarVenta(null)}>Cancelar</button>
               <button style={s.btnDanger} onClick={() => handleDeleteVenta(confirmarBorrarVenta)}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarBorrarMovimiento !== null && (
+        <div style={s.overlay}>
+          <div className="page-modal">
+            <h3 style={s.modalTitle}>Eliminar movimiento</h3>
+            <p style={s.texto}>¿Estás seguro? Se recalcula el saldo de la cuenta sin este movimiento. No se puede deshacer.</p>
+            <div style={s.modalActions}>
+              <button style={s.btnVolver} onClick={() => setConfirmarBorrarMovimiento(null)}>Cancelar</button>
+              <button style={s.btnDanger} onClick={() => handleDeleteMovimiento(confirmarBorrarMovimiento)}>Eliminar</button>
             </div>
           </div>
         </div>
