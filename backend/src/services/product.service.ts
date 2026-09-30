@@ -37,6 +37,7 @@ const validateNumericFields = (data: { nombre?: string; precio?: number; stock?:
 export const create = async (data: {
   nombre: string;
   descripcion?: string;
+  tipoProducto?: 'REPUESTO' | 'MAQUINARIA';
   precioCosto?: number;
   precio: number;
   stock: number;
@@ -55,6 +56,7 @@ export const create = async (data: {
 export const update = async (id: number, data: {
   nombre?: string;
   descripcion?: string;
+  tipoProducto?: 'REPUESTO' | 'MAQUINARIA';
   precioCosto?: number;
   precio?: number;
   stock?: number;

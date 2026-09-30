@@ -6,6 +6,7 @@ interface ItemComprobante {
 }
 export interface ComprobanteData {
   id: number | null
+  numero: number | null
   fecha: Date
   tipoComprobante: TipoComprobante
   items: ItemComprobante[]
@@ -20,117 +21,111 @@ export interface ComprobanteData {
 const TIPO_TITULO: Record<TipoComprobante, string> = {
   FACTURA: 'FACTURA', REMITO: 'REMITO', PRESUPUESTO: 'PRESUPUESTO',
 }
+// Letra que identifica el tipo de comprobante, como en una factura C de AFIP
+const TIPO_LETRA: Record<TipoComprobante, string> = { FACTURA: 'C', REMITO: 'R', PRESUPUESTO: 'P' }
+const TIPO_COD: Record<TipoComprobante, string> = { FACTURA: '006', REMITO: '009', PRESUPUESTO: '000' }
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+const fmtHora = (d: Date) => d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })
 
-// Ticket compartido: se usa al cerrar una venta/presupuesto en el Punto de Venta y para reimprimir desde el historial
+// Comprobante a hoja completa (tamaño carta/A4): se usa al cerrar una venta/presupuesto en el Punto de
+// Venta y para reimprimir desde el historial. La letra y el número de comprobante son correlativos.
 export default function Comprobante({ data, onClose }: { data: ComprobanteData; onClose: () => void }) {
   const aPagar = data.total - data.saldoAplicado
 
   return (
     <div style={s.overlay}>
-      <div style={s.modal}>
-        <div id="ticket" style={s.ticket}>
+      <div style={s.modalWrap}>
+        <div id="ticket" style={s.hoja}>
           <img src="/logosh.png" alt="" style={s.watermark} />
 
-          <div style={s.ticketHeader}>
-            <div style={s.ticketLogo}>SH</div>
-            <h1 style={s.ticketEmpresa}>SH Servicios</h1>
-            <p style={s.ticketSubEmpresa}>Insumos y Soluciones Técnicas</p>
-            <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
-            <p style={s.ticketTipo}>{TIPO_TITULO[data.tipoComprobante]}</p>
-            <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
+          <div style={s.encabezado}>
+            <div style={s.empresaBlock}>
+              <div style={s.logoBox}>SH</div>
+              <div>
+                <h1 style={s.empresaNombre}>SH Servicios</h1>
+                <p style={s.empresaSub}>Insumos y Soluciones Técnicas</p>
+              </div>
+            </div>
+
+            <div style={s.letraBox}>
+              <span style={s.letraGrande}>{TIPO_LETRA[data.tipoComprobante]}</span>
+              <span style={s.letraCod}>COD. {TIPO_COD[data.tipoComprobante]}</span>
+            </div>
+
+            <div style={s.datosComprobante}>
+              <p style={s.tipoTitulo}>{TIPO_TITULO[data.tipoComprobante]}</p>
+              <p style={s.numero}>N° {data.numero ? String(data.numero).padStart(8, '0') : 'S/N'}</p>
+              <p style={s.fechaLinea}>{fmtFecha(data.fecha)} · {fmtHora(data.fecha)} hs</p>
+            </div>
           </div>
 
-          <div style={s.ticketMeta}>
-            <div style={s.ticketMetaRow}>
-              <span style={s.ticketMetaKey}>N° Comprobante</span>
-              <span style={s.ticketMetaVal}>{data.id ? `#${String(data.id).padStart(6, '0')}` : 'S/N'}</span>
+          <div style={s.divisor} />
+
+          <div style={s.metaGrid}>
+            <div style={s.metaItem}>
+              <span style={s.metaLabel}>CLIENTE</span>
+              <span style={s.metaValor}>{data.cliente ?? 'Consumidor final'}</span>
             </div>
-            <div style={s.ticketMetaRow}>
-              <span style={s.ticketMetaKey}>Fecha</span>
-              <span style={s.ticketMetaVal}>{fmtFecha(data.fecha)}</span>
+            <div style={s.metaItem}>
+              <span style={s.metaLabel}>VENDEDOR</span>
+              <span style={s.metaValor}>{data.vendedor}</span>
             </div>
-            <div style={s.ticketMetaRow}>
-              <span style={s.ticketMetaKey}>Vendedor</span>
-              <span style={s.ticketMetaVal}>{data.vendedor}</span>
-            </div>
-            {data.cliente && (
-              <div style={s.ticketMetaRow}>
-                <span style={s.ticketMetaKey}>Cliente</span>
-                <span style={s.ticketMetaVal}>{data.cliente}</span>
-              </div>
-            )}
           </div>
 
-          <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
+          <table style={s.tabla}>
+            <thead>
+              <tr>
+                <th style={{ ...s.th, textAlign: 'left' }}>Descripción</th>
+                <th style={{ ...s.th, textAlign: 'center', width: '70px' }}>Cant.</th>
+                <th style={{ ...s.th, textAlign: 'right', width: '110px' }}>P. Unit.</th>
+                <th style={{ ...s.th, textAlign: 'right', width: '120px' }}>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item, i) => (
+                <tr key={i} style={s.tr}>
+                  <td style={s.tdNombre}>
+                    {item.producto.nombre}
+                    {item.producto.codigo && <span style={s.tdCod}> · Cód: {item.producto.codigo}</span>}
+                  </td>
+                  <td style={{ ...s.td, textAlign: 'center' }}>{item.cantidad}</td>
+                  <td style={{ ...s.td, textAlign: 'right' }}>${fmt(item.precioUnitario)}</td>
+                  <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: '#111111' }}>${fmt(item.cantidad * item.precioUnitario)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-          <div style={s.ticketItemHead}>
-            <span style={{ flex: 1, minWidth: 0 }}>Descripción</span>
-            <span style={s.ticketCol1}>Cant</span>
-            <span style={{ ...s.ticketColNum, textAlign: 'right' }}>P.U.</span>
-            <span style={{ ...s.ticketColNum, textAlign: 'right' }}>Subtotal</span>
-          </div>
-          <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
-
-          {data.items.map((item, i) => (
-            <div key={i} style={s.ticketItem}>
-              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                <p style={s.ticketItemNombre}>{item.producto.nombre}</p>
-                {item.producto.codigo && <p style={s.ticketItemCod}>Cód: {item.producto.codigo}</p>}
-              </div>
-              <span style={{ ...s.ticketCol1, textAlign: 'center', color: '#1A1A1A' }}>{item.cantidad}</span>
-              <span style={{ ...s.ticketColNum, textAlign: 'right', color: '#1A1A1A' }}>${fmt(item.precioUnitario)}</span>
-              <span style={{ ...s.ticketColNum, textAlign: 'right', fontWeight: 700, color: '#1A1A1A' }}>${fmt(item.cantidad * item.precioUnitario)}</span>
+          <div style={s.totalesWrap}>
+            <div style={s.totalesBox}>
+              <div style={s.totalRow}><span>TOTAL</span><span>${fmt(data.total)}</span></div>
+              {data.saldoAplicado > 0 && (
+                <>
+                  <div style={s.subRow}><span>Saldo a favor aplicado</span><span>-${fmt(data.saldoAplicado)}</span></div>
+                  <div style={s.totalRow}>
+                    <span>{data.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A CTA. CTE.' : 'A PAGAR'}</span>
+                    <span>${fmt(aPagar)}</span>
+                  </div>
+                </>
+              )}
             </div>
-          ))}
-
-          <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
-
-          <div style={s.ticketTotal}>
-            <span>TOTAL</span>
-            <span>${fmt(data.total)}</span>
           </div>
-          {data.saldoAplicado > 0 && (
-            <>
-              <div style={s.ticketMetaRow}>
-                <span style={s.ticketMetaKey}>Saldo a favor aplicado</span>
-                <span style={s.ticketMetaVal}>-${fmt(data.saldoAplicado)}</span>
-              </div>
-              <div style={s.ticketTotal}>
-                <span>{data.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A CTA. CTE.' : 'A PAGAR'}</span>
-                <span>${fmt(aPagar)}</span>
-              </div>
-            </>
-          )}
 
           {data.medioPago && (
-            <>
-              <div style={s.ticketSep}>- - - - - - - - - - - - - - - - - - - - - - -</div>
-              <div style={s.ticketPago}>
-                <div style={s.ticketMetaRow}>
-                  <span style={s.ticketMetaKey}>Medio de pago</span>
-                  <span style={s.ticketMetaVal}>{data.medioPago}</span>
-                </div>
-                {data.montoRecibido !== null && (
-                  <>
-                    <div style={s.ticketMetaRow}>
-                      <span style={s.ticketMetaKey}>Monto recibido</span>
-                      <span style={s.ticketMetaVal}>${fmt(data.montoRecibido)}</span>
-                    </div>
-                    <div style={s.ticketMetaRow}>
-                      <span style={s.ticketMetaKey}>Vuelto</span>
-                      <span style={{ ...s.ticketMetaVal, fontWeight: 700 }}>${fmt(data.montoRecibido - aPagar)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
+            <div style={s.pagoBox}>
+              <div style={s.subRow}><span>Medio de pago</span><span style={s.pagoValor}>{data.medioPago}</span></div>
+              {data.montoRecibido !== null && (
+                <>
+                  <div style={s.subRow}><span>Monto recibido</span><span style={s.pagoValor}>${fmt(data.montoRecibido)}</span></div>
+                  <div style={s.subRow}><span>Vuelto</span><span style={{ ...s.pagoValor, fontWeight: 800 }}>${fmt(data.montoRecibido - aPagar)}</span></div>
+                </>
+              )}
+            </div>
           )}
 
-          <div style={s.ticketSep}>━━━━━━━━━━━━━━━━━━━━━━━━</div>
-          <p style={s.ticketGracias}>
+          <p style={s.footer}>
             {data.tipoComprobante === 'PRESUPUESTO' ? 'Presupuesto sin cargo, sujeto a disponibilidad' : '¡Gracias por su compra!'}
           </p>
         </div>
@@ -145,33 +140,50 @@ export default function Comprobante({ data, onClose }: { data: ComprobanteData; 
 }
 
 const s: Record<string, React.CSSProperties> = {
-  overlay:     { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 },
-  modal:       { background: '#fff', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' },
+  overlay:    { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' },
+  modalWrap:  { background: '#EFF1F4', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' },
 
-  ticket:           { position: 'relative', background: '#fff', width: '320px', fontFamily: '"Courier New", monospace', color: '#1A1A1A', padding: '8px 0' },
-  watermark:        { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '70%', opacity: 0.06, pointerEvents: 'none' as const, zIndex: 0 },
-  ticketHeader:     { textAlign: 'center', marginBottom: '8px', position: 'relative', zIndex: 1 },
-  ticketLogo:       { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', background: '#F5C400', borderRadius: '10px', color: '#111111', fontWeight: '900', fontSize: '18px', marginBottom: '8px' },
-  ticketEmpresa:    { fontSize: '18px', fontWeight: '900', color: '#111111', margin: '0 0 2px' },
-  ticketSubEmpresa: { fontSize: '11px', color: '#3A3A3A', margin: '0 0 8px' },
-  ticketSep:        { color: '#9A9A9A', fontSize: '11px', textAlign: 'center', margin: '6px 0', position: 'relative', zIndex: 1 },
-  ticketTipo:       { fontWeight: '700', fontSize: '13px', letterSpacing: '2px', color: '#111111', margin: '4px 0' },
+  hoja:             { position: 'relative', display: 'flex', flexDirection: 'column', minHeight: '297mm', background: '#fff', width: '210mm', maxWidth: '100%', boxSizing: 'border-box' as const, padding: '16mm', fontFamily: '"Segoe UI", Arial, Helvetica, sans-serif', color: '#1A1A1A', boxShadow: '0 2px 12px rgba(17,17,17,0.15)' },
+  watermark:        { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60%', opacity: 0.08, filter: 'invert(1) grayscale(1)', mixBlendMode: 'multiply', pointerEvents: 'none' as const, zIndex: 0 },
 
-  ticketMeta:       { margin: '4px 0', position: 'relative', zIndex: 1 },
-  ticketMetaRow:    { display: 'flex', justifyContent: 'space-between', fontSize: '12px', margin: '3px 0' },
-  ticketMetaKey:    { color: '#6B6B6B' },
-  ticketMetaVal:    { color: '#111111', fontWeight: '600' },
+  encabezado:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', position: 'relative', zIndex: 1 },
+  empresaBlock:     { display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 },
+  logoBox:          { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', background: '#F5C400', borderRadius: '10px', color: '#111111', fontWeight: '900', fontSize: '18px', flexShrink: 0 },
+  empresaNombre:    { fontSize: '20px', fontWeight: '900', color: '#111111', margin: 0 },
+  empresaSub:       { fontSize: '12px', color: '#6B6B6B', margin: '2px 0 0' },
 
-  ticketItemHead:   { display: 'flex', fontSize: '11px', fontWeight: '700', color: '#6B6B6B', margin: '4px 0', position: 'relative', zIndex: 1 },
-  ticketItem:       { display: 'flex', alignItems: 'flex-start', margin: '5px 0', gap: '2px', position: 'relative', zIndex: 1 },
-  ticketItemNombre: { fontSize: '11px', fontWeight: '700', color: '#111111', margin: 0, wordBreak: 'break-word' as const },
-  ticketItemCod:    { fontSize: '10px', color: '#9A9A9A', margin: '1px 0 0' },
-  ticketCol1:       { width: '32px', flexShrink: 0, fontSize: '11px' },
-  ticketColNum:     { width: '88px', flexShrink: 0, fontSize: '11px', whiteSpace: 'nowrap' as const },
+  letraBox:         { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '2px solid #111111', borderRadius: '6px', flexShrink: 0 },
+  letraGrande:      { fontSize: '32px', fontWeight: '900', color: '#111111', lineHeight: 1 },
+  letraCod:         { fontSize: '9px', fontWeight: '700', color: '#111111', letterSpacing: '0.5px' },
 
-  ticketTotal:      { display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '900', color: '#111111', margin: '4px 0', position: 'relative', zIndex: 1 },
-  ticketPago:       { margin: '4px 0', position: 'relative', zIndex: 1 },
-  ticketGracias:    { textAlign: 'center', fontSize: '12px', color: '#6B6B6B', margin: '8px 0 4px', fontStyle: 'italic', position: 'relative', zIndex: 1 },
+  datosComprobante: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flex: 1, minWidth: '160px' },
+  tipoTitulo:       { fontSize: '15px', fontWeight: '800', color: '#111111', margin: 0, letterSpacing: '1px' },
+  numero:           { fontSize: '13px', fontWeight: '700', color: '#333333', margin: 0, fontFamily: 'monospace' },
+  fechaLinea:       { fontSize: '12px', color: '#6B6B6B', margin: 0 },
+
+  divisor:          { height: '2px', background: '#111111', margin: '16px 0', position: 'relative', zIndex: 1 },
+
+  metaGrid:         { display: 'flex', gap: '24px', marginBottom: '18px', position: 'relative', zIndex: 1 },
+  metaItem:         { display: 'flex', flexDirection: 'column', gap: '2px' },
+  metaLabel:        { fontSize: '10px', fontWeight: '700', color: '#6B6B6B', letterSpacing: '1px' },
+  metaValor:        { fontSize: '14px', fontWeight: '600', color: '#111111' },
+
+  tabla:            { width: '100%', borderCollapse: 'collapse' as const, position: 'relative', zIndex: 1 },
+  th:               { fontSize: '11px', fontWeight: '700', color: '#6B6B6B', letterSpacing: '0.5px', textTransform: 'uppercase' as const, padding: '0 6px 8px', borderBottom: '2px solid #111111' },
+  tr:               { borderBottom: '1px solid #E2E4E8' },
+  td:               { fontSize: '13px', color: '#333333', padding: '9px 6px' },
+  tdNombre:         { fontSize: '13px', fontWeight: '600', color: '#111111', padding: '9px 6px' },
+  tdCod:            { fontSize: '11px', fontWeight: '400', color: '#9A9A9A' },
+
+  totalesWrap:      { display: 'flex', justifyContent: 'flex-end', marginTop: '14px', position: 'relative', zIndex: 1 },
+  totalesBox:       { minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '4px' },
+  totalRow:         { display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: '900', color: '#111111', padding: '4px 0' },
+  subRow:           { display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#6B6B6B' },
+
+  pagoBox:          { marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E2E4E8', display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: 1 },
+  pagoValor:        { color: '#111111', fontWeight: '600' },
+
+  footer:           { textAlign: 'center' as const, fontSize: '12px', color: '#6B6B6B', marginTop: 'auto', paddingTop: '28px', fontStyle: 'italic', position: 'relative', zIndex: 1 },
 
   modalBtns:   { display: 'flex', gap: '10px' },
   btnImprimir: { flex: 1, padding: '12px', background: '#111111', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' },

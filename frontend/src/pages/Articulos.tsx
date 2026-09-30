@@ -4,19 +4,23 @@ import { API } from '../config'
 import { socket } from '../socket'
 
 interface Categoria { id: number; nombre: string }
+type TipoProducto = 'REPUESTO' | 'MAQUINARIA'
 interface Producto {
   id: number; codigo: string | null; nombre: string; descripcion: string | null
+  tipoProducto: TipoProducto
   precioCosto: number; precio: number; stock: number; stockMinimo: number
   activo: boolean; categoriaId: number; categoria: Categoria
 }
 interface ProductoForm {
-  nombre: string; descripcion: string; categoriaId: string
+  nombre: string; descripcion: string; tipoProducto: TipoProducto; categoriaId: string
   precioCosto: string; precio: string; margen: string
   stock: string; stockMinimo: string
 }
 
+const TIPO_PRODUCTO_LABEL: Record<TipoProducto, string> = { REPUESTO: 'Repuesto', MAQUINARIA: 'Maquinaria' }
+
 const EMPTY_FORM: ProductoForm = {
-  nombre: '', descripcion: '', categoriaId: '',
+  nombre: '', descripcion: '', tipoProducto: 'REPUESTO', categoriaId: '',
   precioCosto: '', precio: '', margen: '',
   stock: '0', stockMinimo: '5',
 }
@@ -72,6 +76,7 @@ export default function Articulos({ user }: { user: User }) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
+  const [filterTipo, setFilterTipo] = useState<TipoProducto | ''>('')
   const [filtro, setFiltro] = useState<Filtro>('activos')
   const [orden, setOrden] = useState<Orden>(null)
   const [modal, setModal] = useState<{ open: boolean; editing: Producto | null }>({ open: false, editing: null })
@@ -96,7 +101,7 @@ export default function Articulos({ user }: { user: User }) {
 
   const abrir = (p: Producto | null) => {
     setForm(p ? {
-      nombre: p.nombre, descripcion: p.descripcion ?? '', categoriaId: String(p.categoriaId),
+      nombre: p.nombre, descripcion: p.descripcion ?? '', tipoProducto: p.tipoProducto, categoriaId: String(p.categoriaId),
       precioCosto: String(p.precioCosto), precio: String(p.precio),
       margen: calcMargen(p.precioCosto, p.precio),
       stock: String(p.stock), stockMinimo: String(p.stockMinimo),
@@ -135,7 +140,7 @@ export default function Articulos({ user }: { user: User }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const body = {
-      nombre: form.nombre, descripcion: form.descripcion || undefined,
+      nombre: form.nombre, descripcion: form.descripcion || undefined, tipoProducto: form.tipoProducto,
       categoriaId: Number(form.categoriaId),
       precioCosto: Number(form.precioCosto) || 0, precio: Number(form.precio) || 0,
       stock: Number(form.stock), stockMinimo: Number(form.stockMinimo),
@@ -147,6 +152,7 @@ export default function Articulos({ user }: { user: User }) {
   const cumpleFiltro = FILTROS.find(f => f.key === filtro)!.cumple
   const filtered = productos.filter(p => {
     if (filterCat && String(p.categoriaId) !== filterCat) return false
+    if (filterTipo && p.tipoProducto !== filterTipo) return false
     if (!cumpleFiltro(p)) return false
     if (search) {
       const q = search.toLowerCase()
@@ -161,11 +167,19 @@ export default function Articulos({ user }: { user: User }) {
   return (
     <div className="page-container">
       <div style={s.toolbar}>
-        <input style={s.search} placeholder="Buscar por nombre o código" value={search} onChange={e => setSearch(e.target.value)} />
+        <input style={s.search} placeholder="Buscar por nombre o código" autoFocus value={search} onChange={e => setSearch(e.target.value)} />
         <select style={s.select} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="">Todas las categorías</option>
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
+        <div style={s.tipoFiltros}>
+          {(['', 'REPUESTO', 'MAQUINARIA'] as const).map(t => (
+            <button key={t || 'todos'} type="button"
+              style={{ ...s.tipoFiltroBtn, ...(filterTipo === t ? s.tipoFiltroBtnOn : {}) }}
+              onClick={() => setFilterTipo(t)}
+            >{t ? TIPO_PRODUCTO_LABEL[t] : 'Todos'}</button>
+          ))}
+        </div>
         <button style={s.btnSecondary} onClick={() => exportarCsv(visibles)} disabled={!visibles.length}>
           <i className="bi bi-download" /> Exportar
         </button>
@@ -198,7 +212,12 @@ export default function Articulos({ user }: { user: User }) {
           : visibles.map(p => (
             <button key={p.id} className="inv-row" style={s.row} onClick={() => abrir(p)}>
               <span style={s.celdaNombre}>
-                <span style={s.nombre}>{p.nombre}</span>
+                <span style={s.nombreRow}>
+                  <span style={s.nombre}>{p.nombre}</span>
+                  <span style={{ ...s.tipoTag, ...(p.tipoProducto === 'MAQUINARIA' ? s.tipoTagMaquinaria : s.tipoTagRepuesto) }}>
+                    {TIPO_PRODUCTO_LABEL[p.tipoProducto]}
+                  </span>
+                </span>
                 <span style={s.meta}>{p.codigo ? `${p.codigo} · ` : ''}{p.categoria.nombre}</span>
               </span>
               <span className="inv-precio" style={{ ...s.derecha, ...s.valor }}>${fmt(p.precio)}</span>
@@ -234,6 +253,17 @@ export default function Articulos({ user }: { user: User }) {
                     <option value="">Seleccionar...</option>
                     {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                   </select>
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Tipo</label>
+                  <div style={s.tipos}>
+                    {(['REPUESTO', 'MAQUINARIA'] as const).map(t => (
+                      <button type="button" key={t} style={{ ...s.tipoBtn, ...(form.tipoProducto === t ? s.tipoBtnOn : {}) }}
+                        onClick={() => setForm(f => ({ ...f, tipoProducto: t }))}>
+                        {TIPO_PRODUCTO_LABEL[t]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div style={s.field}>
                   <label style={s.label}>Descripción</label>
@@ -307,6 +337,9 @@ const s: Record<string, React.CSSProperties> = {
   toolbar:      { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
   search:       { flex: 1, minWidth: '200px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none' },
   select:       { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#333333', fontSize: '13px', outline: 'none', cursor: 'pointer' },
+  tipoFiltros:  { display: 'flex', gap: '4px', background: '#F1F2F4', borderRadius: '8px', padding: '3px' },
+  tipoFiltroBtn:{ background: 'transparent', border: 'none', borderRadius: '6px', padding: '7px 12px', color: '#6B6B6B', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
+  tipoFiltroBtnOn:{ background: '#FFFFFF', color: '#111111', boxShadow: '0 1px 3px rgba(17,17,17,.12)' },
 
   filtros:      { display: 'flex', gap: '20px', borderBottom: '1px solid #E2E4E8' },
   filtro:       { background: 'transparent', border: 'none', borderBottom: '2px solid transparent', padding: '8px 0', marginBottom: '-1px', color: '#6B6B6B', fontSize: '13px', fontWeight: '500', cursor: 'pointer' },
@@ -317,8 +350,12 @@ const s: Record<string, React.CSSProperties> = {
   thead:        { color: '#9A9A9A', fontSize: '12px', padding: '8px 12px' },
   row:          { width: '100%', background: '#FFFFFF', border: 'none', borderBottom: '1px solid #EFF1F4', padding: '12px', cursor: 'pointer', textAlign: 'left', font: 'inherit' },
   celdaNombre:  { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+  nombreRow:    { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
   nombre:       { color: '#111111', fontSize: '14px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
   meta:         { color: '#8A8A8A', fontSize: '12px', margin: 0 },
+  tipoTag:      { fontSize: '10px', fontWeight: '700', borderRadius: '20px', padding: '2px 8px', flexShrink: 0, letterSpacing: '0.3px' },
+  tipoTagRepuesto:  { background: '#EFF3FE', color: '#3557B7', border: '1px solid rgba(53,87,183,0.25)' },
+  tipoTagMaquinaria:{ background: '#FDF0DA', color: '#97640B', border: '1px solid rgba(224,138,0,0.3)' },
   derecha:      { textAlign: 'right' as const },
   valor:        { color: '#111111', fontSize: '14px' },
   bajo:         { color: '#B86E00', fontWeight: '600' },
@@ -335,6 +372,9 @@ const s: Record<string, React.CSSProperties> = {
   closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
   fieldset:     { border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' },
   seccion:      { color: '#6B6B6B', fontSize: '12px', fontWeight: '600', margin: '8px 0 -4px' },
+  tipos:        { display: 'flex', gap: '6px' },
+  tipoBtn:      { padding: '7px 16px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  tipoBtnOn:    { background: 'rgba(245,196,0,0.15)', border: '1px solid #F5C400', color: '#8A6D00' },
   row3:         { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' },
   field:        { display: 'flex', flexDirection: 'column', gap: '5px' },
   label:        { color: '#6B6B6B', fontSize: '12px' },

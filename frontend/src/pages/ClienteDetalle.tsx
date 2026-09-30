@@ -5,7 +5,7 @@ import ClienteFormModal from '../components/ClienteFormModal'
 import { describirSaldo } from '../saldo'
 
 interface Venta {
-  id: number; total: number; medioPago: string; creadoEn: string
+  id: number; numero: number; tipoComprobante: 'FACTURA' | 'REMITO'; total: number; medioPago: string; creadoEn: string
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string } }[]
 }
 interface Movimiento {
@@ -32,6 +32,7 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
   const [confirmarBorrado, setConfirmarBorrado] = useState(false)
   const [confirmarBorrarVenta, setConfirmarBorrarVenta] = useState<number | null>(null)
   const [confirmarBorrarMovimiento, setConfirmarBorrarMovimiento] = useState<number | null>(null)
+  const [confirmarBorrarServicio, setConfirmarBorrarServicio] = useState<number | null>(null)
   const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
   const esAdmin = user.rol === 'ADMIN'
@@ -89,6 +90,15 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
     setConfirmarBorrarMovimiento(null); fetchCliente()
   }
 
+  const handleDeleteServicio = async (servicioId: number) => {
+    const res = await fetch(`${API}/repairs/${servicioId}`, { method: 'DELETE', headers })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.message || 'No se pudo eliminar el servicio técnico')
+    }
+    setConfirmarBorrarServicio(null); fetchCliente()
+  }
+
   if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
 
   // Un único historial cronológico: las compras se muestran una sola vez (no se repite el cargo VENTA
@@ -144,7 +154,7 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
           : eventos.map(ev => ev.kind === 'compra' ? (
             <div key={`venta-${ev.venta.id}`} style={s.ventaRow}>
               <div style={s.ventaHead}>
-                <span style={s.ventaId}>Compra #{String(ev.venta.id).padStart(6, '0')}</span>
+                <span style={s.ventaId}>{ev.venta.tipoComprobante === 'REMITO' ? 'Remito' : 'Factura'} N° {String(ev.venta.numero).padStart(8, '0')}</span>
                 <span style={s.ventaFecha}>{fmtFecha(ev.venta.creadoEn)}</span>
                 <span style={s.ventaMedio}>{ev.venta.medioPago}</span>
                 <span style={s.ventaTotal}>${fmt(ev.venta.total)}</span>
@@ -169,6 +179,12 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
               <span style={{ ...s.movMonto, color: ev.movimiento.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
                 {ev.movimiento.tipo === 'PAGO' ? '-' : '+'}${fmt(ev.movimiento.monto)}
               </span>
+              {esAdmin && ev.movimiento.servicioId && (
+                <button style={s.btnIconDanger} title="Eliminar servicio técnico"
+                  onClick={() => { setError(''); setConfirmarBorrarServicio(ev.movimiento.servicioId) }}>
+                  <i className="bi bi-trash" />
+                </button>
+              )}
               {esAdmin && !ev.movimiento.ventaId && !ev.movimiento.servicioId && (
                 <button style={s.btnIconDanger} title="Eliminar movimiento"
                   onClick={() => { setError(''); setConfirmarBorrarMovimiento(ev.movimiento.id) }}>
@@ -218,6 +234,19 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
             <div style={s.modalActions}>
               <button style={s.btnVolver} onClick={() => setConfirmarBorrarMovimiento(null)}>Cancelar</button>
               <button style={s.btnDanger} onClick={() => handleDeleteMovimiento(confirmarBorrarMovimiento)}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarBorrarServicio !== null && (
+        <div style={s.overlay}>
+          <div className="page-modal">
+            <h3 style={s.modalTitle}>Eliminar servicio técnico</h3>
+            <p style={s.texto}>¿Estás seguro? Se devuelven al depósito los repuestos que tenía cargados y se saca la deuda que generó en la cuenta del cliente. No se puede deshacer.</p>
+            <div style={s.modalActions}>
+              <button style={s.btnVolver} onClick={() => setConfirmarBorrarServicio(null)}>Cancelar</button>
+              <button style={s.btnDanger} onClick={() => handleDeleteServicio(confirmarBorrarServicio)}>Eliminar</button>
             </div>
           </div>
         </div>

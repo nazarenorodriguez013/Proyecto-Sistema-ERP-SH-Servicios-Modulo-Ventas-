@@ -131,6 +131,7 @@ export default function Ventas({ user }: { user: User }) {
       const venta = await res.json()
       setComprobante({
         id: venta.id,
+        numero: venta.numero,
         fecha: new Date(),
         tipoComprobante,
         items: venta.detallesVenta,

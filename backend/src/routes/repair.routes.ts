@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as repairController from '../controllers/repair.controller';
-import { authenticate, authorizeAdministracion, authorizeRoles } from '../middlewares/auth.middleware';
+import { authenticate, authorizeAdmin, authorizeAdministracion, authorizeRoles } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -18,5 +18,7 @@ router.put('/:id/tecnico', authenticate, authorizeAdministracion, repairControll
 router.post('/:id/repuestos', authenticate, taller, repairController.agregarRepuesto);
 router.delete('/:id/repuestos/:productoId', authenticate, taller, repairController.quitarRepuesto);
 router.put('/:id/finalizar', authenticate, authorizeAdministracion, repairController.finalizar);
+// Eliminar un servicio revierte el stock de sus repuestos y la deuda que generó: queda restringido al administrador
+router.delete('/:id', authenticate, authorizeAdmin, repairController.remove);
 
 export default router;
