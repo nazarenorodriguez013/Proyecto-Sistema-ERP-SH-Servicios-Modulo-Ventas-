@@ -7,34 +7,56 @@ import Inventario from './Inventario'
 import Ventas from './Ventas'
 import HistorialVentas from './HistorialVentas'
 import Clientes from './Clientes'
-import Taller from './Taller'
+import ServiciosTecnicos from './ServiciosTecnicos'
+import HistorialServicios from './HistorialServicios'
+import Tecnicos from './Tecnicos'
+import type { Servicio } from '../servicios'
 
-interface Page { id: string; label: string; icon: string; path: string; roles: string[] }
+interface NavItem { id: string; label: string; icon: string; path: string; roles: string[] }
+interface NavGroup extends NavItem { children: NavItem[] }
+type NavEntry = NavItem | NavGroup
+
+const isGroup = (e: NavEntry): e is NavGroup => Array.isArray((e as NavGroup).children)
 
 const ADMINISTRACION = ['ADMIN', 'VENDEDOR']
 const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', TECNICO: 'Técnico' }
 
-// Menú de un solo nivel, ordenado por la tarea más frecuente
-const allPages: Page[] = [
-  { id: 'punto-venta',      label: 'Punto de Venta',     icon: 'bi-receipt',    path: '/',                 roles: ADMINISTRACION },
-  { id: 'historial-ventas', label: 'Historial de Ventas', icon: 'bi-clock-history', path: '/historial-ventas', roles: ADMINISTRACION },
-  { id: 'servicios',        label: 'Servicios Técnicos', icon: 'bi-tools',      path: '/servicios',        roles: [...ADMINISTRACION, 'TECNICO'] },
-  { id: 'clientes',         label: 'Clientes',           icon: 'bi-people',     path: '/clientes',         roles: ADMINISTRACION },
-  { id: 'inventario',       label: 'Inventario',         icon: 'bi-box-seam',   path: '/inventario',       roles: ADMINISTRACION },
+// Menú de un solo nivel, salvo Servicios Técnicos que despliega Técnicos e Historial
+const allEntries: NavEntry[] = [
+  { id: 'punto-venta',      label: 'Punto de Venta',      icon: 'bi-receipt',       path: '/',                 roles: ADMINISTRACION, children: [] },
+  { id: 'historial-ventas', label: 'Historial de Ventas', icon: 'bi-clock-history', path: '/historial-ventas', roles: ADMINISTRACION, children: [] },
+  {
+    id: 'servicios', label: 'Servicios Técnicos', icon: 'bi-tools', path: '/servicios', roles: [...ADMINISTRACION, 'TECNICO'],
+    children: [
+      { id: 'tecnicos',            label: 'Técnicos',   icon: 'bi-person-gear',   path: '/tecnicos',            roles: ADMINISTRACION },
+      { id: 'historial-servicios', label: 'Historial',  icon: 'bi-clock-history', path: '/historial-servicios', roles: ADMINISTRACION },
+    ],
+  },
+  { id: 'clientes',    label: 'Clientes',    icon: 'bi-people',   path: '/clientes',   roles: ADMINISTRACION, children: [] },
+  { id: 'inventario',  label: 'Inventario',  icon: 'bi-box-seam', path: '/inventario', roles: ADMINISTRACION, children: [] },
 ]
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const pages         = allPages.filter(p => p.roles.includes(user.rol))
+  // Cada entrada (y sus hijos) se filtra por rol; un grupo sin hijos visibles queda como link simple
+  const entries = allEntries
+    .filter(e => e.roles.includes(user.rol))
+    .map(e => isGroup(e) ? { ...e, children: e.children.filter(c => c.roles.includes(user.rol)) } : e)
+
+  const flatPages: NavItem[] = entries.flatMap(e => isGroup(e) ? [e, ...e.children] : [e])
+
   const routerNav     = useNavigate()
   const { pathname }  = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expanded, setExpanded]       = useState<string[]>([])
   const [stockBajo, setStockBajo]     = useState(0)
+  const [retirosPendientes, setRetirosPendientes] = useState(0)
+  const [avisosServicios, setAvisosServicios] = useState(0)
 
   // La página activa sale de la URL (así funcionan atrás/adelante); si el rol no puede verla, va a su primera página
-  const activePage = pages.find(p => p.path === pathname) ?? pages[0]
-  const veInventario = pages.some(p => p.id === 'inventario')
+  const activePage = flatPages.find(p => p.path === pathname) ?? flatPages[0]
+  const veInventario = flatPages.some(p => p.id === 'inventario')
+  const veServicios  = flatPages.some(p => p.id === 'servicios')
 
-  // Cantidad de productos para reponer, visible desde cualquier pantalla y actualizada en tiempo real
   useEffect(() => {
     if (!veInventario) return
     const headers = { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
@@ -45,16 +67,47 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     return () => { socket.off('stock-actualizado', fetchStockBajo) }
   }, [veInventario])
 
-  const navigate = (page: Page) => {
+  // Retiros que el depósito todavía tiene que preparar, y avisos para quien pidió el servicio
+  // (sin técnico asignado, o repuestos ya listos para retirar)
+  useEffect(() => {
+    if (!veServicios) return
+    const headers = { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
+    const actualizar = () => {
+      if (user.rol !== 'TECNICO') {
+        fetch(`${API}/repairs/retiros`, { headers }).then(r => r.json()).then((retiros: Servicio[]) => {
+          setRetirosPendientes(retiros.filter(r => r.estadoRetiro === 'PENDIENTE').length)
+        })
+      }
+      fetch(`${API}/repairs`, { headers }).then(r => r.json()).then((servicios: Servicio[]) => {
+        const enCurso = servicios.filter(sv => sv.estado === 'EN_CURSO')
+        setAvisosServicios(
+          (user.rol === 'TECNICO' ? 0 : enCurso.filter(sv => !sv.tecnico).length)
+          + enCurso.filter(sv => sv.estadoRetiro === 'LISTO').length
+        )
+      })
+    }
+    actualizar()
+    socket.on('servicios-actualizados', actualizar)
+    return () => { socket.off('servicios-actualizados', actualizar) }
+  }, [veServicios, user.rol])
+
+  const navigate = (entry: NavEntry) => {
     setSidebarOpen(false)
-    routerNav(page.path)
+    routerNav(entry.path)
+    if (isGroup(entry) && entry.children.length > 0) setExpanded(prev => prev.includes(entry.id) ? prev : [...prev, entry.id])
+  }
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   const renderContent = () => {
-    if (activePage.id === 'historial-ventas') return <HistorialVentas />
-    if (activePage.id === 'servicios')  return <Taller user={user} />
-    if (activePage.id === 'clientes')   return <Clientes user={user} />
-    if (activePage.id === 'inventario') return <Inventario user={user} />
+    if (activePage.id === 'historial-ventas')    return <HistorialVentas />
+    if (activePage.id === 'servicios')           return <ServiciosTecnicos user={user} />
+    if (activePage.id === 'tecnicos')            return <Tecnicos />
+    if (activePage.id === 'historial-servicios') return <HistorialServicios />
+    if (activePage.id === 'clientes')            return <Clientes user={user} />
+    if (activePage.id === 'inventario')          return <Inventario user={user} />
     return <Ventas user={user} />
   }
 
@@ -83,19 +136,38 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           <div style={st.navSection}>
             <p style={st.navLabel}>MENÚ PRINCIPAL</p>
             <nav style={st.nav}>
-              {pages.map(page => (
-                <button
-                  key={page.id}
-                  style={{ ...st.navItem, ...(page.id === activePage.id ? st.navItemActive : {}) }}
-                  onClick={() => navigate(page)}
-                >
-                  <span style={st.navIcon}><i className={`bi ${page.icon}`} /></span>
-                  <span style={{ flex: 1, textAlign: 'left' }}>{page.label}</span>
-                  {page.id === 'inventario' && stockBajo > 0 && (
-                    <span style={st.navBadge} title="Productos con stock bajo o sin stock">{stockBajo}</span>
-                  )}
-                </button>
-              ))}
+              {entries.map(entry => {
+                const hasChildren = isGroup(entry) && entry.children.length > 0
+                const isExpanded = expanded.includes(entry.id)
+                const childActive = hasChildren && (entry as NavGroup).children.some(c => c.id === activePage.id)
+                const badge = entry.id === 'inventario' ? stockBajo + retirosPendientes : entry.id === 'servicios' ? avisosServicios : 0
+                return (
+                  <div key={entry.id}>
+                    <button
+                      style={{ ...st.navItem, ...(entry.id === activePage.id || childActive ? st.navItemActive : {}) }}
+                      onClick={() => navigate(entry)}
+                    >
+                      <span style={st.navIcon}><i className={`bi ${entry.icon}`} /></span>
+                      <span style={{ flex: 1, textAlign: 'left' }}>{entry.label}</span>
+                      {badge > 0 && (
+                        <span style={st.navBadge} title={entry.id === 'inventario' ? 'Stock bajo o retiros de repuestos pendientes de preparar' : 'Servicios que necesitan atención'}>{badge}</span>
+                      )}
+                      {hasChildren && (
+                        <span style={st.chevron} onClick={e => toggleExpand(entry.id, e)}>
+                          <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} />
+                        </span>
+                      )}
+                    </button>
+                    {hasChildren && isExpanded && (entry as NavGroup).children.map(child => (
+                      <button key={child.id} style={{ ...st.navSubItem, ...(child.id === activePage.id ? st.navItemActive : {}) }}
+                        onClick={() => navigate(child)}>
+                        <span style={st.navIcon}><i className={`bi ${child.icon}`} /></span>
+                        <span style={{ flex: 1, textAlign: 'left' }}>{child.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              })}
             </nav>
           </div>
         </div>
@@ -154,9 +226,11 @@ const st: Record<string, React.CSSProperties> = {
   nav:          { display: 'flex', flexDirection: 'column', gap: '1px' },
 
   navItem:      { display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#B7B7B7', fontSize: '13px', fontWeight: '500', cursor: 'pointer', width: '100%' },
+  navSubItem:   { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px 8px 30px', background: 'transparent', border: 'none', borderRadius: '8px', color: '#B7B7B7', fontSize: '12px', fontWeight: '500', cursor: 'pointer', width: '100%' },
   navItemActive:{ background: '#1E1E1E', color: '#FFFFFF', fontWeight: '600' },
   navIcon:      { fontSize: '16px', width: '20px', textAlign: 'center' },
   navBadge:     { background: '#E08A00', color: '#111111', borderRadius: '10px', padding: '1px 7px', fontSize: '11px', fontWeight: '800' },
+  chevron:      { fontSize: '11px', padding: '2px 4px', color: '#8C8C8C' },
 
   logoutBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'transparent', border: '1px solid #1D1D1D', borderRadius: '8px', color: '#B7B7B7', fontSize: '13px', cursor: 'pointer', width: '100%' },
 

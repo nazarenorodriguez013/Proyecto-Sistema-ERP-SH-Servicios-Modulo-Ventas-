@@ -4,6 +4,7 @@ import { API, MEDIOS_PAGO, MEDIO_CUENTA_CORRIENTE, TIPOS_COMPROBANTE, TIPO_COMPR
 import { socket } from '../socket'
 import ClienteSelector from '../components/ClienteSelector'
 import Comprobante, { type ComprobanteData } from '../components/Comprobante'
+import SolicitarServicioModal from '../components/SolicitarServicioModal'
 
 interface Categoria { id: number; nombre: string }
 interface Producto {
@@ -34,6 +35,7 @@ export default function Ventas({ user }: { user: User }) {
   const [error, setError] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [comprobante, setComprobante] = useState<ComprobanteData | null>(null)
+  const [solicitandoServicio, setSolicitandoServicio] = useState(false)
 
   const cantidadRef = useRef<HTMLInputElement>(null)
   const busquedaRef = useRef<HTMLInputElement>(null)
@@ -187,6 +189,9 @@ export default function Ventas({ user }: { user: User }) {
                 </label>
               ))}
           </div>
+          <button type="button" style={s.btnServicio} onClick={() => setSolicitandoServicio(true)}>
+            <i className="bi bi-tools" /> Solicitar servicio técnico
+          </button>
         </div>
 
         <div style={s.divider} />
@@ -346,6 +351,14 @@ export default function Ventas({ user }: { user: User }) {
       </div>
 
       {comprobante && <Comprobante data={comprobante} onClose={cerrarComprobante} />}
+
+      {solicitandoServicio && (
+        <SolicitarServicioModal
+          clientes={clientes}
+          onClose={() => setSolicitandoServicio(false)}
+          onCreated={() => { setSolicitandoServicio(false); fetchClientes() }}
+        />
+      )}
     </div>
   )
 }
@@ -358,6 +371,7 @@ const s: Record<string, React.CSSProperties> = {
   tipos:       { display: 'flex', gap: '6px', flexWrap: 'wrap' as const },
   tipoBtn:     { padding: '7px 14px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   tipoBtnOn:   { background: 'rgba(245,196,0,0.15)', border: '1px solid #F5C400', color: '#8A6D00' },
+  btnServicio: { alignSelf: 'flex-end', background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '8px', color: '#333333', fontSize: '12px', fontWeight: '600', padding: '9px 14px', cursor: 'pointer', whiteSpace: 'nowrap' as const },
 
   btnLimpiar:  { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', color: '#6B6B6B', fontSize: '14px', fontWeight: '600', padding: '12px 20px', cursor: 'pointer' },
 

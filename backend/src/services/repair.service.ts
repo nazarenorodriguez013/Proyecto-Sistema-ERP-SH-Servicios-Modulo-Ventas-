@@ -37,12 +37,11 @@ const calcularCostoTotal = (servicio: {
   ? 0
   : servicio.costoManoObra + servicio.repuestos.reduce((sum, r) => sum + r.cantidad * r.precioUnitario, 0);
 
+// El costo de mano de obra es solo un estimado inicial: la solicitud rápida desde Ventas no tiene por qué traerlo
 const validarDatos = (data: { equipo?: string; descripcionFalla?: string; enGarantia?: boolean; costoManoObra?: number }) => {
   if (!data.equipo?.trim()) throw httpError(400, 'El equipo es obligatorio');
   if (!data.descripcionFalla?.trim()) throw httpError(400, 'La descripción de la falla es obligatoria');
-  const costoManoObra = data.enGarantia ? 0 : Number(data.costoManoObra) || 0;
-  if (!data.enGarantia && costoManoObra <= 0) throw httpError(400, 'El presupuesto de mano de obra debe ser mayor a 0');
-  return costoManoObra;
+  return data.enGarantia ? 0 : Number(data.costoManoObra) || 0;
 };
 
 const parseFecha = (fecha?: string | null) => {
@@ -69,15 +68,17 @@ export const getById = async (id: number, usuario: Usuario) => {
 };
 
 export const create = async (data: {
-  clienteId: number; tecnicoId: number; equipo: string; descripcionFalla: string; tareas?: string | null;
+  clienteId: number; tecnicoId?: number | null; equipo: string; descripcionFalla: string; tareas?: string | null;
   enGarantia?: boolean; costoManoObra?: number; fechaEstimadaFin?: string | null; repuestos?: RepuestoInput[];
 }) => {
   const costoManoObra = validarDatos(data);
-  if (!data.tecnicoId) throw httpError(400, 'Asigná un técnico para el servicio');
   const fechaEstimadaFin = parseFecha(data.fechaEstimadaFin);
   if (!(await prisma.cliente.findUnique({ where: { id: data.clienteId } }))) throw httpError(400, 'Cliente no encontrado');
-  const tecnico = await prisma.usuario.findUnique({ where: { id: data.tecnicoId } });
-  if (tecnico?.rol !== 'TECNICO') throw httpError(400, 'El usuario seleccionado no es técnico');
+  // Sin técnico queda como solicitud pendiente de asignar (por ejemplo, la que llega desde el punto de venta)
+  if (data.tecnicoId) {
+    const tecnico = await prisma.usuario.findUnique({ where: { id: data.tecnicoId } });
+    if (tecnico?.rol !== 'TECNICO') throw httpError(400, 'El usuario seleccionado no es técnico');
+  }
 
   const repuestos = data.repuestos ?? [];
   const hayRepuestos = repuestos.length > 0;
@@ -86,7 +87,7 @@ export const create = async (data: {
     const nuevo = await tx.servicioTecnico.create({
       data: {
         clienteId: data.clienteId,
-        tecnicoId: data.tecnicoId,
+        tecnicoId: data.tecnicoId || null,
         equipo: data.equipo.trim(),
         descripcionFalla: data.descripcionFalla.trim(),
         tareas: data.tareas?.trim() || null,
@@ -149,6 +150,16 @@ export const presupuesto = async (data: {
     saldoAplicado: 0, proximoMantenimiento: null, codigoRetiro: null, estadoRetiro: null,
     fechaIngreso: new Date(), finalizadoEn: null, cliente, tecnico, repuestos,
   };
+};
+
+// Asigna o reasigna el técnico de una solicitud (por ejemplo, la que llegó sin técnico desde el punto de venta)
+export const asignarTecnico = async (id: number, tecnicoId: number) => {
+  await obtener(id, ['EN_CURSO']);
+  const tecnico = await prisma.usuario.findUnique({ where: { id: tecnicoId } });
+  if (tecnico?.rol !== 'TECNICO') throw httpError(400, 'El usuario seleccionado no es técnico');
+  const servicio = await prisma.servicioTecnico.update({ where: { id }, data: { tecnicoId }, include: includeServicio });
+  notificar();
+  return servicio;
 };
 
 // Regla: los repuestos se descuentan del stock al salir del depósito, o sea al cargarlos al servicio
