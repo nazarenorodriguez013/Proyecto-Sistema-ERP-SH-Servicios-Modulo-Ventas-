@@ -10,7 +10,12 @@ export const getById = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.getById(Number(req.params.id), req.user!));
 
 export const create = (req: AuthRequest, res: Response) =>
-  responder(res, () => repairService.create({ ...req.body, clienteId: Number(req.body.clienteId), tecnicoId: Number(req.body.tecnicoId) }), 201);
+  responder(res, () => repairService.create({
+    ...req.body, clienteId: Number(req.body.clienteId), tecnicoId: req.body.tecnicoId ? Number(req.body.tecnicoId) : null,
+  }), 201);
+
+export const asignarTecnico = (req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.asignarTecnico(Number(req.params.id), Number(req.body.tecnicoId)));
 
 export const presupuesto = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.presupuesto({ ...req.body, clienteId: Number(req.body.clienteId) }), 201);

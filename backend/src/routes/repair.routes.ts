@@ -14,6 +14,7 @@ router.get('/', authenticate, repairController.getAll);
 router.get('/:id', authenticate, repairController.getById);
 router.post('/', authenticate, authorizeAdministracion, repairController.create);
 router.post('/presupuesto', authenticate, authorizeAdministracion, repairController.presupuesto);
+router.put('/:id/tecnico', authenticate, authorizeAdministracion, repairController.asignarTecnico);
 router.post('/:id/repuestos', authenticate, taller, repairController.agregarRepuesto);
 router.delete('/:id/repuestos/:productoId', authenticate, taller, repairController.quitarRepuesto);
 router.put('/:id/finalizar', authenticate, authorizeAdministracion, repairController.finalizar);
