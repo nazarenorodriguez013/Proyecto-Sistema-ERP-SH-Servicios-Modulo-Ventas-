@@ -62,11 +62,11 @@ model Producto {
   @@map("productos")
 }
 
-// Presupuesto no se guarda como Venta: no descuenta stock ni genera deuda, solo se imprime
+// Presupuesto no se guarda como Venta: no descuenta stock ni genera deuda, solo se imprime.
+// Cuenta Corriente es un medio de pago (campo medioPago), no un tipo de comprobante.
 enum TipoComprobante {
   FACTURA
   REMITO
-  CTA_CTE
 }
 
 model Venta {
