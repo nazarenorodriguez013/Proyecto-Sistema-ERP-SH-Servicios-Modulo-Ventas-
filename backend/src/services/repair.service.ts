@@ -2,6 +2,7 @@ import { PrismaClient, EstadoServicio, EstadoRetiro, TipoComprobante } from '@pr
 import { getIO } from '../socket';
 import { httpError } from '../utils/http';
 import { registrarCargo } from './movement.service';
+import { siguienteNumero } from './correlativo.service';
 
 const prisma = new PrismaClient();
 
@@ -143,8 +144,9 @@ export const presupuesto = async (data: {
     repuestos.push({ id: 0, cantidad: item.cantidad, precioUnitario: producto.precio, producto });
   }
 
+  const numero = await siguienteNumero('PRESUPUESTO');
   return {
-    id: null, equipo: data.equipo.trim(), descripcionFalla: data.descripcionFalla.trim(), tareas: data.tareas?.trim() || null,
+    id: null, numero, equipo: data.equipo.trim(), descripcionFalla: data.descripcionFalla.trim(), tareas: data.tareas?.trim() || null,
     enGarantia: !!data.enGarantia, costoManoObra, estado: 'EN_CURSO' as const, fechaEstimadaFin: null,
     tipoComprobante: null, medioPago: null, total: calcularCostoTotal({ enGarantia: !!data.enGarantia, costoManoObra, repuestos }),
     saldoAplicado: 0, proximoMantenimiento: null, codigoRetiro: null, estadoRetiro: null,
@@ -229,10 +231,11 @@ export const finalizar = async (id: number, data: {
       clienteId: actual.clienteId, tipo: 'SERVICIO', concepto: `Servicio técnico #${id}`, total,
       medioPago: data.medioPago, usarSaldo: data.usarSaldo !== false, servicioId: id,
     });
+    const numero = await siguienteNumero(data.tipoComprobante, tx);
     return tx.servicioTecnico.update({
       where: { id },
       data: {
-        estado: 'FINALIZADO', tipoComprobante: data.tipoComprobante, medioPago: data.medioPago, total, saldoAplicado,
+        estado: 'FINALIZADO', tipoComprobante: data.tipoComprobante, numero, medioPago: data.medioPago, total, saldoAplicado,
         proximoMantenimiento: fechaMantenimiento, finalizadoEn: new Date(),
       },
       include: includeServicio,
@@ -252,6 +255,24 @@ export const getRetiros = () =>
 
 const SIGUIENTE_ESTADO_RETIRO: Record<EstadoRetiro, EstadoRetiro | null> = {
   PENDIENTE: 'LISTO', LISTO: 'RETIRADO', RETIRADO: null,
+};
+
+// Elimina el servicio completo: devuelve al depósito los repuestos que tenía cargados y saca la
+// deuda que había generado en la cuenta del cliente, igual que al borrar un comprobante de venta
+export const remove = async (id: number) => {
+  await prisma.$transaction(async (tx) => {
+    const servicio = await tx.servicioTecnico.findUnique({ where: { id }, include: { repuestos: true } });
+    if (!servicio) throw httpError(404, 'Servicio no encontrado');
+
+    for (const r of servicio.repuestos) {
+      await tx.producto.update({ where: { id: r.productoId }, data: { stock: { increment: r.cantidad } } });
+    }
+
+    await tx.movimientoCuenta.deleteMany({ where: { servicioId: id } });
+    await tx.servicioRepuesto.deleteMany({ where: { servicioId: id } });
+    await tx.servicioTecnico.delete({ where: { id } });
+  });
+  notificar(true);
 };
 
 export const marcarRetiro = async (id: number, estado: EstadoRetiro) => {

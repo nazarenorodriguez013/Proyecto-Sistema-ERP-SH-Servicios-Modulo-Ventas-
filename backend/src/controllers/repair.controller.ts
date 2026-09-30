@@ -29,6 +29,9 @@ export const quitarRepuesto = (req: AuthRequest, res: Response) =>
 export const finalizar = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.finalizar(Number(req.params.id), req.body));
 
+export const remove = (req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.remove(Number(req.params.id)), 204);
+
 export const getRetiros = (_req: AuthRequest, res: Response) =>
   responder(res, () => repairService.getRetiros());
 

@@ -7,7 +7,7 @@ export interface RepuestoServicio {
 }
 
 export interface Servicio {
-  id: number | null; equipo: string; descripcionFalla: string; tareas: string | null; enGarantia: boolean
+  id: number | null; numero: number | null; equipo: string; descripcionFalla: string; tareas: string | null; enGarantia: boolean
   costoManoObra: number; estado: EstadoServicio; fechaEstimadaFin: string | null
   tipoComprobante: 'FACTURA' | 'REMITO' | null; medioPago: string | null; total: number | null; saldoAplicado: number
   proximoMantenimiento: string | null; codigoRetiro: string | null; estadoRetiro: EstadoRetiro | null

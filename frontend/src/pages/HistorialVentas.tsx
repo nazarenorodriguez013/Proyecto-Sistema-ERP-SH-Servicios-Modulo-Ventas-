@@ -3,7 +3,7 @@ import { API, TIPO_COMPROBANTE_LABEL, type TipoComprobante } from '../config'
 import Comprobante, { type ComprobanteData } from '../components/Comprobante'
 
 interface Venta {
-  id: number; total: number; tipoComprobante: TipoComprobante; medioPago: string; montoRecibido: number | null
+  id: number; numero: number; total: number; tipoComprobante: TipoComprobante; medioPago: string; montoRecibido: number | null
   saldoAplicado: number; creadoEn: string
   usuario: { nombre: string }; cliente: { nombre: string } | null
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string; codigo: string | null } }[]
@@ -27,11 +27,12 @@ export default function HistorialVentas() {
 
   const q = busqueda.trim().toLowerCase()
   const filtradas = q
-    ? ventas.filter(v => v.cliente?.nombre.toLowerCase().includes(q) || String(v.id).includes(q))
+    ? ventas.filter(v => v.cliente?.nombre.toLowerCase().includes(q) || String(v.numero).includes(q))
     : ventas
 
   const reimprimir = (v: Venta) => setComprobante({
     id: v.id,
+    numero: v.numero,
     fecha: new Date(v.creadoEn),
     tipoComprobante: v.tipoComprobante,
     items: v.detallesVenta,
@@ -63,7 +64,7 @@ export default function HistorialVentas() {
           : filtradas.map(v => (
             <div key={v.id} style={s.row}>
               <span style={s.rowTipo}>{TIPO_COMPROBANTE_LABEL[v.tipoComprobante]}</span>
-              <span style={s.rowId}>#{String(v.id).padStart(6, '0')}</span>
+              <span style={s.rowId}>N° {String(v.numero).padStart(8, '0')}</span>
               <span style={s.rowFecha}>{fmtFecha(v.creadoEn)}</span>
               <span style={s.rowCliente}>{v.cliente?.nombre ?? '—'}</span>
               <span style={s.rowVendedor}>{v.usuario.nombre}</span>

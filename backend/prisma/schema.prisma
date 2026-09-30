@@ -41,19 +41,26 @@ model Categoria {
   @@map("categorias")
 }
 
+// Distingue en el inventario lo que se usa como repuesto de lo que es una máquina o equipo que se vende entero
+enum TipoProducto {
+  REPUESTO
+  MAQUINARIA
+}
+
 model Producto {
-  id            Int      @id @default(autoincrement())
-  codigo        String?  @unique
+  id            Int          @id @default(autoincrement())
+  codigo        String?      @unique
   nombre        String
   descripcion   String?
-  precioCosto   Float    @default(0) @map("precio_costo")
+  tipoProducto  TipoProducto @default(REPUESTO) @map("tipo_producto")
+  precioCosto   Float        @default(0) @map("precio_costo")
   precio        Float
-  stock         Int      @default(0)
-  stockMinimo   Int      @default(5) @map("stock_minimo")
-  activo        Boolean  @default(true)
-  categoriaId   Int      @map("categoria_id")
-  creadoEn      DateTime @default(now()) @map("creado_en")
-  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+  stock         Int          @default(0)
+  stockMinimo   Int          @default(5) @map("stock_minimo")
+  activo        Boolean      @default(true)
+  categoriaId   Int          @map("categoria_id")
+  creadoEn      DateTime     @default(now()) @map("creado_en")
+  actualizadoEn DateTime     @updatedAt @map("actualizado_en")
 
   categoria       Categoria          @relation(fields: [categoriaId], references: [id])
   detallesVenta   DetalleVenta[]
@@ -69,8 +76,18 @@ enum TipoComprobante {
   REMITO
 }
 
+// Numeración correlativa de cada tipo de comprobante (Factura, Remito y Presupuesto), compartida
+// entre Ventas y Servicios Técnicos: cada impresión saca el siguiente número de su propia secuencia
+model Correlativo {
+  tipo         String @id
+  ultimoNumero Int    @default(0) @map("ultimo_numero")
+
+  @@map("correlativos")
+}
+
 model Venta {
   id              Int             @id @default(autoincrement())
+  numero          Int
   total           Float
   tipoComprobante TipoComprobante @default(FACTURA) @map("tipo_comprobante")
   medioPago       String          @default("Efectivo") @map("medio_pago")
@@ -169,6 +186,7 @@ model ServicioTecnico {
   estado               EstadoServicio  @default(EN_CURSO)
   fechaEstimadaFin      DateTime?      @map("fecha_estimada_fin")
   tipoComprobante      TipoComprobante? @map("tipo_comprobante")
+  numero               Int?
   medioPago            String?         @map("medio_pago")
   total                Float?
   saldoAplicado        Float           @default(0) @map("saldo_aplicado")

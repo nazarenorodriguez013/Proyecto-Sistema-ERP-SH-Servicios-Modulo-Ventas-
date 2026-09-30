@@ -1,6 +1,7 @@
 import { PrismaClient, TipoComprobante } from '@prisma/client';
 import { getIO } from '../socket';
 import { MEDIO_CUENTA_CORRIENTE, registrarCargo } from './movement.service';
+import { siguienteNumero } from './correlativo.service';
 
 const prisma = new PrismaClient();
 
@@ -48,8 +49,9 @@ export const createSale = async (
       detallesVenta.push({ id: 0, ventaId: 0, productoId, cantidad, precioUnitario: producto.precio, producto });
     }
     const total = detallesVenta.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
+    const numero = await siguienteNumero('PRESUPUESTO');
     return {
-      id: null, total, tipoComprobante: 'PRESUPUESTO' as const, medioPago: null, montoRecibido: null,
+      id: null, numero, total, tipoComprobante: 'PRESUPUESTO' as const, medioPago: null, montoRecibido: null,
       saldoAplicado: 0, usuarioId, clienteId: clienteId ?? null, creadoEn: new Date(),
       detallesVenta, cliente, usuario: await prisma.usuario.findUnique({ where: { id: usuarioId } }),
     };
@@ -78,9 +80,11 @@ export const createSale = async (
     }
 
     const total = detalles.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
+    const numero = await siguienteNumero(tipoComprobante, tx);
 
     const nueva = await tx.venta.create({
       data: {
+        numero,
         total,
         tipoComprobante,
         medioPago,
