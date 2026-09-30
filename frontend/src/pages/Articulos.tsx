@@ -247,27 +247,29 @@ export default function Articulos({ user }: { user: User }) {
                   <label style={s.label}>Nombre</label>
                   <input style={s.input} value={form.nombre} required onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
                 </div>
-                <div style={s.field}>
-                  <label style={s.label}>Categoría</label>
-                  <select style={s.input} value={form.categoriaId} required onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))}>
-                    <option value="">Seleccionar...</option>
-                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  </select>
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>Tipo</label>
-                  <div style={s.tipos}>
-                    {(['REPUESTO', 'MAQUINARIA'] as const).map(t => (
-                      <button type="button" key={t} style={{ ...s.tipoBtn, ...(form.tipoProducto === t ? s.tipoBtnOn : {}) }}
-                        onClick={() => setForm(f => ({ ...f, tipoProducto: t }))}>
-                        {TIPO_PRODUCTO_LABEL[t]}
-                      </button>
-                    ))}
+                <div style={s.row2}>
+                  <div style={s.field}>
+                    <label style={s.label}>Categoría</label>
+                    <select style={s.input} value={form.categoriaId} required onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))}>
+                      <option value="">Seleccionar...</option>
+                      {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div style={s.field}>
+                    <label style={s.label}>Tipo</label>
+                    <div style={s.tipos}>
+                      {(['REPUESTO', 'MAQUINARIA'] as const).map(t => (
+                        <button type="button" key={t} style={{ ...s.tipoBtn, ...(form.tipoProducto === t ? s.tipoBtnOn : {}) }}
+                          onClick={() => setForm(f => ({ ...f, tipoProducto: t }))}>
+                          {TIPO_PRODUCTO_LABEL[t]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div style={s.field}>
                   <label style={s.label}>Descripción</label>
-                  <textarea style={{ ...s.input, resize: 'vertical', minHeight: '60px' }} value={form.descripcion}
+                  <textarea style={{ ...s.input, resize: 'vertical', minHeight: '44px', height: '44px' }} value={form.descripcion}
                     onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
                 </div>
 
@@ -294,7 +296,7 @@ export default function Articulos({ user }: { user: User }) {
                     <input style={s.input} type="number" min="0" value={form.stock} required onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
                   </div>
                   <div style={s.field}>
-                    <label style={s.label}>Stock mínimo (avisa al llegar)</label>
+                    <label style={s.label}>Stock mínimo</label>
                     <input style={s.input} type="number" min="0" value={form.stockMinimo} onChange={e => setForm(f => ({ ...f, stockMinimo: e.target.value }))} />
                   </div>
                 </div>
@@ -366,11 +368,12 @@ const s: Record<string, React.CSSProperties> = {
   empty:        { color: '#6B6B6B', textAlign: 'center', padding: '48px 20px', fontSize: '14px' },
 
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' },
-  modal:        { background: '#FFFFFF', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' },
+  modal:        { background: '#FFFFFF', borderRadius: '16px', padding: '20px 24px', width: '100%', maxWidth: '520px', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
+  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' },
   modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: '0 0 2px' },
   closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
-  fieldset:     { border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' },
+  fieldset:     { border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' },
+  row2:         { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' },
   seccion:      { color: '#6B6B6B', fontSize: '12px', fontWeight: '600', margin: '8px 0 -4px' },
   tipos:        { display: 'flex', gap: '6px' },
   tipoBtn:      { padding: '7px 16px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
@@ -382,7 +385,7 @@ const s: Record<string, React.CSSProperties> = {
   errorText:    { color: '#C6402F', fontSize: '13px', margin: '12px 0 0' },
   texto:        { color: '#333333', fontSize: '13px', flex: 1 },
 
-  modalActions: { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px' },
+  modalActions: { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '14px' },
   confirmar:    { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px', background: '#FBE5E2', borderRadius: '10px', padding: '10px 12px' },
   btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
   btnSecondary: { background: '#FFFFFF', color: '#333333', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },

@@ -5,7 +5,7 @@ import { socket } from '../socket'
 import ServicioTicket from '../components/ServicioTicket'
 import { ESTADO_LABEL, ESTADO_COLOR, ESTADO_RETIRO_LABEL, ESTADO_RETIRO_COLOR, type Servicio } from '../servicios'
 
-interface Producto { id: number; codigo: string | null; nombre: string; precio: number; stock: number; activo: boolean }
+interface Producto { id: number; codigo: string | null; nombre: string; tipoProducto: 'REPUESTO' | 'MAQUINARIA'; precio: number; stock: number; activo: boolean }
 interface Tecnico { id: number; nombre: string }
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -142,7 +142,7 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
           <form onSubmit={agregarRepuesto} style={s.acciones}>
             <select style={{ ...s.input, flex: 1 }} value={repuestoId} onChange={e => setRepuestoId(e.target.value)} required>
               <option value="">Seleccionar repuesto del depósito...</option>
-              {productos.filter(p => p.activo && p.stock > 0).map(p => (
+              {productos.filter(p => p.activo && p.stock > 0 && p.tipoProducto === 'REPUESTO').map(p => (
                 <option key={p.id} value={p.id}>{p.codigo ? `${p.codigo} · ` : ''}{p.nombre} (stock {p.stock}) · ${fmt(p.precio)}</option>
               ))}
             </select>

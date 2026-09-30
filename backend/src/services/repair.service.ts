@@ -105,6 +105,7 @@ export const create = async (data: {
         throw httpError(400, 'La cantidad de cada repuesto debe ser un número entero mayor a 0');
       const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
       if (!producto?.activo) throw httpError(400, 'Repuesto no disponible');
+      if (producto.tipoProducto !== 'REPUESTO') throw httpError(400, `"${producto.nombre}" es maquinaria, no un repuesto`);
       const { count } = await tx.producto.updateMany({
         where: { id: item.productoId, stock: { gte: item.cantidad } },
         data: { stock: { decrement: item.cantidad } },
@@ -172,6 +173,7 @@ export const agregarRepuesto = async (id: number, productoId: number, cantidad: 
   await prisma.$transaction(async (tx) => {
     const producto = await tx.producto.findUnique({ where: { id: productoId } });
     if (!producto?.activo) throw httpError(400, 'Repuesto no disponible');
+      if (producto.tipoProducto !== 'REPUESTO') throw httpError(400, `"${producto.nombre}" es maquinaria, no un repuesto`);
     const { count } = await tx.producto.updateMany({
       where: { id: productoId, stock: { gte: cantidad } },
       data: { stock: { decrement: cantidad } },
