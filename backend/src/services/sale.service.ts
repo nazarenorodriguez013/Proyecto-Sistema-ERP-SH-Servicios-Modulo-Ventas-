@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TipoComprobante } from '@prisma/client';
 import { getIO } from '../socket';
 import { MEDIO_CUENTA_CORRIENTE, registrarCargo } from './movement.service';
 
@@ -10,6 +10,17 @@ const includeVenta = {
   cliente: true,
 };
 
+// Valida ítems y cantidades, y unifica repetidos para chequear el stock contra la cantidad total pedida de cada producto
+const unificarCantidades = (items: { productoId: number; cantidad: number }[]) => {
+  const cantidades = new Map<number, number>();
+  for (const item of items) {
+    if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
+      throw new Error('La cantidad de cada ítem debe ser un número entero mayor a 0');
+    cantidades.set(item.productoId, (cantidades.get(item.productoId) ?? 0) + item.cantidad);
+  }
+  return cantidades;
+};
+
 // El precio y el total se calculan con los datos de la base: del frontend solo se aceptan producto y cantidad
 export const createSale = async (
   usuarioId: number,
@@ -18,17 +29,34 @@ export const createSale = async (
   montoRecibido?: number | null,
   clienteId?: number | null,
   usarSaldo = true,
+  tipoComprobante: TipoComprobante | 'PRESUPUESTO' = 'FACTURA',
 ) => {
-  if (medioPago === MEDIO_CUENTA_CORRIENTE && !clienteId)
+  if (tipoComprobante === 'CTA_CTE' && !clienteId)
     throw new Error('Para vender a cuenta corriente hay que seleccionar un cliente');
 
-  // Unifica ítems repetidos para validar el stock contra la cantidad total pedida de cada producto
-  const cantidades = new Map<number, number>();
-  for (const item of items) {
-    if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
-      throw new Error('La cantidad de cada ítem debe ser un número entero mayor a 0');
-    cantidades.set(item.productoId, (cantidades.get(item.productoId) ?? 0) + item.cantidad);
+  const cantidades = unificarCantidades(items);
+
+  // El presupuesto solo calcula precios y totales para imprimir: no descuenta stock ni queda guardado
+  if (tipoComprobante === 'PRESUPUESTO') {
+    const cliente = clienteId ? await prisma.cliente.findUnique({ where: { id: clienteId } }) : null;
+    if (clienteId && !cliente) throw new Error('Cliente no encontrado');
+
+    const detallesVenta = [];
+    for (const [productoId, cantidad] of cantidades) {
+      const producto = await prisma.producto.findUnique({ where: { id: productoId }, include: { categoria: true } });
+      if (!producto) throw new Error('Producto no encontrado');
+      detallesVenta.push({ id: 0, ventaId: 0, productoId, cantidad, precioUnitario: producto.precio, producto });
+    }
+    const total = detallesVenta.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
+    return {
+      id: null, total, tipoComprobante: 'PRESUPUESTO' as const, medioPago: null, montoRecibido: null,
+      saldoAplicado: 0, usuarioId, clienteId: clienteId ?? null, creadoEn: new Date(),
+      detallesVenta, cliente, usuario: await prisma.usuario.findUnique({ where: { id: usuarioId } }),
+    };
   }
+
+  // A cuenta corriente el medio de pago real no aplica: el cargo va siempre a la cuenta del cliente
+  const medioPagoEfectivo = tipoComprobante === 'CTA_CTE' ? MEDIO_CUENTA_CORRIENTE : medioPago;
 
   // Todo en una transacción: si falla el descuento de stock de cualquier ítem, se revierte la venta entera
   const venta = await prisma.$transaction(async (tx) => {
@@ -57,7 +85,8 @@ export const createSale = async (
     const nueva = await tx.venta.create({
       data: {
         total,
-        medioPago,
+        tipoComprobante,
+        medioPago: medioPagoEfectivo,
         montoRecibido: montoRecibido ?? null,
         usuarioId,
         clienteId: clienteId ?? null,
@@ -70,7 +99,7 @@ export const createSale = async (
 
     // Con cliente: la venta pasa por su cuenta corriente, que descuenta primero el saldo a favor
     const saldoAplicado = await registrarCargo(tx, {
-      clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, total, medioPago, usarSaldo, ventaId: nueva.id,
+      clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, total, medioPago: medioPagoEfectivo, usarSaldo, ventaId: nueva.id,
     });
     if (!saldoAplicado) return nueva;
     return tx.venta.update({ where: { id: nueva.id }, data: { saldoAplicado }, include: includeVenta });

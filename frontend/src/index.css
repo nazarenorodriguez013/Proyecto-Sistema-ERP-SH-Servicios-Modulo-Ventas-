@@ -72,12 +72,15 @@ body {
 }
 
 @media print {
+  @page { size: A4; margin: 20mm; }
   body * { visibility: hidden; }
   #ticket, #ticket * { visibility: visible; }
   #ticket {
     position: fixed;
     top: 0; left: 50%;
     transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
     background: #fff !important;
     color: #000 !important;
   }
