@@ -83,3 +83,21 @@ export const createSale = async (
 
 export const getAll = () =>
   prisma.venta.findMany({ include: includeVenta, orderBy: { creadoEn: 'desc' } });
+
+// Elimina el comprobante: devuelve el stock vendido y saca la deuda que había generado en la cuenta del cliente
+export const remove = async (id: number) => {
+  await prisma.$transaction(async (tx) => {
+    const venta = await tx.venta.findUnique({ where: { id }, include: { detallesVenta: true } });
+    if (!venta) throw new Error('Venta no encontrada');
+
+    for (const d of venta.detallesVenta) {
+      await tx.producto.update({ where: { id: d.productoId }, data: { stock: { increment: d.cantidad } } });
+    }
+
+    await tx.movimientoCuenta.deleteMany({ where: { ventaId: id } });
+    await tx.detalleVenta.deleteMany({ where: { ventaId: id } });
+    await tx.venta.delete({ where: { id } });
+  });
+
+  getIO()?.emit('stock-actualizado');
+};

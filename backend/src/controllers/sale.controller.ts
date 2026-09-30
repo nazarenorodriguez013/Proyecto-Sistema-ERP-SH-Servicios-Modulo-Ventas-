@@ -21,3 +21,12 @@ export const create = async (req: AuthRequest, res: Response): Promise<void> => 
 export const getAll = async (_req: AuthRequest, res: Response): Promise<void> => {
   res.json(await saleService.getAll());
 };
+
+export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await saleService.remove(Number(req.params.id));
+    res.status(204).send();
+  } catch (err: any) {
+    res.status(err.message === 'Venta no encontrada' ? 404 : 400).json({ message: err.message });
+  }
+};
