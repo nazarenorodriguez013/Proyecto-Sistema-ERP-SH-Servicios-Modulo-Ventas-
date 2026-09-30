@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API } from '../config'
+import { API, formatComprobante } from '../config'
 import ServicioTicket from '../components/ServicioTicket'
 import type { Servicio } from '../servicios'
 
@@ -43,7 +43,7 @@ export default function HistorialServicios() {
           : filtrados.map(sv => (
             <div key={sv.id} style={s.row}>
               <span style={s.rowTipo}>{sv.tipoComprobante}</span>
-              <span style={s.rowId}>N° {String(sv.numero ?? sv.id).padStart(8, '0')}</span>
+              <span style={s.rowId}>N° {formatComprobante(sv.numero ?? sv.id!)}</span>
               <span style={s.rowFecha}>{sv.finalizadoEn && fmtFecha(sv.finalizadoEn)}</span>
               <span style={s.rowCliente}>{sv.cliente.nombre} · {sv.equipo}</span>
               <span style={s.rowTecnico}>{sv.tecnico?.nombre ?? '—'}</span>

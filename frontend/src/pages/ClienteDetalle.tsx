@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
-import { API } from '../config'
+import { API, formatComprobante } from '../config'
 import ClienteFormModal from '../components/ClienteFormModal'
 import { describirSaldo } from '../saldo'
 
@@ -154,7 +154,7 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
           : eventos.map(ev => ev.kind === 'compra' ? (
             <div key={`venta-${ev.venta.id}`} style={s.ventaRow}>
               <div style={s.ventaHead}>
-                <span style={s.ventaId}>{ev.venta.tipoComprobante === 'REMITO' ? 'Remito' : 'Factura'} N° {String(ev.venta.numero).padStart(8, '0')}</span>
+                <span style={s.ventaId}>{ev.venta.tipoComprobante === 'REMITO' ? 'Remito' : 'Factura'} N° {formatComprobante(ev.venta.numero)}</span>
                 <span style={s.ventaFecha}>{fmtFecha(ev.venta.creadoEn)}</span>
                 <span style={s.ventaMedio}>{ev.venta.medioPago}</span>
                 <span style={s.ventaTotal}>${fmt(ev.venta.total)}</span>

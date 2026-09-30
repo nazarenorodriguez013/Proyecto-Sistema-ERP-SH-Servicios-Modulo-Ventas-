@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { API, TIPO_COMPROBANTE_LABEL, type TipoComprobante } from '../config'
+import { API, TIPO_COMPROBANTE_LABEL, formatComprobante, type TipoComprobante } from '../config'
 import Comprobante, { type ComprobanteData } from '../components/Comprobante'
 
 interface Venta {
   id: number; numero: number; total: number; tipoComprobante: TipoComprobante; medioPago: string; montoRecibido: number | null
   saldoAplicado: number; creadoEn: string
-  usuario: { nombre: string }; cliente: { nombre: string } | null
+  usuario: { nombre: string }; cliente: { nombre: string; documento: string | null; direccion: string | null } | null
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string; codigo: string | null } }[]
 }
 
@@ -42,6 +42,8 @@ export default function HistorialVentas() {
     montoRecibido: v.montoRecibido,
     vendedor: v.usuario.nombre,
     cliente: v.cliente?.nombre ?? null,
+    clienteDocumento: v.cliente?.documento ?? null,
+    clienteDomicilio: v.cliente?.direccion ?? null,
   })
 
   if (loading) return <div style={s.loading}>Cargando historial...</div>
@@ -64,7 +66,7 @@ export default function HistorialVentas() {
           : filtradas.map(v => (
             <div key={v.id} style={s.row}>
               <span style={s.rowTipo}>{TIPO_COMPROBANTE_LABEL[v.tipoComprobante]}</span>
-              <span style={s.rowId}>N° {String(v.numero).padStart(8, '0')}</span>
+              <span style={s.rowId}>N° {formatComprobante(v.numero)}</span>
               <span style={s.rowFecha}>{fmtFecha(v.creadoEn)}</span>
               <span style={s.rowCliente}>{v.cliente?.nombre ?? '—'}</span>
               <span style={s.rowVendedor}>{v.usuario.nombre}</span>
