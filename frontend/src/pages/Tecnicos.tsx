@@ -94,7 +94,7 @@ export default function Tecnicos() {
               </div>
               <div style={s.field}>
                 <label style={s.label}>{modal.editing ? 'Nueva contraseña (dejar vacío para no cambiarla)' : 'Contraseña *'}</label>
-                <input style={s.input} type="password" value={form.contrasena} pattern="(?=.*[A-ZÁÉÍÓÚÑ]).{8,}" title="Al menos 8 caracteres y una mayúscula" required={!modal.editing}
+                <input style={s.input} type="password" value={form.contrasena} pattern="(?=.*[A-ZÁÉÍÓÚÑ])(?=.*[0-9]).{8,}" title="Al menos 8 caracteres, una mayúscula y un número" required={!modal.editing}
                   onChange={e => setForm(f => ({ ...f, contrasena: e.target.value }))} />
               </div>
               {error && <p style={s.errorText}>{error}</p>}
