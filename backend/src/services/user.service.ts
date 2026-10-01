@@ -11,7 +11,8 @@ const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true,
 const ROLES: Rol[] = ['ADMIN', 'VENDEDOR', 'TECNICO'];
 
 export const validarContrasena = (contrasena: unknown) => {
-  if (typeof contrasena !== 'string' || contrasena.length < 8) throw httpError(400, 'La contraseña debe tener al menos 8 caracteres');
+  if (typeof contrasena !== 'string' || contrasena.length < 8 || !/[A-ZÁÉÍÓÚÑ]/.test(contrasena))
+    throw httpError(400, 'La contraseña debe tener al menos 8 caracteres y una mayúscula');
   return contrasena;
 };
 

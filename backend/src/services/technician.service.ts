@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { httpError } from '../utils/http';
 import { modulosPorRol } from '../utils/modulos';
+import { validarContrasena } from './user.service';
 
 const prisma = new PrismaClient();
 
@@ -33,7 +34,7 @@ export const getAll = () =>
 
 export const create = async (data: { nombre: string; correo: string; contrasena: string }) => {
   validar(data);
-  if (!data.contrasena || data.contrasena.length < 6) throw httpError(400, 'La contraseña debe tener al menos 6 caracteres');
+  validarContrasena(data.contrasena);
   return prisma.usuario.create({
     data: { nombre: data.nombre.trim(), correo: data.correo.trim().toLowerCase(), contrasena: await bcrypt.hash(data.contrasena, 10), rol: 'TECNICO', modulos: modulosPorRol('TECNICO') },
     select: campos,
@@ -44,7 +45,7 @@ export const create = async (data: { nombre: string; correo: string; contrasena:
 export const update = async (id: number, data: { nombre?: string; correo?: string; contrasena?: string }) => {
   validar(data);
   await obtenerTecnico(id);
-  if (data.contrasena && data.contrasena.length < 6) throw httpError(400, 'La contraseña debe tener al menos 6 caracteres');
+  if (data.contrasena) validarContrasena(data.contrasena);
   return prisma.usuario.update({
     where: { id },
     data: {

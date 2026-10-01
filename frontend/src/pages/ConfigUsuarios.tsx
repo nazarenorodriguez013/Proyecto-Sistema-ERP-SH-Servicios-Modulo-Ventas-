@@ -88,8 +88,8 @@ export default function ConfigUsuarios({ yoId }: { yoId: number }) {
                 <input style={c.input} value={form.nombre} required autoFocus onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
               <div style={c.field}><label style={c.label}>Correo *</label>
                 <input style={c.input} type="email" value={form.correo} required onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} /></div>
-              <div style={c.field}><label style={c.label}>{modal.editing ? 'Nueva contraseña (vacío = no cambiar)' : 'Contraseña * (mín. 8)'}</label>
-                <input style={c.input} type="password" value={form.contrasena} minLength={8} required={!modal.editing} autoComplete="new-password"
+              <div style={c.field}><label style={c.label}>{modal.editing ? 'Nueva contraseña (vacío = no cambiar)' : 'Contraseña * (8+, una mayúscula)'}</label>
+                <input style={c.input} type="password" value={form.contrasena} pattern="(?=.*[A-ZÁÉÍÓÚÑ]).{8,}" title="Al menos 8 caracteres y una mayúscula" required={!modal.editing} autoComplete="new-password"
                   onChange={e => setForm(f => ({ ...f, contrasena: e.target.value }))} /></div>
               <div style={c.field}><label style={c.label}>Rol</label>
                 <div style={s.roles}>

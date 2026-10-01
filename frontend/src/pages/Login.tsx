@@ -78,7 +78,7 @@ export default function Login({ onLogin, resetToken }: Props) {
 
   const titulo = modo === 'login' ? 'Iniciar sesión' : modo === 'forgot' ? 'Recuperar contraseña' : 'Elegí una contraseña nueva'
   const subtitulo = modo === 'login' ? 'Ingresá tus credenciales para continuar'
-    : modo === 'forgot' ? 'Te enviamos un link por mail para elegir una contraseña nueva' : 'Mínimo 8 caracteres'
+    : modo === 'forgot' ? 'Te enviamos un link por mail para elegir una contraseña nueva' : 'Mínimo 8 caracteres y una mayúscula'
 
   return (
     <div className="login-page">
@@ -145,7 +145,8 @@ export default function Login({ onLogin, resetToken }: Props) {
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  minLength={modo === 'reset' ? 8 : undefined}
+                  pattern={modo === 'reset' ? '(?=.*[A-ZÁÉÍÓÚÑ]).{8,}' : undefined}
+                  title="Al menos 8 caracteres y una mayúscula"
                   required
                 />
               </div>

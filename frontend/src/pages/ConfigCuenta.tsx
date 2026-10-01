@@ -40,8 +40,8 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
           <input style={c.input} value={nombre} required onChange={e => setNombre(e.target.value)} /></div>
         <div style={c.field}><label style={c.label}>Correo</label>
           <input style={c.input} type="email" value={correo} required onChange={e => setCorreo(e.target.value)} /></div>
-        <div style={c.field}><label style={c.label}>Contraseña nueva (opcional)</label>
-          <input style={c.input} type="password" value={nueva} minLength={8} autoComplete="new-password" onChange={e => setNueva(e.target.value)} /></div>
+        <div style={c.field}><label style={c.label}>Contraseña nueva (8+, una mayúscula)</label>
+          <input style={c.input} type="password" value={nueva} pattern="(?=.*[A-ZÁÉÍÓÚÑ]).{8,}" title="Al menos 8 caracteres y una mayúscula" autoComplete="new-password" onChange={e => setNueva(e.target.value)} /></div>
         <div style={c.field}><label style={c.label}>Repetir contraseña nueva</label>
           <input style={c.input} type="password" value={repetir} required={!!nueva} autoComplete="new-password" onChange={e => setRepetir(e.target.value)} /></div>
       </div>
