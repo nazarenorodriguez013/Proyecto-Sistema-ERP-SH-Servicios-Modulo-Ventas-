@@ -180,7 +180,7 @@ export default function Ventas({ user }: { user: User }) {
             </div>
           </div>
           <div style={{ ...s.inputGroup, flex: 1, minWidth: '260px' }}>
-            <label style={s.label}>CLIENTE {esCuentaCorriente ? '(obligatorio)' : '(opcional)'}</label>
+            <label style={s.label}>CLIENTE {esCuentaCorriente ? '(obligatorio)' : '(si no elegís, va a Consumidor Final)'}</label>
             <ClienteSelector clientes={clientes} value={clienteId} onChange={elegirCliente}
               onCreated={c => setClientes(prev => [...prev, { ...c, saldo: 0 }])} />
             {saldoAFavor > 0 && !esPresupuesto && (esCuentaCorriente

@@ -36,9 +36,11 @@ export default function Comprobante({ data, onClose }: { data: ComprobanteData; 
   const tipo = TIPOS[data.tipoComprobante]
   const aPagar = data.total - data.saldoAplicado
 
+  // Sin cliente elegido, el comprobante sale a nombre de Consumidor Final
   const receptor: Fila[] = [
     { label: 'CUIT/DNI', value: data.clienteDocumento ?? '' },
-    { label: 'Razón Social', value: data.cliente ?? 'Consumidor final' },
+    { label: 'Razón Social', value: data.cliente ?? 'Consumidor Final' },
+    ...(data.cliente ? [] : [{ label: 'Condición frente al IVA', value: 'Consumidor Final' }]),
     { label: 'Domicilio', value: data.clienteDomicilio ?? '' },
     { label: 'Condición de venta', value: data.medioPago ?? '' },
     { label: 'Vendedor', value: data.vendedor },
