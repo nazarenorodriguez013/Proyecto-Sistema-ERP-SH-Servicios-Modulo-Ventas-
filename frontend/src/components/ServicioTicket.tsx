@@ -29,14 +29,17 @@ export default function ServicioTicket({ modo, servicio, onClose }: { modo: Modo
   const receptor: Fila[] = [
     { label: 'CUIT/DNI', value: servicio.cliente.documento ?? '' },
     { label: 'Razón Social', value: servicio.cliente.nombre },
+    { label: 'Condición frente al IVA', value: servicio.cliente.condicionIva ?? 'Consumidor Final' },
     { label: 'Domicilio', value: servicio.cliente.direccion ?? '' },
+    ...(servicio.cliente.telefono ? [{ label: 'Teléfono', value: servicio.cliente.telefono }] : []),
+    ...(servicio.cliente.email ? [{ label: 'E-mail', value: servicio.cliente.email }] : []),
     { label: 'Condición de venta', value: servicio.medioPago ?? '' },
     { label: 'Servicio N°', value: servicio.id ? formatNumero(servicio.id) : 'S/N' },
     { label: 'Equipo', value: servicio.equipo },
     { label: 'Técnico', value: servicio.tecnico?.nombre ?? 'Sin asignar' },
     ...(servicio.fechaEstimadaFin ? [{ label: 'Fin estimado', value: fmtFechaCalendario(servicio.fechaEstimadaFin) }] : []),
     ...(servicio.proximoMantenimiento && modo === 'comprobante' ? [{ label: 'Próximo mantenimiento', value: fmtFechaCalendario(servicio.proximoMantenimiento) }] : []),
-  ].filter(f => modo !== 'retiro' || !['CUIT/DNI', 'Domicilio', 'Condición de venta'].includes(f.label))
+  ].filter(f => modo !== 'retiro' || !['CUIT/DNI', 'Condición frente al IVA', 'Domicilio', 'Teléfono', 'E-mail', 'Condición de venta'].includes(f.label))
 
   const lineasTotal: Fila[] = []
   if (servicio.enGarantia) lineasTotal.push({ label: 'Cubierto por garantía', value: `-$${fmt(subtotalRepuestos + servicio.costoManoObra)}` })

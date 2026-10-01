@@ -12,7 +12,7 @@ export interface Servicio {
   tipoComprobante: 'FACTURA' | 'REMITO' | null; medioPago: string | null; total: number | null; saldoAplicado: number
   proximoMantenimiento: string | null; codigoRetiro: string | null; estadoRetiro: EstadoRetiro | null
   fechaIngreso: string; finalizadoEn: string | null
-  cliente: { id: number; nombre: string; documento: string | null; direccion?: string | null }
+  cliente: { id: number; nombre: string; documento: string | null; direccion?: string | null; telefono?: string | null; email?: string | null; condicionIva?: string }
   tecnico: { id: number; nombre: string } | null
   repuestos: RepuestoServicio[]
 }

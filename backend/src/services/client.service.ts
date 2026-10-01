@@ -9,6 +9,7 @@ interface ClienteData {
   telefono?: string | null;
   email?: string | null;
   direccion?: string | null;
+  condicionIva?: string;
 }
 
 // Traduce errores conocidos de Prisma a mensajes legibles para el usuario

@@ -140,9 +140,7 @@ export default function Ventas({ user }: { user: User }) {
         medioPago: venta.medioPago,
         montoRecibido: requierePago && medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
         vendedor: user.nombre,
-        cliente: venta.cliente?.nombre ?? null,
-        clienteDocumento: venta.cliente?.documento ?? null,
-        clienteDomicilio: venta.cliente?.direccion ?? null,
+        cliente: venta.cliente ?? null,
       })
       setCarrito([]); setCantidad('1'); setBusqueda(''); setMontoRecibido(''); setClienteId(''); setUsarSaldo(true); setMedioPago('Efectivo'); setTipoComprobante('FACTURA')
       if (!esPresupuesto) fetchClientes()

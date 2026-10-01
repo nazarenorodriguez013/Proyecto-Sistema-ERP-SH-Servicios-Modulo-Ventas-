@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { API, TIPO_COMPROBANTE_LABEL, type TipoComprobante } from '../config'
 import { useFormatComprobante } from '../empresa'
-import Comprobante, { type ComprobanteData } from '../components/Comprobante'
+import Comprobante, { type ClienteComprobante, type ComprobanteData } from '../components/Comprobante'
 
 interface Venta {
   id: number; numero: number; total: number; tipoComprobante: TipoComprobante; medioPago: string; montoRecibido: number | null
   saldoAplicado: number; creadoEn: string
-  usuario: { nombre: string }; cliente: { nombre: string; documento: string | null; direccion: string | null } | null
+  usuario: { nombre: string }; cliente: ClienteComprobante | null
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string; codigo: string | null } }[]
 }
 
@@ -43,9 +43,7 @@ export default function HistorialVentas() {
     medioPago: v.medioPago,
     montoRecibido: v.montoRecibido,
     vendedor: v.usuario.nombre,
-    cliente: v.cliente?.nombre ?? null,
-    clienteDocumento: v.cliente?.documento ?? null,
-    clienteDomicilio: v.cliente?.direccion ?? null,
+    cliente: v.cliente,
   })
 
   if (loading) return <div style={s.loading}>Cargando historial...</div>

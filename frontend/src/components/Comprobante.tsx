@@ -5,6 +5,10 @@ interface ItemComprobante {
   id: number; cantidad: number; precioUnitario: number
   producto: { nombre: string; codigo: string | null }
 }
+export interface ClienteComprobante {
+  nombre: string; documento: string | null; direccion: string | null; telefono: string | null
+  email: string | null; condicionIva?: string
+}
 export interface ComprobanteData {
   id: number | null
   numero: number | null
@@ -16,9 +20,7 @@ export interface ComprobanteData {
   medioPago: string | null
   montoRecibido: number | null
   vendedor: string
-  cliente: string | null
-  clienteDocumento?: string | null
-  clienteDomicilio?: string | null
+  cliente: ClienteComprobante | null
 }
 
 // Letra y código del tipo de comprobante, como en una factura C de AFIP
@@ -37,11 +39,14 @@ export default function Comprobante({ data, onClose }: { data: ComprobanteData; 
   const aPagar = data.total - data.saldoAplicado
 
   // Sin cliente elegido, el comprobante sale a nombre de Consumidor Final
+  const cl = data.cliente
   const receptor: Fila[] = [
-    { label: 'CUIT/DNI', value: data.clienteDocumento ?? '' },
-    { label: 'Razón Social', value: data.cliente ?? 'Consumidor Final' },
-    ...(data.cliente ? [] : [{ label: 'Condición frente al IVA', value: 'Consumidor Final' }]),
-    { label: 'Domicilio', value: data.clienteDomicilio ?? '' },
+    { label: 'CUIT/DNI', value: cl?.documento ?? '' },
+    { label: 'Razón Social', value: cl?.nombre ?? 'Consumidor Final' },
+    { label: 'Condición frente al IVA', value: cl?.condicionIva ?? 'Consumidor Final' },
+    { label: 'Domicilio', value: cl?.direccion ?? '' },
+    ...(cl?.telefono ? [{ label: 'Teléfono', value: cl.telefono }] : []),
+    ...(cl?.email ? [{ label: 'E-mail', value: cl.email }] : []),
     { label: 'Condición de venta', value: data.medioPago ?? '' },
     { label: 'Vendedor', value: data.vendedor },
   ]

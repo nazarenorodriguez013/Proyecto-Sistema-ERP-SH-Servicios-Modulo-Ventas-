@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { API } from '../config'
 
+const CONDICIONES_IVA = ['Consumidor Final', 'Responsable Inscripto', 'Monotributo', 'IVA Exento', 'No Responsable']
+
 export interface ClienteDatos {
   id: number; nombre: string; documento: string | null; telefono: string | null
-  email: string | null; direccion: string | null
+  email: string | null; direccion: string | null; condicionIva?: string
 }
 
 // Un solo formulario de cliente para crear (desde Clientes, Punto de Venta o Servicios) y para editar
@@ -15,6 +17,7 @@ export default function ClienteFormModal({ cliente, onClose, onSaved }: {
   const [form, setForm] = useState({
     nombre: cliente?.nombre ?? '', documento: cliente?.documento ?? '', telefono: cliente?.telefono ?? '',
     email: cliente?.email ?? '', direccion: cliente?.direccion ?? '',
+    condicionIva: cliente?.condicionIva ?? 'Consumidor Final',
   })
   const [error, setError] = useState('')
 
@@ -29,7 +32,7 @@ export default function ClienteFormModal({ cliente, onClose, onSaved }: {
     // Los campos vacíos se mandan como null para poder borrarlos al editar
     const body = JSON.stringify({
       nombre: form.nombre, documento: form.documento || null, telefono: form.telefono || null,
-      email: form.email || null, direccion: form.direccion || null,
+      email: form.email || null, direccion: form.direccion || null, condicionIva: form.condicionIva,
     })
     const res = await fetch(cliente ? `${API}/clients/${cliente.id}` : `${API}/clients`, {
       method: cliente ? 'PUT' : 'POST',
@@ -66,6 +69,12 @@ export default function ClienteFormModal({ cliente, onClose, onSaved }: {
           <div style={s.field}>
             <label style={s.label}>Email</label>
             <input style={s.input} type="email" {...campo('email')} />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Condición frente al IVA</label>
+            <select style={s.input} value={form.condicionIva} onChange={e => setForm(f => ({ ...f, condicionIva: e.target.value }))}>
+              {CONDICIONES_IVA.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
           <div style={s.field}>
             <label style={s.label}>Dirección</label>

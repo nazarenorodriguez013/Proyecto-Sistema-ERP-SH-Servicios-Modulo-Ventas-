@@ -131,6 +131,7 @@ model Cliente {
   telefono      String?
   email         String?
   direccion     String?
+  condicionIva  String   @default("Consumidor Final") @map("condicion_iva")
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
