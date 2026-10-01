@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { httpError } from '../utils/http';
+import { modulosPorRol } from '../utils/modulos';
 
 const prisma = new PrismaClient();
 
@@ -34,7 +35,7 @@ export const create = async (data: { nombre: string; correo: string; contrasena:
   validar(data);
   if (!data.contrasena || data.contrasena.length < 6) throw httpError(400, 'La contraseña debe tener al menos 6 caracteres');
   return prisma.usuario.create({
-    data: { nombre: data.nombre.trim(), correo: data.correo.trim(), contrasena: await bcrypt.hash(data.contrasena, 10), rol: 'TECNICO' },
+    data: { nombre: data.nombre.trim(), correo: data.correo.trim().toLowerCase(), contrasena: await bcrypt.hash(data.contrasena, 10), rol: 'TECNICO', modulos: modulosPorRol('TECNICO') },
     select: campos,
   }).catch(traducirError);
 };

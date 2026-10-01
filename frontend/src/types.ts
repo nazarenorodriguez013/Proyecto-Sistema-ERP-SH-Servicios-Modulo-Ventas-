@@ -3,4 +3,5 @@ export interface User {
   nombre: string
   correo: string
   rol: string
+  modulos: string[]
 }

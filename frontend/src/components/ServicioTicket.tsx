@@ -1,4 +1,5 @@
-import { MEDIO_CUENTA_CORRIENTE, formatNumero } from '../config'
+import { MEDIO_CUENTA_CORRIENTE } from '../config'
+import { formatNumero } from '../empresa'
 import type { Servicio } from '../servicios'
 import HojaComprobante, { tabla, type Fila, type TipoHoja } from './HojaComprobante'
 

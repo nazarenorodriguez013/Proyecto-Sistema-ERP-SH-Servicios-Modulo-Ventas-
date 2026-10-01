@@ -16,6 +16,12 @@ model Usuario {
   correo        String   @unique
   contrasena    String
   rol           Rol      @default(VENDEDOR)
+  // Módulos del menú que ve el usuario; el administrador ve todos sin importar esta lista
+  modulos       String[] @default([])
+  activo        Boolean  @default(true)
+  // Recuperación de contraseña: se guarda solo el hash del token que se mandó por mail
+  resetTokenHash String?  @map("reset_token_hash")
+  resetExpira   DateTime? @map("reset_expira")
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
@@ -217,4 +223,21 @@ model ServicioRepuesto {
 
   @@unique([servicioId, productoId])
   @@map("servicio_repuestos")
+}
+
+// Datos de la empresa que se imprimen en el encabezado de los comprobantes (una sola fila, id = 1)
+model Empresa {
+  id                Int    @id @default(1)
+  razonSocial       String @default("") @map("razon_social")
+  rubro             String @default("")
+  domicilio         String @default("")
+  condicionIva      String @default("") @map("condicion_iva")
+  telefono          String @default("")
+  email             String @default("")
+  cuit              String @default("")
+  ingresosBrutos    String @default("") @map("ingresos_brutos")
+  inicioActividades String @default("") @map("inicio_actividades")
+  puntoVenta        Int    @default(1) @map("punto_venta")
+
+  @@map("empresa")
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
-import { API, formatComprobante } from '../config'
+import { API } from '../config'
+import { useFormatComprobante } from '../empresa'
 import ClienteFormModal from '../components/ClienteFormModal'
 import { describirSaldo } from '../saldo'
 
@@ -27,6 +28,7 @@ type Evento =
   | { kind: 'movimiento'; fecha: string; movimiento: Movimiento }
 
 export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId: number; user: User; onBack: () => void }) {
+  const formatComprobante = useFormatComprobante()
   const [cliente, setCliente] = useState<ClienteFicha | null>(null)
   const [editando, setEditando] = useState(false)
   const [confirmarBorrado, setConfirmarBorrado] = useState(false)

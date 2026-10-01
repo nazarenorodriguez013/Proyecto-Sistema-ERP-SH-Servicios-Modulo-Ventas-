@@ -1,24 +1,28 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../types';
 import * as authService from '../services/auth.service';
+import { responder } from '../utils/http';
 
-// Crea un usuario nuevo; nunca devuelve la contraseña en la respuesta
-export const register = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { nombre, correo, contrasena } = req.body;
-    const usuario = await authService.register(nombre, correo, contrasena);
-    res.status(201).json({ id: usuario.id, nombre: usuario.nombre, correo: usuario.correo, rol: usuario.rol });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
-};
+export const login = (req: Request, res: Response) =>
+  responder(res, () => authService.login(req.body.correo, req.body.contrasena));
 
-// Verifica credenciales y devuelve el token JWT junto con los datos del usuario
-export const login = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { correo, contrasena } = req.body;
-    const result = await authService.login(correo, contrasena);
-    res.json(result);
-  } catch (err: any) {
-    res.status(401).json({ message: err.message });
-  }
-};
+export const config = (_req: Request, res: Response) => responder(res, async () => authService.config());
+
+export const loginGoogle = (req: Request, res: Response) =>
+  responder(res, () => authService.loginGoogle(req.body.credential));
+
+export const actualizarCuenta = (req: AuthRequest, res: Response) =>
+  responder(res, () => authService.actualizarCuenta(req.user!.id, req.body));
+
+// El link del mail apunta al mismo sitio desde el que se pidió, salvo que APP_URL diga otra cosa
+export const olvideContrasena = (req: Request, res: Response) =>
+  responder(res, async () => {
+    await authService.olvideContrasena(req.body.correo, process.env.APP_URL || `${req.protocol}://${req.get('host')}`);
+    return { message: 'Si el correo está registrado, te enviamos un link para recuperar la contraseña' };
+  });
+
+export const restablecerContrasena = (req: Request, res: Response) =>
+  responder(res, async () => {
+    await authService.restablecerContrasena(req.body.token, req.body.contrasena);
+    return { message: 'Contraseña actualizada. Ya podés iniciar sesión' };
+  });

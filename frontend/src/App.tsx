@@ -41,14 +41,21 @@ function App() {
     return () => clearTimeout(timer)
   }, [user])
 
+  // Tras cambiar correo o contraseña el backend devuelve una sesión nueva
+  const handleUserUpdate = ({ token, user: userData }: { token: string; user: User }) => {
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+  }
+
   const handleLogin = (userData: User) => {
     localStorage.setItem('loginTime', String(Date.now()))
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
   }
 
-  if (!user) return <Login onLogin={handleLogin} />
-  return <Dashboard user={user} onLogout={handleLogout} />
+  if (!user) return <Login onLogin={handleLogin} resetToken={new URLSearchParams(window.location.search).get('reset')} />
+  return <Dashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
 }
 
 export default App

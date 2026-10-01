@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { EMPRESA, formatPuntoVenta, formatNumero } from '../config'
+import { useEmpresa, formatPuntoVenta, formatNumero } from '../empresa'
 
 export interface TipoHoja { letra: string; cod: string; titulo: string }
 export interface Fila { label: string; value: string }
@@ -22,6 +22,7 @@ const fmtFecha = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', mo
 // Hoja A4 completa con el formato de una factura de AFIP: encabezado con la letra del tipo, datos del
 // cliente, detalle en el medio y el TOTAL siempre abajo de la página. Es el #ticket que toma el CSS de impresión.
 export default function HojaComprobante({ tipo, titulo, numero, fecha, receptor, children, lineasTotal, total, nota, onClose }: Props) {
+  const EMPRESA = useEmpresa()
   const emisor: Fila[] = [
     { label: 'Domicilio Comercial', value: EMPRESA.domicilio },
     { label: 'Condición frente al IVA', value: EMPRESA.condicionIva },
@@ -31,7 +32,7 @@ export default function HojaComprobante({ tipo, titulo, numero, fecha, receptor,
   const fiscales: Fila[] = [
     { label: 'CUIT', value: EMPRESA.cuit },
     { label: 'Ingresos Brutos', value: EMPRESA.ingresosBrutos },
-    { label: 'Fecha de Inicio de Actividades', value: EMPRESA.inicioActividades },
+    { label: 'Fecha de Inicio de Actividades', value: EMPRESA.inicioActividades.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') },
   ].filter(f => f.value)
 
   return (
@@ -65,7 +66,7 @@ export default function HojaComprobante({ tipo, titulo, numero, fecha, receptor,
               <p style={s.tipoTitulo}>{titulo}</p>
               {tipo && (
                 <p style={s.dato}>
-                  <b>Punto de Venta:</b> {formatPuntoVenta()} &nbsp;&nbsp; <b>Comp. Nro.:</b> {numero ? formatNumero(numero) : 'S/N'}
+                  <b>Punto de Venta:</b> {formatPuntoVenta(EMPRESA.puntoVenta)} &nbsp;&nbsp; <b>Comp. Nro.:</b> {numero ? formatNumero(numero) : 'S/N'}
                 </p>
               )}
               <p style={s.dato}><b>Fecha de Emisión:</b> {fmtFecha(fecha)}</p>

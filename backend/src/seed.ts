@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { modulosPorRol } from './utils/modulos';
 
 const prisma = new PrismaClient();
 
@@ -8,9 +9,9 @@ const prisma = new PrismaClient();
 export async function seed() {
   await prisma.usuario.createMany({
     data: [
-      { nombre: 'Administrador', correo: 'admin@shservicios.com',    contrasena: await bcrypt.hash('admin123',    10), rol: 'ADMIN'    },
-      { nombre: 'Vendedor',      correo: 'vendedor@shservicios.com', contrasena: await bcrypt.hash('vendedor123', 10), rol: 'VENDEDOR' },
-      { nombre: 'Técnico',       correo: 'tecnico@shservicios.com',  contrasena: await bcrypt.hash('tecnico123',  10), rol: 'TECNICO'  },
+      { nombre: 'Administrador', correo: 'admin@shservicios.com',    contrasena: await bcrypt.hash('admin123',    10), rol: 'ADMIN',    modulos: modulosPorRol('ADMIN')    },
+      { nombre: 'Vendedor',      correo: 'vendedor@shservicios.com', contrasena: await bcrypt.hash('vendedor123', 10), rol: 'VENDEDOR', modulos: modulosPorRol('VENDEDOR') },
+      { nombre: 'Técnico',       correo: 'tecnico@shservicios.com',  contrasena: await bcrypt.hash('tecnico123',  10), rol: 'TECNICO',  modulos: modulosPorRol('TECNICO')  },
     ],
     skipDuplicates: true,
   });

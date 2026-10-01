@@ -10,6 +10,9 @@ import Clientes from './Clientes'
 import ServiciosTecnicos from './ServiciosTecnicos'
 import HistorialServicios from './HistorialServicios'
 import Tecnicos from './Tecnicos'
+import Configuracion from './Configuracion'
+import { cargarEmpresa } from '../empresa'
+import { ROL_LABEL } from '../modulos'
 import type { Servicio } from '../servicios'
 
 interface NavItem { id: string; label: string; icon: string; path: string; roles: string[] }
@@ -19,7 +22,6 @@ type NavEntry = NavItem | NavGroup
 const isGroup = (e: NavEntry): e is NavGroup => Array.isArray((e as NavGroup).children)
 
 const ADMINISTRACION = ['ADMIN', 'VENDEDOR']
-const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', TECNICO: 'Técnico' }
 
 // Menú de un solo nivel, salvo Servicios Técnicos que despliega Técnicos e Historial
 const allEntries: NavEntry[] = [
@@ -34,13 +36,17 @@ const allEntries: NavEntry[] = [
   },
   { id: 'clientes',    label: 'Clientes',    icon: 'bi-people',   path: '/clientes',   roles: ADMINISTRACION, children: [] },
   { id: 'inventario',  label: 'Inventario',  icon: 'bi-box-seam', path: '/inventario', roles: ADMINISTRACION, children: [] },
+  { id: 'configuracion', label: 'Configuración', icon: 'bi-gear', path: '/configuracion', roles: ['ADMIN', 'VENDEDOR', 'TECNICO'], children: [] },
 ]
 
-export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  // Cada entrada (y sus hijos) se filtra por rol; un grupo sin hijos visibles queda como link simple
+export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User; onLogout: () => void; onUserUpdate: (s: { token: string; user: User }) => void }) {
+  // Se ve cada entrada si el rol la permite y, salvo para el administrador, el admin se la habilitó al usuario
+  // (sesiones viejas sin lista de módulos ven todo lo de su rol); Configuración la ve todo el mundo
+  const visible = (e: NavItem) =>
+    e.roles.includes(user.rol) && (user.rol === 'ADMIN' || e.id === 'configuracion' || !user.modulos || user.modulos.includes(e.id))
   const entries = allEntries
-    .filter(e => e.roles.includes(user.rol))
-    .map(e => isGroup(e) ? { ...e, children: e.children.filter(c => c.roles.includes(user.rol)) } : e)
+    .filter(visible)
+    .map(e => isGroup(e) ? { ...e, children: e.children.filter(visible) } : e)
 
   const flatPages: NavItem[] = entries.flatMap(e => isGroup(e) ? [e, ...e.children] : [e])
 
@@ -56,6 +62,8 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const activePage = flatPages.find(p => p.path === pathname) ?? flatPages[0]
   const veInventario = flatPages.some(p => p.id === 'inventario')
   const veServicios  = flatPages.some(p => p.id === 'servicios')
+
+  useEffect(() => { cargarEmpresa() }, [])
 
   useEffect(() => {
     if (!veInventario) return
@@ -108,6 +116,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     if (activePage.id === 'historial-servicios') return <HistorialServicios />
     if (activePage.id === 'clientes')            return <Clientes user={user} />
     if (activePage.id === 'inventario')          return <Inventario user={user} />
+    if (activePage.id === 'configuracion')       return <Configuracion user={user} onUserUpdate={onUserUpdate} />
     return <Ventas user={user} />
   }
 

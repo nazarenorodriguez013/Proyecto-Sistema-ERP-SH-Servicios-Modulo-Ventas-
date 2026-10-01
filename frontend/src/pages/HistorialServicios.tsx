@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { API, formatComprobante } from '../config'
+import { API } from '../config'
+import { useFormatComprobante } from '../empresa'
 import ServicioTicket from '../components/ServicioTicket'
 import type { Servicio } from '../servicios'
 
@@ -7,6 +8,7 @@ const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2,
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 export default function HistorialServicios() {
+  const formatComprobante = useFormatComprobante()
   const [servicios, setServicios] = useState<Servicio[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')

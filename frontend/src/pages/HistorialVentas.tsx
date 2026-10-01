@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { API, TIPO_COMPROBANTE_LABEL, formatComprobante, type TipoComprobante } from '../config'
+import { API, TIPO_COMPROBANTE_LABEL, type TipoComprobante } from '../config'
+import { useFormatComprobante } from '../empresa'
 import Comprobante, { type ComprobanteData } from '../components/Comprobante'
 
 interface Venta {
@@ -13,6 +14,7 @@ const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2,
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export default function HistorialVentas() {
+  const formatComprobante = useFormatComprobante()
   const [ventas, setVentas] = useState<Venta[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
