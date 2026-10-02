@@ -1,8 +1,9 @@
-import { PrismaClient, EstadoServicio, EstadoRetiro, TipoComprobante } from '@prisma/client';
+import { PrismaClient, Prisma, EstadoServicio, EstadoRetiro, TipoComprobante } from '@prisma/client';
 import { getIO } from '../socket';
 import { httpError } from '../utils/http';
 import { registrarCargo } from './movement.service';
 import { siguienteNumero } from './correlativo.service';
+import * as notificaciones from './notification.service';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,41 @@ type RepuestoInput = { productoId: number; cantidad: number };
 const notificar = (stock = false) => {
   getIO()?.emit('servicios-actualizados');
   if (stock) getIO()?.emit('stock-actualizado');
+};
+
+const codigoDeRetiro = (id: number) => `RT-${String(id).padStart(6, '0')}`;
+const detalleRepuestos = (items: { cantidad: number; producto: { nombre: string } }[]) =>
+  items.map(r => `${r.cantidad} × ${r.producto.nombre}`).join(', ');
+
+// Lo que realmente se puede prometer de un repuesto: el stock menos lo que otros servicios ya pidieron y todavía no retiraron.
+// El stock se descuenta recién cuando el depósito entrega el repuesto.
+const validarRepuesto = async (tx: Prisma.TransactionClient, productoId: number, cantidad: number) => {
+  const [producto, pedidos] = await Promise.all([
+    tx.producto.findUnique({ where: { id: productoId } }),
+    tx.servicioRepuesto.findMany({ where: { productoId }, select: { cantidad: true, cantidadRetirada: true } }),
+  ]);
+  if (!producto?.activo) throw httpError(400, 'Repuesto no disponible');
+  if (producto.tipoProducto !== 'REPUESTO') throw httpError(400, `"${producto.nombre}" es maquinaria, no un repuesto`);
+  const disponible = producto.stock - pedidos.reduce((sum, r) => sum + r.cantidad - r.cantidadRetirada, 0);
+  if (disponible < cantidad) throw httpError(400, `Stock insuficiente para "${producto.nombre}" (disponible: ${Math.max(disponible, 0)})`);
+  return producto;
+};
+
+// Después de agregar o quitar repuestos, la cola de retiro vuelve al estado que corresponde
+const recalcularRetiro = async (tx: Prisma.TransactionClient, id: number) => {
+  const [servicio, items] = await Promise.all([
+    tx.servicioTecnico.findUniqueOrThrow({ where: { id } }),
+    tx.servicioRepuesto.findMany({ where: { servicioId: id } }),
+  ]);
+  let estadoRetiro: EstadoRetiro | null;
+  if (items.length === 0) estadoRetiro = null;
+  else if (items.every(i => i.cantidadRetirada >= i.cantidad)) estadoRetiro = 'RETIRADO';
+  else estadoRetiro = servicio.estadoRetiro === 'LISTO' ? 'LISTO' : 'PENDIENTE';
+  await tx.servicioTecnico.update({
+    where: { id },
+    data: { estadoRetiro, codigoRetiro: estadoRetiro ? servicio.codigoRetiro ?? codigoDeRetiro(id) : servicio.codigoRetiro },
+  });
+  return { estadoRetiro, anterior: servicio.estadoRetiro };
 };
 
 // Trae el servicio verificando el estado esperado y, si es técnico, que esté asignado a él
@@ -103,14 +139,7 @@ export const create = async (data: {
     for (const item of repuestos) {
       if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
         throw httpError(400, 'La cantidad de cada repuesto debe ser un número entero mayor a 0');
-      const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
-      if (!producto?.activo) throw httpError(400, 'Repuesto no disponible');
-      if (producto.tipoProducto !== 'REPUESTO') throw httpError(400, `"${producto.nombre}" es maquinaria, no un repuesto`);
-      const { count } = await tx.producto.updateMany({
-        where: { id: item.productoId, stock: { gte: item.cantidad } },
-        data: { stock: { decrement: item.cantidad } },
-      });
-      if (count === 0) throw httpError(400, `Stock insuficiente para "${producto.nombre}" (disponible: ${producto.stock})`);
+      const producto = await validarRepuesto(tx, item.productoId, item.cantidad);
       await tx.servicioRepuesto.create({
         data: { servicioId: nuevo.id, productoId: item.productoId, cantidad: item.cantidad, precioUnitario: producto.precio },
       });
@@ -124,7 +153,16 @@ export const create = async (data: {
     return tx.servicioTecnico.findUniqueOrThrow({ where: { id: nuevo.id }, include: includeServicio });
   });
 
-  notificar(hayRepuestos);
+  notificar();
+  if (hayRepuestos)
+    await notificaciones.crear({
+      area: 'INVENTARIO', servicioId: servicio.id, titulo: 'Solicitud de repuestos',
+      mensaje: `${servicio.codigoRetiro} · ${servicio.equipo} (${servicio.cliente.nombre}): ${detalleRepuestos(servicio.repuestos)}`,
+    });
+  if (!servicio.tecnicoId)
+    await notificaciones.crear({ area: 'SERVICIOS', servicioId: servicio.id, titulo: 'Servicio sin técnico', mensaje: `#${servicio.id} · ${servicio.equipo} (${servicio.cliente.nombre}) espera que le asignen un técnico` });
+  else
+    await notificaciones.crear({ area: 'SERVICIOS', usuarioId: servicio.tecnicoId, servicioId: servicio.id, titulo: 'Servicio asignado', mensaje: `#${servicio.id} · ${servicio.equipo} (${servicio.cliente.nombre})` });
   return servicio;
 };
 
@@ -162,53 +200,47 @@ export const asignarTecnico = async (id: number, tecnicoId: number) => {
   if (tecnico?.rol !== 'TECNICO') throw httpError(400, 'El usuario seleccionado no es técnico');
   const servicio = await prisma.servicioTecnico.update({ where: { id }, data: { tecnicoId }, include: includeServicio });
   notificar();
+  await notificaciones.crear({ area: 'SERVICIOS', usuarioId: tecnicoId, servicioId: id, titulo: 'Servicio asignado', mensaje: `#${id} · ${servicio.equipo} (${servicio.cliente.nombre})` });
   return servicio;
 };
 
-// Regla: los repuestos se descuentan del stock al salir del depósito, o sea al cargarlos al servicio
+// Agregar un repuesto lo suma al pedido del depósito: el stock se descuenta cuando lo retiran
 export const agregarRepuesto = async (id: number, productoId: number, cantidad: number, usuario: Usuario) => {
   if (!Number.isInteger(cantidad) || cantidad <= 0) throw httpError(400, 'La cantidad debe ser un número entero mayor a 0');
   await obtener(id, ['EN_CURSO'], usuario);
 
-  await prisma.$transaction(async (tx) => {
-    const producto = await tx.producto.findUnique({ where: { id: productoId } });
-    if (!producto?.activo) throw httpError(400, 'Repuesto no disponible');
-      if (producto.tipoProducto !== 'REPUESTO') throw httpError(400, `"${producto.nombre}" es maquinaria, no un repuesto`);
-    const { count } = await tx.producto.updateMany({
-      where: { id: productoId, stock: { gte: cantidad } },
-      data: { stock: { decrement: cantidad } },
-    });
-    if (count === 0) throw httpError(400, `Stock insuficiente para "${producto.nombre}" (disponible: ${producto.stock})`);
-
+  const producto = await prisma.$transaction(async (tx) => {
+    const producto = await validarRepuesto(tx, productoId, cantidad);
     await tx.servicioRepuesto.upsert({
       where: { servicioId_productoId: { servicioId: id, productoId } },
       create: { servicioId: id, productoId, cantidad, precioUnitario: producto.precio },
       update: { cantidad: { increment: cantidad } },
     });
-
-    // Si es el primer repuesto que se carga, arranca la cola de retiro recién ahora
-    const servicio = await tx.servicioTecnico.findUniqueOrThrow({ where: { id } });
-    if (!servicio.estadoRetiro) {
-      await tx.servicioTecnico.update({
-        where: { id },
-        data: { estadoRetiro: 'PENDIENTE', codigoRetiro: servicio.codigoRetiro ?? `RT-${String(id).padStart(6, '0')}` },
-      });
-    }
+    await recalcularRetiro(tx, id);
+    return producto;
   });
-  notificar(true);
-  return getById(id, usuario);
+  notificar();
+  const servicio = await getById(id, usuario);
+  await notificaciones.crear({
+    area: 'INVENTARIO', servicioId: id, titulo: 'Repuestos agregados a un pedido',
+    mensaje: `${servicio.codigoRetiro} · ${servicio.equipo}: ${cantidad} × ${producto.nombre}`,
+  });
+  return servicio;
 };
 
-// Si el técnico devuelve un repuesto, vuelve completo al stock
+// Si el repuesto ya se había retirado, al quitarlo vuelve al stock; si todavía no, simplemente se saca del pedido
 export const quitarRepuesto = async (id: number, productoId: number, usuario: Usuario) => {
   await obtener(id, ['EN_CURSO'], usuario);
-  await prisma.$transaction(async (tx) => {
+  const devuelto = await prisma.$transaction(async (tx) => {
     const repuesto = await tx.servicioRepuesto.findUnique({ where: { servicioId_productoId: { servicioId: id, productoId } } });
     if (!repuesto) throw httpError(404, 'El repuesto no está cargado en el servicio');
     await tx.servicioRepuesto.delete({ where: { id: repuesto.id } });
-    await tx.producto.update({ where: { id: productoId }, data: { stock: { increment: repuesto.cantidad } } });
+    if (repuesto.cantidadRetirada > 0)
+      await tx.producto.update({ where: { id: productoId }, data: { stock: { increment: repuesto.cantidadRetirada } } });
+    await recalcularRetiro(tx, id);
+    return repuesto.cantidadRetirada > 0;
   });
-  notificar(true);
+  notificar(devuelto);
   return getById(id, usuario);
 };
 
@@ -221,6 +253,9 @@ export const finalizar = async (id: number, data: {
   if (!data.medioPago) throw httpError(400, 'Seleccioná el medio de pago');
   const fechaMantenimiento = parseFecha(data.proximoMantenimiento);
   await obtener(id, ['EN_CURSO']);
+  const items = await prisma.servicioRepuesto.findMany({ where: { servicioId: id } });
+  if (items.some(i => i.cantidadRetirada < i.cantidad))
+    throw httpError(409, 'Hay repuestos que todavía no se retiraron del depósito: retiralos o quitalos del servicio antes de finalizar');
 
   const servicio = await prisma.$transaction(async (tx) => {
     if (data.costoManoObra !== undefined) {
@@ -267,7 +302,8 @@ export const remove = async (id: number) => {
     if (!servicio) throw httpError(404, 'Servicio no encontrado');
 
     for (const r of servicio.repuestos) {
-      await tx.producto.update({ where: { id: r.productoId }, data: { stock: { increment: r.cantidad } } });
+      if (r.cantidadRetirada > 0)
+        await tx.producto.update({ where: { id: r.productoId }, data: { stock: { increment: r.cantidadRetirada } } });
     }
 
     await tx.movimientoCuenta.deleteMany({ where: { servicioId: id } });
@@ -277,13 +313,39 @@ export const remove = async (id: number) => {
   notificar(true);
 };
 
+// El depósito avanza el pedido: PENDIENTE -> LISTO (avisa a Servicios Técnicos) -> RETIRADO (descuenta el stock)
 export const marcarRetiro = async (id: number, estado: EstadoRetiro) => {
-  const servicio = await prisma.servicioTecnico.findUnique({ where: { id } });
+  const servicio = await prisma.servicioTecnico.findUnique({ where: { id }, include: { repuestos: { include: { producto: true } } } });
   if (!servicio) throw httpError(404, 'Servicio no encontrado');
   if (!servicio.estadoRetiro) throw httpError(409, 'Este servicio no tiene repuestos para retirar');
   if (SIGUIENTE_ESTADO_RETIRO[servicio.estadoRetiro] !== estado)
     throw httpError(409, `No se puede pasar de "${servicio.estadoRetiro}" a "${estado}"`);
-  const actualizado = await prisma.servicioTecnico.update({ where: { id }, data: { estadoRetiro: estado }, include: includeServicio });
-  notificar();
+
+  const actualizado = await prisma.$transaction(async (tx) => {
+    if (estado === 'RETIRADO') {
+      for (const r of servicio.repuestos) {
+        const pendiente = r.cantidad - r.cantidadRetirada;
+        if (pendiente <= 0) continue;
+        // Descuenta solo si alcanza el stock en ese momento, así nunca queda negativo
+        const { count } = await tx.producto.updateMany({ where: { id: r.productoId, stock: { gte: pendiente } }, data: { stock: { decrement: pendiente } } });
+        if (count === 0)
+          throw httpError(400, `Stock insuficiente para "${r.producto.nombre}" (hay ${r.producto.stock}, se necesitan ${pendiente}). Ajustá el stock antes de entregarlo`);
+        await tx.servicioRepuesto.update({ where: { id: r.id }, data: { cantidadRetirada: r.cantidad } });
+      }
+    }
+    return tx.servicioTecnico.update({ where: { id }, data: { estadoRetiro: estado }, include: includeServicio });
+  });
+
+  notificar(estado === 'RETIRADO');
+  if (estado === 'LISTO')
+    await notificaciones.crear({
+      area: 'SERVICIOS', usuarioId: servicio.tecnicoId, servicioId: id, titulo: 'Repuestos listos para retirar',
+      mensaje: `${servicio.codigoRetiro} · ${servicio.equipo}: ya están preparados en el depósito`,
+    });
+  if (estado === 'RETIRADO')
+    await notificaciones.crear({
+      area: 'INVENTARIO', servicioId: id, titulo: 'Retiro confirmado',
+      mensaje: `${servicio.codigoRetiro} · ${servicio.equipo}: se descontó el stock`,
+    });
   return actualizado;
 };

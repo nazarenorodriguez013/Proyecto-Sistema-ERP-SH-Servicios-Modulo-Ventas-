@@ -4,7 +4,7 @@ import { socket } from '../socket'
 import { ESTADO_RETIRO_LABEL, ESTADO_RETIRO_COLOR, type Servicio, type EstadoRetiro } from '../servicios'
 
 const SIGUIENTE: Record<EstadoRetiro, EstadoRetiro | null> = { PENDIENTE: 'LISTO', LISTO: 'RETIRADO', RETIRADO: null }
-const ACCION_LABEL: Record<EstadoRetiro, string> = { PENDIENTE: 'Marcar como listo', LISTO: 'Marcar como retirado', RETIRADO: '' }
+const ACCION_LABEL: Record<EstadoRetiro, string> = { PENDIENTE: 'Marcar como listo', LISTO: 'Retirado: descontar stock', RETIRADO: '' }
 const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 // Cola del depósito: prepara los repuestos que pidió cada servicio técnico y avisa cuando están listos para retirar
@@ -49,7 +49,7 @@ export default function RetiroRepuestos() {
           <span style={{ ...s.th, width: '150px' }}>Técnico</span>
           <span style={{ ...s.th, width: '140px' }}>Pedido</span>
           <span style={{ ...s.th, width: '160px' }}>Estado</span>
-          <span style={{ ...s.th, width: '160px' }} />
+          <span style={{ ...s.th, width: '190px' }} />
         </div>
         {pendientes.length === 0
           ? <div style={s.empty}>No hay retiros pendientes</div>
@@ -59,13 +59,14 @@ export default function RetiroRepuestos() {
               <span style={{ ...s.td, flex: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
                 <span style={s.name}>#{sv.id} · {sv.equipo}</span>
                 <span style={s.sub}>{sv.cliente.nombre}</span>
+                <span style={s.items}>{sv.repuestos.map(r => `${r.cantidad - r.cantidadRetirada > 0 ? r.cantidad - r.cantidadRetirada : r.cantidad} × ${r.producto.nombre}${sv.estadoRetiro !== 'RETIRADO' && r.producto.stock !== undefined ? ` (stock ${r.producto.stock})` : ''}`).join(' · ')}</span>
               </span>
               <span style={{ ...s.td, width: '150px' }}>{sv.tecnico?.nombre ?? 'Sin asignar'}</span>
               <span style={{ ...s.td, width: '140px' }}>{fmtFecha(sv.fechaIngreso)}</span>
               <span style={{ ...s.td, width: '160px' }}>
                 <span style={{ ...s.badge, ...ESTADO_RETIRO_COLOR[sv.estadoRetiro!] }}>{ESTADO_RETIRO_LABEL[sv.estadoRetiro!]}</span>
               </span>
-              <span style={{ ...s.td, width: '160px' }}>
+              <span style={{ ...s.td, width: '190px' }}>
                 <button style={s.btnPrimary} onClick={() => avanzar(sv)}>{ACCION_LABEL[sv.estadoRetiro!]}</button>
               </span>
             </div>
@@ -101,6 +102,7 @@ const s: Record<string, React.CSSProperties> = {
   row:          { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #EFF1F4', background: '#FFFFFF' },
   td:           { display: 'flex', alignItems: 'center', fontSize: '14px', color: '#333333' },
   name:         { color: '#111111', fontWeight: '600' },
+  items:        { color: '#333333', fontSize: '12px', marginTop: '3px', fontWeight: '500' },
   sub:          { color: '#6B6B6B', fontSize: '12px', marginTop: '2px' },
   empty:        { padding: '40px', textAlign: 'center', color: '#6B6B6B', fontSize: '14px' },
   badge:        { padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const },

@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Nunca se devuelve la contraseña ni el token de recuperación
 const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true, activo: true, dosPasos: true, creadoEn: true } as const;
 
-const ROLES: Rol[] = ['ADMIN', 'VENDEDOR', 'TECNICO'];
+const ROLES: Rol[] = ['ADMIN', 'VENDEDOR', 'TECNICO', 'INVENTARIO'];
 
 export const validarContrasena = (contrasena: unknown) => {
   if (typeof contrasena !== 'string' || contrasena.length < 8 || !/[A-ZÁÉÍÓÚÑ]/.test(contrasena) || !/[0-9]/.test(contrasena))

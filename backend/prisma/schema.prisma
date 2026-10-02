@@ -28,6 +28,8 @@ model Usuario {
   // Recuperación de contraseña: se guarda solo el hash del token que se mandó por mail
   resetTokenHash String?  @map("reset_token_hash")
   resetExpira   DateTime? @map("reset_expira")
+  // Las notificaciones creadas después de esta fecha son las que el usuario todavía no vio
+  notifVistasHasta DateTime @default(now()) @map("notif_vistas_hasta")
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
@@ -37,10 +39,12 @@ model Usuario {
   @@map("usuarios")
 }
 
+// INVENTARIO es el depósito: maneja artículos, stock y retiros de repuestos, y nada más
 enum Rol {
   ADMIN
   VENDEDOR
   TECNICO
+  INVENTARIO
 }
 
 model Categoria {
@@ -223,6 +227,8 @@ model ServicioRepuesto {
   servicioId     Int   @map("servicio_id")
   productoId     Int   @map("producto_id")
   cantidad       Int
+  // El stock se descuenta recién cuando el depósito entrega el repuesto (se marca como retirado)
+  cantidadRetirada Int  @default(0) @map("cantidad_retirada")
   precioUnitario Float @map("precio_unitario")
 
   servicio ServicioTecnico @relation(fields: [servicioId], references: [id])
@@ -247,4 +253,23 @@ model Empresa {
   puntoVenta        Int    @default(1) @map("punto_venta")
 
   @@map("empresa")
+}
+
+// Avisos entre áreas (la campanita): cada uno va a un área y, si corresponde, a una persona puntual
+enum AreaNotificacion {
+  INVENTARIO
+  SERVICIOS
+}
+
+model Notificacion {
+  id         Int              @id @default(autoincrement())
+  area       AreaNotificacion
+  usuarioId  Int?             @map("usuario_id")
+  titulo     String
+  mensaje    String
+  servicioId Int?             @map("servicio_id")
+  creadoEn   DateTime         @default(now()) @map("creado_en")
+
+  @@index([area, creadoEn])
+  @@map("notificaciones")
 }

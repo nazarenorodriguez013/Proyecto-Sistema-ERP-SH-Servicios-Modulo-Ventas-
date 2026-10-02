@@ -155,10 +155,11 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
           : servicio.repuestos.map(r => (
             <div key={r.id} style={s.repRow}>
               <span style={s.repNombre}>{r.cantidad} × {r.producto.nombre}</span>
+              <span style={{ ...s.repEstado, ...(r.cantidadRetirada >= r.cantidad ? s.repEstadoOk : {}) }}>{r.cantidadRetirada >= r.cantidad ? 'Retirado' : 'Pendiente de retiro'}</span>
               <span style={s.repPrecio}>${fmt(r.precioUnitario)} c/u</span>
               <span style={s.repSubtotal}>${fmt(r.cantidad * r.precioUnitario)}</span>
               {esTaller && servicio.estado === 'EN_CURSO' && (
-                <button style={s.btnX} title="Devolver al depósito" onClick={() => accion('DELETE', `/repuestos/${r.producto.id}`)}>
+                <button style={s.btnX} title="Quitar del servicio" onClick={() => accion('DELETE', `/repuestos/${r.producto.id}`)}>
                   <i className="bi bi-x-lg" />
                 </button>
               )}
@@ -259,6 +260,8 @@ const s: Record<string, React.CSSProperties> = {
 
   repRow:       { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 4px', borderBottom: '1px solid #EFF1F4' },
   repNombre:    { flex: 1, color: '#111111', fontSize: '13px', fontWeight: '600' },
+  repEstado:    { background: '#FDF0DA', color: '#97640B', border: '1px solid rgba(224,138,0,0.3)', borderRadius: '20px', padding: '2px 9px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const },
+  repEstadoOk:  { background: '#E4F5EA', color: '#1E7A45', border: '1px solid #CDEBD9' },
   repPrecio:    { color: '#6B6B6B', fontSize: '12px' },
   repSubtotal:  { color: '#111111', fontSize: '13px', fontWeight: '700', minWidth: '100px', textAlign: 'right' as const },
   btnX:         { background: 'transparent', border: 'none', color: '#6B6B6B', cursor: 'pointer', fontSize: '13px', padding: '4px 6px' },

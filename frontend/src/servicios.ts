@@ -2,8 +2,8 @@ export type EstadoServicio = 'EN_CURSO' | 'FINALIZADO'
 export type EstadoRetiro = 'PENDIENTE' | 'LISTO' | 'RETIRADO'
 
 export interface RepuestoServicio {
-  id: number; cantidad: number; precioUnitario: number
-  producto: { id: number; nombre: string; codigo: string | null }
+  id: number; cantidad: number; cantidadRetirada: number; precioUnitario: number
+  producto: { id: number; nombre: string; codigo: string | null; stock?: number }
 }
 
 export interface Servicio {

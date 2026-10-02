@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import type { User } from '../types'
 import Tabs from '../components/Tabs'
 import Articulos from './Articulos'
@@ -7,7 +8,10 @@ import RetiroRepuestos from './RetiroRepuestos'
 
 // Artículos, stock y categorías en una sola pantalla: el stock se filtra y ajusta desde los artículos
 export default function Inventario({ user }: { user: User }) {
-  const [tab, setTab] = useState<'articulos' | 'categorias' | 'retiros'>('articulos')
+  const { state, key } = useLocation()
+  const [tab, setTab] = useState<'articulos' | 'categorias' | 'retiros'>(state?.tab === 'retiros' ? 'retiros' : 'articulos')
+  // Tocar una notificación estando ya en Inventario también tiene que llevar a la pestaña que corresponde
+  useEffect(() => { if (state?.tab === 'retiros') setTab('retiros') }, [key])
 
   return (
     <div>

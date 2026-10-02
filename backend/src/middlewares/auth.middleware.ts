@@ -31,4 +31,7 @@ export const authorizeRoles = (...roles: string[]) =>
 export const authorizeAdmin = authorizeRoles('ADMIN');
 
 // Ventas, clientes y cobros son tareas de administración: el técnico solo trabaja en el taller
+// El depósito: administrador y rol Inventario manejan artículos, categorías y stock
+export const authorizeInventario = authorizeRoles('ADMIN', 'INVENTARIO');
+
 export const authorizeAdministracion = authorizeRoles('ADMIN', 'VENDEDOR');

@@ -11,6 +11,7 @@ import ServiciosTecnicos from './ServiciosTecnicos'
 import HistorialServicios from './HistorialServicios'
 import Tecnicos from './Tecnicos'
 import Configuracion from './Configuracion'
+import Campana, { type Notificacion } from '../components/Campana'
 import { cargarEmpresa } from '../empresa'
 import { ROL_LABEL } from '../modulos'
 import type { Servicio } from '../servicios'
@@ -35,8 +36,8 @@ const allEntries: NavEntry[] = [
     ],
   },
   { id: 'clientes',    label: 'Clientes',    icon: 'bi-people',   path: '/clientes',   roles: ADMINISTRACION, children: [] },
-  { id: 'inventario',  label: 'Inventario',  icon: 'bi-box-seam', path: '/inventario', roles: ADMINISTRACION, children: [] },
-  { id: 'configuracion', label: 'Configuración', icon: 'bi-gear', path: '/configuracion', roles: ['ADMIN', 'VENDEDOR', 'TECNICO'], children: [] },
+  { id: 'inventario',  label: 'Inventario',  icon: 'bi-box-seam', path: '/inventario', roles: [...ADMINISTRACION, 'INVENTARIO'], children: [] },
+  { id: 'configuracion', label: 'Configuración', icon: 'bi-gear', path: '/configuracion', roles: ['ADMIN', 'VENDEDOR', 'TECNICO', 'INVENTARIO'], children: [] },
 ]
 
 export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User; onLogout: () => void; onUserUpdate: (s: { token: string; user: User }) => void }) {
@@ -75,17 +76,25 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
     return () => { socket.off('stock-actualizado', fetchStockBajo) }
   }, [veInventario])
 
-  // Retiros que el depósito todavía tiene que preparar, y avisos para quien pidió el servicio
-  // (sin técnico asignado, o repuestos ya listos para retirar)
+  // Retiros que el depósito todavía tiene que preparar (los ve quien maneja inventario o administración)
+  const veRetiros = veInventario || (veServicios && user.rol !== 'TECNICO')
+  useEffect(() => {
+    if (!veRetiros) return
+    const headers = { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
+    const actualizar = () =>
+      fetch(`${API}/repairs/retiros`, { headers }).then(r => r.json()).then((retiros: Servicio[]) => {
+        setRetirosPendientes(retiros.filter(r => r.estadoRetiro === 'PENDIENTE').length)
+      })
+    actualizar()
+    socket.on('servicios-actualizados', actualizar)
+    return () => { socket.off('servicios-actualizados', actualizar) }
+  }, [veRetiros])
+
+  // Avisos para quien pidió el servicio (sin técnico asignado, o repuestos ya listos para retirar)
   useEffect(() => {
     if (!veServicios) return
     const headers = { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
     const actualizar = () => {
-      if (user.rol !== 'TECNICO') {
-        fetch(`${API}/repairs/retiros`, { headers }).then(r => r.json()).then((retiros: Servicio[]) => {
-          setRetirosPendientes(retiros.filter(r => r.estadoRetiro === 'PENDIENTE').length)
-        })
-      }
       fetch(`${API}/repairs`, { headers }).then(r => r.json()).then((servicios: Servicio[]) => {
         const enCurso = servicios.filter(sv => sv.estado === 'EN_CURSO')
         setAvisosServicios(
@@ -103,6 +112,11 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
     setSidebarOpen(false)
     routerNav(entry.path)
     if (isGroup(entry) && entry.children.length > 0) setExpanded(prev => prev.includes(entry.id) ? prev : [...prev, entry.id])
+  }
+  // Al tocar una notificación se va a la pantalla donde hay que actuar
+  const irA = (n: Notificacion) => {
+    if (n.area === 'INVENTARIO') routerNav('/inventario', { state: { tab: 'retiros' } })
+    else routerNav('/servicios', { state: { servicioId: n.servicioId } })
   }
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -198,6 +212,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
             <h2 style={st.pageTitle}>{activePage.label}</h2>
           </div>
           <div style={st.topBarRight}>
+            <Campana onIr={irA} />
             <div style={st.topBarUser}>
               <span style={st.topBarAvatar}>{user.nombre.charAt(0).toUpperCase()}</span>
               <span className="db-topbar-name" style={st.topBarName}>{user.nombre}</span>

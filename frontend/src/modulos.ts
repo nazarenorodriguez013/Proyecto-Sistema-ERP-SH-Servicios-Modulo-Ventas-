@@ -8,9 +8,9 @@ export const MODULOS_UI: ModuloUI[] = [
   { id: 'tecnicos',            label: 'Técnicos',            roles: ['ADMIN', 'VENDEDOR'], padre: 'servicios' },
   { id: 'historial-servicios', label: 'Historial de servicios', roles: ['ADMIN', 'VENDEDOR'], padre: 'servicios' },
   { id: 'clientes',            label: 'Clientes',            roles: ['ADMIN', 'VENDEDOR'] },
-  { id: 'inventario',          label: 'Inventario',          roles: ['ADMIN', 'VENDEDOR'] },
+  { id: 'inventario',          label: 'Inventario',          roles: ['ADMIN', 'VENDEDOR', 'INVENTARIO'] },
 ]
 
 export const modulosPorRol = (rol: string) => MODULOS_UI.filter(m => m.roles.includes(rol)).map(m => m.id)
 
-export const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', TECNICO: 'Técnico' }
+export const ROL_LABEL: Record<string, string> = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', TECNICO: 'Técnico', INVENTARIO: 'Inventario' }

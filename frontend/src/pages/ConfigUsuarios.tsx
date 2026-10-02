@@ -6,7 +6,7 @@ import { campo as c } from './configEstilos'
 interface Usuario { id: number; nombre: string; correo: string; rol: string; modulos: string[]; activo: boolean; dosPasos: boolean }
 interface Form { nombre: string; correo: string; contrasena: string; rol: string; modulos: string[]; activo: boolean }
 
-const ROLES = ['ADMIN', 'VENDEDOR', 'TECNICO']
+const ROLES = ['ADMIN', 'VENDEDOR', 'TECNICO', 'INVENTARIO']
 const nuevoForm = (): Form => ({ nombre: '', correo: '', contrasena: '', rol: 'VENDEDOR', modulos: modulosPorRol('VENDEDOR'), activo: true })
 
 export default function ConfigUsuarios({ yoId }: { yoId: number }) {
@@ -164,8 +164,8 @@ const s: Record<string, React.CSSProperties> = {
   modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' },
   modalTitulo: { color: '#111111', fontSize: '17px', fontWeight: '700', margin: 0 },
   cerrar:    { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
-  roles:     { display: 'flex', gap: '6px' },
-  rolBtn:    { flex: 1, padding: '9px 6px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
+  roles:     { display: 'flex', gap: '6px', flexWrap: 'wrap' },
+  rolBtn:    { flex: '1 1 40%', padding: '9px 6px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
   rolBtnOn:  { background: 'rgba(245,196,0,0.15)', border: '1px solid #F5C400', color: '#8A6D00' },
   modulos:   { display: 'flex', flexDirection: 'column', marginTop: '4px' },
   modulo:    { display: 'flex', alignItems: 'center', gap: '8px', color: '#333333', fontSize: '13px', padding: '3px 8px', cursor: 'pointer' },

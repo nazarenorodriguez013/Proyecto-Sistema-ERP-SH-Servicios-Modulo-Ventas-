@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import type { User } from '../types'
 import { API } from '../config'
 import { socket } from '../socket'
@@ -29,7 +30,10 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
   const [busqueda, setBusqueda] = useState('')
   const [error, setError] = useState('')
   const [ticket, setTicket] = useState<{ modo: 'presupuesto' | 'retiro'; servicio: Servicio } | null>(null)
-  const [verServicio, setVerServicio] = useState<number | null>(null)
+  const { state, key } = useLocation()
+  const [verServicio, setVerServicio] = useState<number | null>(typeof state?.servicioId === 'number' ? state.servicioId : null)
+
+  useEffect(() => { if (typeof state?.servicioId === 'number') setVerServicio(state.servicioId) }, [key])
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }

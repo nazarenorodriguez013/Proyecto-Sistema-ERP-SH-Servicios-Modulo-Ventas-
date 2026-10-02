@@ -7,11 +7,15 @@ const router = Router();
 // Administración crea, asigna técnico y factura; el técnico carga o devuelve repuestos del suyo
 const taller = authorizeRoles('ADMIN', 'TECNICO');
 
-router.get('/retiros', authenticate, authorizeAdministracion, repairController.getRetiros);
-router.put('/retiros/:id', authenticate, authorizeAdministracion, repairController.marcarRetiro);
+// La cola de retiros la maneja el depósito (rol Inventario) y la ve también administración
+const deposito = authorizeRoles('ADMIN', 'VENDEDOR', 'INVENTARIO');
+router.get('/retiros', authenticate, deposito, repairController.getRetiros);
+router.put('/retiros/:id', authenticate, deposito, repairController.marcarRetiro);
 
-router.get('/', authenticate, repairController.getAll);
-router.get('/:id', authenticate, repairController.getById);
+// El rol Inventario no ve los servicios, solo su cola de retiros
+const conServicios = authorizeRoles('ADMIN', 'VENDEDOR', 'TECNICO');
+router.get('/', authenticate, conServicios, repairController.getAll);
+router.get('/:id', authenticate, conServicios, repairController.getById);
 router.post('/', authenticate, authorizeAdministracion, repairController.create);
 router.post('/presupuesto', authenticate, authorizeAdministracion, repairController.presupuesto);
 router.put('/:id/tecnico', authenticate, authorizeAdministracion, repairController.asignarTecnico);

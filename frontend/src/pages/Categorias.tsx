@@ -13,7 +13,8 @@ export default function Categorias({ user }: { user: User }) {
   const [error, setError] = useState('')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
-  const isAdmin = user.rol === 'ADMIN'
+  // El administrador y el rol Inventario editan; el vendedor solo consulta
+  const isAdmin = user.rol === 'ADMIN' || user.rol === 'INVENTARIO'
 
   const fetchAll = () =>
     fetch(`${API}/categories`, { headers })

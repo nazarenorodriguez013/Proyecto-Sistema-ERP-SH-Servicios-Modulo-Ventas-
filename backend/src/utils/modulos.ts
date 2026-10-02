@@ -7,7 +7,7 @@ export const MODULOS = [
   { id: 'tecnicos',            roles: ['ADMIN', 'VENDEDOR'] },
   { id: 'historial-servicios', roles: ['ADMIN', 'VENDEDOR'] },
   { id: 'clientes',            roles: ['ADMIN', 'VENDEDOR'] },
-  { id: 'inventario',          roles: ['ADMIN', 'VENDEDOR'] },
+  { id: 'inventario',          roles: ['ADMIN', 'VENDEDOR', 'INVENTARIO'] },
 ] as const;
 
 export const modulosPorRol = (rol: string): string[] =>
