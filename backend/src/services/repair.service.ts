@@ -52,9 +52,13 @@ const recalcularRetiro = async (tx: Prisma.TransactionClient, id: number) => {
   if (items.length === 0) estadoRetiro = null;
   else if (items.every(i => i.cantidadRetirada >= i.cantidad)) estadoRetiro = 'RETIRADO';
   else estadoRetiro = servicio.estadoRetiro === 'LISTO' ? 'LISTO' : 'PENDIENTE';
+  // Si el pedido vuelve a quedar pendiente (se agregó un repuesto), las horas anteriores dejan de valer
+  const ahora = new Date();
+  const fechas = estadoRetiro === 'RETIRADO' ? { listoEn: servicio.listoEn ?? ahora, retiradoEn: servicio.retiradoEn ?? ahora }
+    : estadoRetiro === 'LISTO' ? { retiradoEn: null } : { listoEn: null, retiradoEn: null };
   await tx.servicioTecnico.update({
     where: { id },
-    data: { estadoRetiro, codigoRetiro: estadoRetiro ? servicio.codigoRetiro ?? codigoDeRetiro(id) : servicio.codigoRetiro },
+    data: { estadoRetiro, ...fechas, codigoRetiro: estadoRetiro ? servicio.codigoRetiro ?? codigoDeRetiro(id) : servicio.codigoRetiro },
   });
   return { estadoRetiro, anterior: servicio.estadoRetiro };
 };
@@ -361,7 +365,9 @@ export const marcarRetiro = async (id: number, estado: EstadoRetiro) => {
         await tx.servicioRepuesto.update({ where: { id: r.id }, data: { cantidadRetirada: r.cantidad } });
       }
     }
-    return tx.servicioTecnico.update({ where: { id }, data: { estadoRetiro: estado }, include: includeServicio });
+    const ahora = new Date();
+    const fechas = estado === 'LISTO' ? { listoEn: ahora } : estado === 'RETIRADO' ? { listoEn: servicio.listoEn ?? ahora, retiradoEn: ahora } : {};
+    return tx.servicioTecnico.update({ where: { id }, data: { estadoRetiro: estado, ...fechas }, include: includeServicio });
   });
 
   notificar(estado === 'RETIRADO');

@@ -12,6 +12,7 @@ export default function RetiroRepuestos() {
   const [servicios, setServicios] = useState<Servicio[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [abierto, setAbierto] = useState<number | null>(null)
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
 
@@ -37,6 +38,7 @@ export default function RetiroRepuestos() {
 
   const pendientes = servicios.filter(sv => sv.estadoRetiro !== 'RETIRADO')
   const retirados = servicios.filter(sv => sv.estadoRetiro === 'RETIRADO')
+    .sort((a, b) => new Date(b.retiradoEn ?? b.fechaIngreso).getTime() - new Date(a.retiradoEn ?? a.fechaIngreso).getTime())
 
   return (
     <div style={s.container}>
@@ -78,11 +80,40 @@ export default function RetiroRepuestos() {
         <details>
           <summary style={s.summary}>Retirados ({retirados.length})</summary>
           <div className="stock-table-wrap" style={{ marginTop: '10px' }}>
+            <div style={s.thead}>
+              <span style={{ ...s.th, width: '110px' }}>Código</span>
+              <span style={{ ...s.th, flex: 1 }}>Servicio</span>
+              <span style={{ ...s.th, width: '150px' }}>Técnico</span>
+              <span style={{ ...s.th, width: '150px' }}>Retirado</span>
+              <span style={{ ...s.th, width: '20px' }} />
+            </div>
             {retirados.map(sv => (
-              <div key={sv.id} style={s.row}>
-                <span style={{ ...s.td, width: '110px', fontFamily: 'monospace' }}>{sv.codigoRetiro}</span>
-                <span style={{ ...s.td, flex: 1 }}>#{sv.id} · {sv.equipo} · {sv.cliente.nombre}</span>
-                <span style={{ ...s.td, width: '150px' }}>{sv.tecnico?.nombre ?? '—'}</span>
+              <div key={sv.id}>
+                <button style={s.filaBtn} onClick={() => setAbierto(abierto === sv.id ? null : sv.id)}>
+                  <span style={{ ...s.td, width: '110px', fontFamily: 'monospace', fontWeight: 700 }}>{sv.codigoRetiro}</span>
+                  <span style={{ ...s.td, flex: 1 }}>#{sv.id} · {sv.equipo} · {sv.cliente.nombre}</span>
+                  <span style={{ ...s.td, width: '150px' }}>{sv.tecnico?.nombre ?? '—'}</span>
+                  <span style={{ ...s.td, width: '150px', fontWeight: 600 }}>{sv.retiradoEn ? fmtFecha(sv.retiradoEn) : '—'}</span>
+                  <i className={`bi ${abierto === sv.id ? 'bi-chevron-up' : 'bi-chevron-down'}`} style={{ width: '20px', color: '#9A9A9A' }} />
+                </button>
+                {abierto === sv.id && (
+                  <div style={s.detalle}>
+                    <div style={s.fechas}>
+                      <span><b>Pedido:</b> {fmtFecha(sv.fechaIngreso)}</span>
+                      <span><b>Preparado:</b> {sv.listoEn ? fmtFecha(sv.listoEn) : '—'}</span>
+                      <span><b>Retirado:</b> {sv.retiradoEn ? fmtFecha(sv.retiradoEn) : '—'}</span>
+                    </div>
+                    <table style={s.tabla}>
+                      <thead><tr><th style={s.thD}>Repuesto</th><th style={{ ...s.thD, textAlign: 'right' }}>Cantidad retirada</th></tr></thead>
+                      <tbody>
+                        {sv.repuestos.map(r => (
+                          <tr key={r.id}><td style={s.tdD}>{r.producto.nombre}</td><td style={{ ...s.tdD, textAlign: 'right' }}>{r.cantidadRetirada}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <span style={s.sub}>Cliente: {sv.cliente.nombre} · Servicio #{sv.id} ({sv.equipo})</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -107,5 +138,11 @@ const s: Record<string, React.CSSProperties> = {
   empty:        { padding: '40px', textAlign: 'center', color: '#6B6B6B', fontSize: '14px' },
   badge:        { padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' as const },
   btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '7px 14px', fontWeight: '700', fontSize: '12px', cursor: 'pointer' },
+  filaBtn:      { display: 'flex', alignItems: 'center', width: '100%', padding: '12px 16px', border: 'none', borderBottom: '1px solid #EFF1F4', background: '#FFFFFF', cursor: 'pointer', textAlign: 'left' as const, font: 'inherit' },
+  detalle:      { padding: '12px 16px 14px', background: '#FAFBFC', borderBottom: '1px solid #EFF1F4', display: 'flex', flexDirection: 'column', gap: '10px' },
+  fechas:       { display: 'flex', gap: '24px', flexWrap: 'wrap' as const, fontSize: '12px', color: '#333333' },
+  tabla:        { width: '100%', maxWidth: '460px', borderCollapse: 'collapse' as const, fontSize: '13px' },
+  thD:          { textAlign: 'left' as const, color: '#6B6B6B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase' as const, padding: '4px 0', borderBottom: '1px solid #E7E9ED' },
+  tdD:          { padding: '5px 0', color: '#111111', borderBottom: '1px solid #EFF1F4' },
   summary:      { color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
 }

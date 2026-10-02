@@ -212,6 +212,8 @@ model ServicioTecnico {
   proximoMantenimiento DateTime?       @map("proximo_mantenimiento")
   codigoRetiro         String?         @unique @map("codigo_retiro")
   estadoRetiro         EstadoRetiro?   @map("estado_retiro")
+  listoEn              DateTime?       @map("listo_en")
+  retiradoEn           DateTime?       @map("retirado_en")
   fechaIngreso         DateTime        @default(now()) @map("fecha_ingreso")
   finalizadoEn         DateTime?       @map("entregado_en")
 

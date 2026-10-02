@@ -255,6 +255,11 @@ const RUIDO = [/status of 401/, /accounts\.google\.com/, /gsi\/client/, /Failed 
     await dep.getByRole('button', { name: /Retirado: descontar stock/ }).first().click(); await dep.waitForTimeout(900)
     const stock1 = (await api('GET', '/products/' + repu.id, T)).d.stock
     ok('al marcar retirado se descuenta el stock', stock1 < stock0, [stock0, stock1])
+    await dep.getByText(/^Retirados \(/).click(); await dep.waitForTimeout(300)
+    const fila = dep.getByRole('button', { name: /Autoelevador UI/ }).first()
+    ok('el historial de retiros muestra fecha y hora', /\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}/.test(await fila.innerText()), await fila.innerText())
+    await fila.click(); await dep.waitForTimeout(300)
+    ok('al tocar un retiro se ve su detalle (preparado, retirado y repuestos)', await dep.getByText('Preparado:').count() === 1 && await dep.getByText('Cantidad retirada').count() === 1 && await dep.getByText('Filtro UI ' + SUF).count() >= 1)
     sinProblemas(dep, 'depósito'); await dep.context().close()
     // el técnico asignado trabaja y finaliza
     await api('PUT', `/repairs/${sv.id}/tecnico`, T, { tecnicoId: tecU.user.id })

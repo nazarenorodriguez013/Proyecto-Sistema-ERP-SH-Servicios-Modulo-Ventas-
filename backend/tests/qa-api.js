@@ -326,6 +326,11 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'LISTO' })
     r = await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'RETIRADO' }); ok('el retiro del servicio se entrega completo', r.s === 200, r)
     ok('al retirar se descuenta el repuesto del servicio', (await stockDe(rp.id)) === 0, await stockDe(rp.id))
+    const det = (await api('GET', '/repairs/' + sv, A)).d
+    ok('el retiro guarda fecha y hora de preparado y de retirado', !!det.listoEn && !!det.retiradoEn && new Date(det.retiradoEn) >= new Date(det.listoEn) && Date.now() - new Date(det.retiradoEn) < 120000, [det.listoEn, det.retiradoEn])
+    r = await api('POST', `/repairs/${sv}/repuestos`, A, { productoId: (await producto({ stock: 9 })).id, cantidad: 1 })
+    const det2 = (await api('GET', '/repairs/' + sv, A)).d
+    ok('si se agrega otro repuesto, el pedido vuelve a pendiente y se limpian las horas', det2.estadoRetiro === 'PENDIENTE' && det2.retiradoEn === null && det2.listoEn === null, [r.s, det2.estadoRetiro, det2.retiradoEn])
   })
 
   await seccion('NOTIFICACIONES', async () => {
