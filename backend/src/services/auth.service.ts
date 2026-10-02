@@ -32,7 +32,9 @@ export const login = async (correo: string, contrasena: string) => {
 // Con verificación en dos pasos, ni la contraseña ni Google alcanzan solos: falta el código que llega por mail
 const pedirSegundoPaso = async (usuario: Usuario) => {
   if (!usuario.dosPasos) return emitirSesion(usuario);
-  await enviarCodigo(usuario, 'login');
+  // Si ya se mandó un código hace menos de un minuto (por ejemplo al probar con contraseña y enseguida con Google)
+  // ese sigue vigente: se muestra igual la pantalla del código en vez de un error
+  await enviarCodigo(usuario, 'login').catch((err) => { if (err.status !== 429) throw err; });
   return { requiere2fa: true, desafio: emitirDesafio(usuario.id), correo: enmascarar(usuario.correo) };
 };
 
