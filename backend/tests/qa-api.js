@@ -316,6 +316,18 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     ok('5 servicios simultáneos pidiendo la última unidad: solo uno la reserva', rs.filter(x => x.s === 201).length === 1, rs.map(x => x.s))
   })
 
+  await seccion('STOCK RESERVADO POR SERVICIOS Y PUNTO DE VENTA', async () => {
+    const rp = await producto({ stock: 5, precio: 100 })
+    let r = await api('POST', '/repairs', A, { clienteId, equipo: 'Reserva', descripcionFalla: 'x', tecnicoId, repuestos: [{ productoId: rp.id, cantidad: 3 }] }); const sv = r.d.id
+    ok('el servicio reserva sin descontar', (await stockDe(rp.id)) === 5, await stockDe(rp.id))
+    r = await api('POST', '/sales', A, { items: [{ productoId: rp.id, cantidad: 3 }], medioPago: 'Efectivo', tipoComprobante: 'FACTURA' }); ok('el punto de venta no puede vender lo reservado → 400', r.s === 400 && /reservado/.test(r.d?.message || ''), r)
+    r = await api('POST', '/sales', A, { items: [{ productoId: rp.id, cantidad: 2 }], medioPago: 'Efectivo', tipoComprobante: 'FACTURA' }); ok('sí puede vender lo no reservado', r.s === 201, r)
+    ok('la venta descuenta de inmediato', (await stockDe(rp.id)) === 3, await stockDe(rp.id))
+    await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'LISTO' })
+    r = await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'RETIRADO' }); ok('el retiro del servicio se entrega completo', r.s === 200, r)
+    ok('al retirar se descuenta el repuesto del servicio', (await stockDe(rp.id)) === 0, await stockDe(rp.id))
+  })
+
   await seccion('NOTIFICACIONES', async () => {
     let r = await api('GET', '/notifications', A); ok('admin ve notificaciones', r.s === 200 && Array.isArray(r.d.items) && typeof r.d.noLeidas === 'number', r.s)
     const iniciales = r.d.noLeidas
@@ -327,6 +339,8 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     ok('el contador de no leídas sube', r.d.noLeidas >= 1)
     r = await api('GET', '/notifications', tec.token); ok('el técnico asignado recibe "Servicio asignado"', r.d.items.some(n => n.servicioId === sv && n.titulo === 'Servicio asignado'), r.d.items.map(n => n.titulo))
     r = await api('GET', '/notifications', ajeno.token); ok('otro técnico no ve avisos ajenos', !r.d.items.some(n => n.servicioId === sv), r.d.items.map(n => n.titulo))
+    r = await api('GET', '/notifications', A); const nTec = r.d.items.find(n => n.servicioId === sv && n.titulo === 'Servicio asignado'), nInv = r.d.items.find(n => n.servicioId === sv && n.titulo === 'Solicitud de repuestos')
+    ok('cada aviso trae a quién va dirigido', nInv?.destinatario === 'Inventario' && nTec?.destinatario === 'Técnico: TecNotif' + SUF || /^Técnico: /.test(nTec?.destinatario || ''), [nInv?.destinatario, nTec?.destinatario])
     r = await api('GET', '/notifications', depo); ok('inventario NO ve avisos de servicios', r.d.items.every(n => n.area === 'INVENTARIO'), r.d.items.map(n => n.area))
     await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'LISTO' })
     r = await api('GET', '/notifications', tec.token); ok('al marcar LISTO el técnico recibe "Repuestos listos para retirar"', r.d.items.some(n => n.titulo === 'Repuestos listos para retirar' && n.servicioId === sv), r.d.items.map(n => n.titulo))

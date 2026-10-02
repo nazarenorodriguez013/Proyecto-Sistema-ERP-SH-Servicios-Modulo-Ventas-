@@ -4,7 +4,7 @@ import { socket } from '../socket'
 
 export interface Notificacion {
   id: number; area: 'INVENTARIO' | 'SERVICIOS'; titulo: string; mensaje: string
-  servicioId: number | null; creadoEn: string; nueva: boolean
+  servicioId: number | null; creadoEn: string; nueva: boolean; destinatario: string
 }
 
 const hace = (iso: string) => {
@@ -64,6 +64,7 @@ export default function Campana({ onIr }: { onIr: (n: Notificacion) => void }) {
                   <span style={s.icono}><i className={`bi ${n.area === 'INVENTARIO' ? 'bi-box-seam' : 'bi-tools'}`} /></span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={s.titulo}>{n.titulo}{n.nueva && <span style={s.punto} />}</span>
+                    <span style={s.para}>Para: {n.destinatario}</span>
                     <span style={s.mensaje}>{n.mensaje}</span>
                     <span style={s.hora}>{hace(n.creadoEn)}</span>
                   </span>
@@ -89,6 +90,7 @@ const s: Record<string, React.CSSProperties> = {
   icono:     { width: '30px', height: '30px', borderRadius: '8px', background: '#F5F5F5', color: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 },
   titulo:    { display: 'flex', alignItems: 'center', gap: '6px', color: '#111111', fontSize: '13px', fontWeight: '700' },
   punto:     { width: '7px', height: '7px', borderRadius: '50%', background: '#E08A00', display: 'inline-block' },
+  para:      { display: 'inline-block', marginTop: '3px', padding: '1px 7px', borderRadius: '10px', background: '#EEF1F6', color: '#3B4A63', fontSize: '10.5px', fontWeight: '700' },
   mensaje:   { display: 'block', color: '#333333', fontSize: '12px', marginTop: '2px' },
   hora:      { display: 'block', color: '#9A9A9A', fontSize: '11px', marginTop: '3px' },
 }

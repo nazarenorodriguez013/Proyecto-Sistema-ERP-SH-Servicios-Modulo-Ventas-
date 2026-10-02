@@ -28,7 +28,12 @@ export const listar = async (userId: number) => {
     prisma.notificacion.findMany({ where, orderBy: { creadoEn: 'desc' }, take: 30 }),
     prisma.notificacion.count({ where: { ...where, creadoEn: { gt: usuario.notifVistasHasta } } }),
   ]);
-  return { items: items.map(n => ({ ...n, nueva: n.creadoEn > usuario.notifVistasHasta })), noLeidas };
+  // A quién va dirigido cada aviso: al técnico asignado por nombre, o al área completa
+  const ids = [...new Set(items.map(n => n.usuarioId).filter((x): x is number => x !== null))];
+  const nombres = new Map((await prisma.usuario.findMany({ where: { id: { in: ids } }, select: { id: true, nombre: true } })).map(u => [u.id, u.nombre]));
+  const destinatario = (n: { area: AreaNotificacion; usuarioId: number | null }) =>
+    n.usuarioId !== null ? `Técnico: ${nombres.get(n.usuarioId) ?? 'asignado'}` : n.area === 'INVENTARIO' ? 'Inventario' : 'Servicios técnicos';
+  return { items: items.map(n => ({ ...n, nueva: n.creadoEn > usuario.notifVistasHasta, destinatario: destinatario(n) })), noLeidas };
 };
 
 export const marcarLeidas = async (userId: number) => {

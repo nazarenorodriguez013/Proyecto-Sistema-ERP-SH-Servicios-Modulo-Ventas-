@@ -63,10 +63,19 @@ export const createSale = async (
       throw new Error('Cliente no encontrado');
 
     const detalles = [];
-    for (const [productoId, cantidad] of cantidades) {
+    // Orden fijo por producto: evita bloqueos cruzados entre ventas y servicios que tocan los mismos artículos
+    for (const [productoId, cantidad] of [...cantidades].sort((a, b) => a[0] - b[0])) {
+      // Bloquea el producto: mientras tanto un servicio no puede reservar la misma unidad
+      await tx.$queryRaw`SELECT id FROM productos WHERE id = ${productoId} FOR UPDATE`;
       const producto = await tx.producto.findUnique({ where: { id: productoId } });
       if (!producto) throw new Error('Producto no encontrado');
       if (!producto.activo) throw new Error(`"${producto.nombre}" no está disponible para la venta`);
+
+      // Lo que está reservado para servicios técnicos (pedido y todavía no retirado) no se puede vender
+      const pedidos = await tx.servicioRepuesto.findMany({ where: { productoId }, select: { cantidad: true, cantidadRetirada: true } });
+      const reservado = pedidos.reduce((sum, r) => sum + r.cantidad - r.cantidadRetirada, 0);
+      if (producto.stock - reservado < cantidad)
+        throw new Error(`Stock insuficiente para "${producto.nombre}" (disponible: ${Math.max(producto.stock - reservado, 0)}${reservado > 0 ? `, ${reservado} reservado${reservado > 1 ? 's' : ''} para servicios técnicos` : ''})`);
 
       // Descuenta solo si alcanza el stock en ese momento, así dos ventas simultáneas no lo dejan negativo
       const { count } = await tx.producto.updateMany({
