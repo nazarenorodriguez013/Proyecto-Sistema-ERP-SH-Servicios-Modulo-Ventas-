@@ -21,7 +21,8 @@ router.post('/presupuesto', authenticate, authorizeAdministracion, repairControl
 router.put('/:id/tecnico', authenticate, authorizeAdministracion, repairController.asignarTecnico);
 router.post('/:id/repuestos', authenticate, taller, repairController.agregarRepuesto);
 router.delete('/:id/repuestos/:productoId', authenticate, taller, repairController.quitarRepuesto);
-router.put('/:id/finalizar', authenticate, authorizeAdministracion, repairController.finalizar);
+// Finaliza administración o el técnico dueño del servicio (el service verifica que sea suyo)
+router.put('/:id/finalizar', authenticate, conServicios, repairController.finalizar);
 // Eliminar un servicio revierte el stock de sus repuestos y la deuda que generó: queda restringido al administrador
 router.delete('/:id', authenticate, authorizeAdmin, repairController.remove);
 

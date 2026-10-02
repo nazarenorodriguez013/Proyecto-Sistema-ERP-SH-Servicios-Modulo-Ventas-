@@ -248,11 +248,11 @@ export const quitarRepuesto = async (id: number, productoId: number, usuario: Us
 export const finalizar = async (id: number, data: {
   tipoComprobante: TipoComprobante; medioPago: string; costoManoObra?: number;
   proximoMantenimiento?: string | null; usarSaldo?: boolean;
-}) => {
+}, usuario: Usuario) => {
   if (!['FACTURA', 'REMITO'].includes(data.tipoComprobante)) throw httpError(400, 'Tipo de comprobante inválido');
   if (!data.medioPago) throw httpError(400, 'Seleccioná el medio de pago');
   const fechaMantenimiento = parseFecha(data.proximoMantenimiento);
-  await obtener(id, ['EN_CURSO']);
+  await obtener(id, ['EN_CURSO'], usuario);
   const items = await prisma.servicioRepuesto.findMany({ where: { servicioId: id } });
   if (items.some(i => i.cantidadRetirada < i.cantidad))
     throw httpError(409, 'Hay repuestos que todavía no se retiraron del depósito: retiralos o quitalos del servicio antes de finalizar');
@@ -279,6 +279,9 @@ export const finalizar = async (id: number, data: {
     });
   });
   notificar();
+  // Si lo cerró el técnico, administración se entera para ver el comprobante
+  if (usuario.rol === 'TECNICO')
+    await notificaciones.crear({ area: 'SERVICIOS', servicioId: id, titulo: 'Servicio finalizado', mensaje: `#${id} · ${servicio.equipo} (${servicio.cliente.nombre}) lo finalizó ${servicio.tecnico?.nombre ?? 'el técnico'}` });
   return servicio;
 };
 

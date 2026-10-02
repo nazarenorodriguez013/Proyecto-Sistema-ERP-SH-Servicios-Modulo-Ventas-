@@ -30,6 +30,8 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const esAdministracion = user.rol === 'ADMIN' || user.rol === 'VENDEDOR'
   const esTaller = user.rol === 'ADMIN' || user.rol === 'TECNICO'
+  // Finaliza administración, o el técnico sobre su propio servicio (el backend lo vuelve a verificar)
+  const puedeFinalizar = esAdministracion || user.rol === 'TECNICO'
 
   const fetchServicio = () =>
     fetch(`${API}/repairs/${servicioId}`, { headers }).then(r => r.json()).then(data => { setServicio(data); setCostoManoObra(String(data.costoManoObra)) })
@@ -168,7 +170,7 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
         }
       </div>
 
-      {esAdministracion && servicio.estado === 'EN_CURSO' && (
+      {puedeFinalizar && servicio.estado === 'EN_CURSO' && (
         <form style={s.card} onSubmit={finalizar}>
           <p style={s.sectionTitle}>Finalizar servicio</p>
           <div style={s.row}>
