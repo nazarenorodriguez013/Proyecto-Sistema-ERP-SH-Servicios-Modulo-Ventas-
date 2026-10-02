@@ -20,6 +20,10 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
   const [tipoComprobante, setTipoComprobante] = useState<'FACTURA' | 'REMITO'>('FACTURA')
   const [medioPago, setMedioPago] = useState('Efectivo')
   const [costoManoObra, setCostoManoObra] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
+  const [diagnostico, setDiagnostico] = useState('')
+  const [trabajoRealizado, setTrabajoRealizado] = useState('')
+  const [okNotas, setOkNotas] = useState('')
   const [saldoCliente, setSaldoCliente] = useState(0)
   const [usarSaldo, setUsarSaldo] = useState(true)
   const [proximoMantenimiento, setProximoMantenimiento] = useState('')
@@ -34,7 +38,10 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
   const puedeFinalizar = esAdministracion || user.rol === 'TECNICO'
 
   const fetchServicio = () =>
-    fetch(`${API}/repairs/${servicioId}`, { headers }).then(r => r.json()).then(data => { setServicio(data); setCostoManoObra(String(data.costoManoObra)) })
+    fetch(`${API}/repairs/${servicioId}`, { headers }).then(r => r.json()).then(data => {
+      setServicio(data); setCostoManoObra(String(data.costoManoObra)); setFechaFin(data.fechaEstimadaFin ? data.fechaEstimadaFin.slice(0, 10) : '')
+      setDiagnostico(data.diagnostico ?? ''); setTrabajoRealizado(data.trabajoRealizado ?? '')
+    })
   const fetchProductos = () => fetch(`${API}/products`, { headers }).then(r => r.json()).then(setProductos)
 
   useEffect(() => {
@@ -76,10 +83,17 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
     }
   }
 
+  // Guarda lo que el técnico fue cargando sin cerrar el servicio
+  const guardarSeguimiento = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setOkNotas('')
+    if (await accion('PUT', '', { costoManoObra: Number(costoManoObra) || 0, fechaEstimadaFin: fechaFin || null, diagnostico, trabajoRealizado })) setOkNotas('Cambios guardados')
+  }
+
   const finalizar = async (e: React.FormEvent) => {
     e.preventDefault()
     const ok = await accion('PUT', '/finalizar', {
-      tipoComprobante, medioPago, costoManoObra: Number(costoManoObra) || 0, usarSaldo,
+      tipoComprobante, medioPago, costoManoObra: Number(costoManoObra) || 0, usarSaldo, diagnostico, trabajoRealizado,
       proximoMantenimiento: proximoMantenimiento || null,
     })
     if (ok) setVerTicket(true)
@@ -117,6 +131,8 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
         </div>
         <p style={s.falla}>{servicio.descripcionFalla}</p>
         {servicio.tareas && <p style={s.texto}><strong>Tareas a realizar:</strong> {servicio.tareas}</p>}
+        {servicio.estado === 'FINALIZADO' && servicio.diagnostico && <p style={s.texto}><strong>Diagnóstico:</strong> {servicio.diagnostico}</p>}
+        {servicio.estado === 'FINALIZADO' && servicio.trabajoRealizado && <p style={s.texto}><strong>Trabajo realizado:</strong> {servicio.trabajoRealizado}</p>}
         <div style={s.datosGrid}>
           <span style={s.dato}><i className="bi bi-person" /> {servicio.cliente.nombre}</span>
           <span style={s.dato}><i className="bi bi-calendar3" /> Ingreso {new Date(servicio.fechaIngreso).toLocaleDateString('es-AR')}</span>
@@ -171,14 +187,40 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
       </div>
 
       {puedeFinalizar && servicio.estado === 'EN_CURSO' && (
-        <form style={s.card} onSubmit={finalizar}>
-          <p style={s.sectionTitle}>Finalizar servicio</p>
+        <form style={s.card} onSubmit={guardarSeguimiento}>
+          <p style={s.sectionTitle}>Seguimiento del trabajo</p>
           <div style={s.row}>
             <div style={s.field}>
-              <label style={s.label}>Mano de obra final</label>
+              <label style={s.label}>Mano de obra estimada</label>
               <input style={s.input} type="number" min="0" step="0.01" value={costoManoObra} disabled={servicio.enGarantia}
                 onChange={e => setCostoManoObra(e.target.value)} />
             </div>
+            <div style={s.field}>
+              <label style={s.label}>Fecha estimada de finalización</label>
+              <input style={s.input} type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} />
+            </div>
+          </div>
+          <div style={s.row}>
+            <div style={s.field}>
+              <label style={s.label}>Diagnóstico</label>
+              <textarea style={s.textarea} value={diagnostico} placeholder="Qué se encontró en el equipo" onChange={e => setDiagnostico(e.target.value)} />
+            </div>
+            <div style={s.field}>
+              <label style={s.label}>Trabajo realizado (qué se hizo y cómo)</label>
+              <textarea style={s.textarea} value={trabajoRealizado} placeholder="Detalle de las tareas hechas" onChange={e => setTrabajoRealizado(e.target.value)} />
+            </div>
+          </div>
+          <div style={s.acciones}>
+            <button type="submit" style={s.btnPrimary}>Guardar cambios</button>
+            {okNotas && <span style={s.saldoNota}>{okNotas}</span>}
+          </div>
+        </form>
+      )}
+
+      {puedeFinalizar && servicio.estado === 'EN_CURSO' && (
+        <form style={s.card} onSubmit={finalizar}>
+          <p style={s.sectionTitle}>Finalizar servicio</p>
+          <div style={s.row}>
             <div style={s.field}>
               <label style={s.label}>Próximo mantenimiento (opcional)</label>
               <input style={s.input} type="date" value={proximoMantenimiento} onChange={e => setProximoMantenimiento(e.target.value)} />
@@ -258,6 +300,7 @@ const s: Record<string, React.CSSProperties> = {
   row:          { display: 'flex', gap: '12px', flexWrap: 'wrap' as const },
   field:        { display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '180px' },
   label:        { display: 'block', color: '#333333', fontSize: '11px', fontWeight: '600', marginBottom: '2px' },
+  textarea:     { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const, resize: 'vertical' as const, minHeight: '64px', fontFamily: 'inherit' },
   input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
 
   repRow:       { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 4px', borderBottom: '1px solid #EFF1F4' },

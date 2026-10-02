@@ -198,6 +198,8 @@ model ServicioTecnico {
   equipo               String
   descripcionFalla     String          @map("descripcion_falla")
   tareas               String?         @map("tareas")
+  diagnostico          String?
+  trabajoRealizado     String?         @map("trabajo_realizado")
   enGarantia           Boolean         @default(false) @map("en_garantia")
   costoManoObra        Float           @default(0) @map("costo_mano_obra")
   estado               EstadoServicio  @default(EN_CURSO)

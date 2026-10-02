@@ -204,6 +204,25 @@ export const asignarTecnico = async (id: number, tecnicoId: number) => {
   return servicio;
 };
 
+// El técnico (o administración) ajusta el servicio mientras está en curso: mano de obra, fecha estimada y sus notas
+export const actualizar = async (id: number, data: {
+  costoManoObra?: number; fechaEstimadaFin?: string | null; diagnostico?: string | null; trabajoRealizado?: string | null;
+}, usuario: Usuario) => {
+  await obtener(id, ['EN_CURSO'], usuario);
+  const cambios: Prisma.ServicioTecnicoUpdateInput = {};
+  if (data.costoManoObra !== undefined) {
+    const costo = Number(data.costoManoObra);
+    if (!Number.isFinite(costo) || costo < 0) throw httpError(400, 'La mano de obra debe ser un número mayor o igual a 0');
+    cambios.costoManoObra = costo;
+  }
+  if (data.fechaEstimadaFin !== undefined) cambios.fechaEstimadaFin = parseFecha(data.fechaEstimadaFin);
+  if (data.diagnostico !== undefined) cambios.diagnostico = data.diagnostico?.trim() || null;
+  if (data.trabajoRealizado !== undefined) cambios.trabajoRealizado = data.trabajoRealizado?.trim() || null;
+  await prisma.servicioTecnico.update({ where: { id }, data: cambios });
+  notificar();
+  return getById(id, usuario);
+};
+
 // Agregar un repuesto lo suma al pedido del depósito: el stock se descuenta cuando lo retiran
 export const agregarRepuesto = async (id: number, productoId: number, cantidad: number, usuario: Usuario) => {
   if (!Number.isInteger(cantidad) || cantidad <= 0) throw httpError(400, 'La cantidad debe ser un número entero mayor a 0');
@@ -247,7 +266,7 @@ export const quitarRepuesto = async (id: number, productoId: number, usuario: Us
 // Cierra el servicio: recién ahora se genera el comprobante y se cobra (antes era solo un estimado)
 export const finalizar = async (id: number, data: {
   tipoComprobante: TipoComprobante; medioPago: string; costoManoObra?: number;
-  proximoMantenimiento?: string | null; usarSaldo?: boolean;
+  proximoMantenimiento?: string | null; usarSaldo?: boolean; diagnostico?: string | null; trabajoRealizado?: string | null;
 }, usuario: Usuario) => {
   if (!['FACTURA', 'REMITO'].includes(data.tipoComprobante)) throw httpError(400, 'Tipo de comprobante inválido');
   if (!data.medioPago) throw httpError(400, 'Seleccioná el medio de pago');
@@ -258,9 +277,12 @@ export const finalizar = async (id: number, data: {
     throw httpError(409, 'Hay repuestos que todavía no se retiraron del depósito: retiralos o quitalos del servicio antes de finalizar');
 
   const servicio = await prisma.$transaction(async (tx) => {
-    if (data.costoManoObra !== undefined) {
-      await tx.servicioTecnico.update({ where: { id }, data: { costoManoObra: Number(data.costoManoObra) || 0 } });
-    }
+    // Lo último que cargó el técnico (mano de obra y notas) se guarda junto con el cierre
+    await tx.servicioTecnico.update({ where: { id }, data: {
+      ...(data.costoManoObra !== undefined ? { costoManoObra: Number(data.costoManoObra) || 0 } : {}),
+      ...(data.diagnostico !== undefined ? { diagnostico: data.diagnostico?.trim() || null } : {}),
+      ...(data.trabajoRealizado !== undefined ? { trabajoRealizado: data.trabajoRealizado?.trim() || null } : {}),
+    } });
     const actual = await tx.servicioTecnico.findUniqueOrThrow({ where: { id }, include: { repuestos: true } });
     const total = calcularCostoTotal(actual);
     // El cobro pasa por la cuenta corriente del cliente, que descuenta primero el saldo a favor

@@ -65,6 +65,8 @@ export default function ServicioTicket({ modo, servicio, onClose }: { modo: Modo
 
       <div style={s.textoBox}><b>Falla:</b> {servicio.descripcionFalla}</div>
       {servicio.tareas && <div style={s.textoBox}><b>Tareas a realizar:</b> {servicio.tareas}</div>}
+      {modo === 'comprobante' && servicio.diagnostico && <div style={s.textoBox}><b>Diagnóstico:</b> {servicio.diagnostico}</div>}
+      {modo === 'comprobante' && servicio.trabajoRealizado && <div style={s.textoBox}><b>Trabajo realizado:</b> {servicio.trabajoRealizado}</div>}
 
       <table style={tabla.tabla}>
         <thead>

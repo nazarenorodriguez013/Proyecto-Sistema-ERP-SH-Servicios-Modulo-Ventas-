@@ -18,6 +18,8 @@ router.get('/', authenticate, conServicios, repairController.getAll);
 router.get('/:id', authenticate, conServicios, repairController.getById);
 router.post('/', authenticate, authorizeAdministracion, repairController.create);
 router.post('/presupuesto', authenticate, authorizeAdministracion, repairController.presupuesto);
+// El técnico ajusta mano de obra, fecha estimada y notas de su servicio (el service verifica que sea suyo)
+router.put('/:id', authenticate, conServicios, repairController.actualizar);
 router.put('/:id/tecnico', authenticate, authorizeAdministracion, repairController.asignarTecnico);
 router.post('/:id/repuestos', authenticate, taller, repairController.agregarRepuesto);
 router.delete('/:id/repuestos/:productoId', authenticate, taller, repairController.quitarRepuesto);

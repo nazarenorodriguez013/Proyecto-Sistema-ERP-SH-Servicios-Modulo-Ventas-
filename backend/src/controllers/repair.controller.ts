@@ -14,6 +14,9 @@ export const create = (req: AuthRequest, res: Response) =>
     ...req.body, clienteId: Number(req.body.clienteId), tecnicoId: req.body.tecnicoId ? Number(req.body.tecnicoId) : null,
   }), 201);
 
+export const actualizar = (req: AuthRequest, res: Response) =>
+  responder(res, () => repairService.actualizar(Number(req.params.id), req.body, req.user!));
+
 export const asignarTecnico = (req: AuthRequest, res: Response) =>
   responder(res, () => repairService.asignarTecnico(Number(req.params.id), Number(req.body.tecnicoId)));
 
