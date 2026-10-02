@@ -1,34 +1,18 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
-import { useFormatComprobante } from '../empresa'
+import HistorialCliente, { type VentaCliente, type ServicioCliente, type MovimientoCliente } from '../components/HistorialCliente'
 import ClienteFormModal from '../components/ClienteFormModal'
 import { describirSaldo } from '../saldo'
 
-interface Venta {
-  id: number; numero: number; tipoComprobante: 'FACTURA' | 'REMITO'; total: number; medioPago: string; creadoEn: string
-  detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string } }[]
-}
-interface Movimiento {
-  id: number; tipo: 'VENTA' | 'SERVICIO' | 'PAGO'; concepto: string; monto: number; creadoEn: string
-  ventaId: number | null; servicioId: number | null
-}
 interface ClienteFicha {
   id: number; nombre: string; documento: string | null; telefono: string | null
-  email: string | null; direccion: string | null
-  ventas: Venta[]; movimientos: Movimiento[]; saldo: number
+  email: string | null; direccion: string | null; condicionIva?: string
+  ventas: VentaCliente[]; servicios: ServicioCliente[]; movimientos: MovimientoCliente[]; saldo: number
 }
 
-const TIPO_LABEL: Record<Movimiento['tipo'], string> = { VENTA: 'Compra', SERVICIO: 'Servicio técnico', PAGO: 'Pago' }
-const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmtFecha = (d: string) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-
-type Evento =
-  | { kind: 'compra'; fecha: string; venta: Venta }
-  | { kind: 'movimiento'; fecha: string; movimiento: Movimiento }
 
 export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId: number; user: User; onBack: () => void }) {
-  const formatComprobante = useFormatComprobante()
   const [cliente, setCliente] = useState<ClienteFicha | null>(null)
   const [editando, setEditando] = useState(false)
   const [confirmarBorrado, setConfirmarBorrado] = useState(false)
@@ -103,15 +87,6 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
 
   if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
 
-  // Un único historial cronológico: las compras se muestran una sola vez (no se repite el cargo VENTA
-  // que generaron en la cuenta corriente), junto con los pagos y servicios técnicos de la cuenta
-  const eventos: Evento[] = [
-    ...cliente.ventas.map(venta => ({ kind: 'compra' as const, fecha: venta.creadoEn, venta })),
-    ...cliente.movimientos
-      .filter(m => m.tipo !== 'VENTA')
-      .map(movimiento => ({ kind: 'movimiento' as const, fecha: movimiento.creadoEn, movimiento })),
-  ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-
   return (
     <div className="page-container">
       <div style={s.header}>
@@ -150,52 +125,11 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
       </div>
 
       <div style={s.card}>
-        <p style={s.sectionTitle}>Historial ({eventos.length})</p>
-        {eventos.length === 0
-          ? <div style={s.empty}>Todavía no hay compras, pagos ni servicios registrados</div>
-          : eventos.map(ev => ev.kind === 'compra' ? (
-            <div key={`venta-${ev.venta.id}`} style={s.ventaRow}>
-              <div style={s.ventaHead}>
-                <span style={s.ventaId}>{ev.venta.tipoComprobante === 'REMITO' ? 'Remito' : 'Factura'} N° {formatComprobante(ev.venta.numero)}</span>
-                <span style={s.ventaFecha}>{fmtFecha(ev.venta.creadoEn)}</span>
-                <span style={s.ventaMedio}>{ev.venta.medioPago}</span>
-                <span style={s.ventaTotal}>${fmt(ev.venta.total)}</span>
-                {esAdmin && (
-                  <button style={s.btnIconDanger} title="Eliminar comprobante"
-                    onClick={() => { setError(''); setConfirmarBorrarVenta(ev.venta.id) }}>
-                    <i className="bi bi-trash" />
-                  </button>
-                )}
-              </div>
-              {ev.venta.detallesVenta.map(d => (
-                <p key={d.id} style={s.ventaItem}>
-                  {d.cantidad} × {d.producto.nombre} <span style={s.ventaItemPrecio}>${fmt(d.precioUnitario)} c/u</span>
-                </p>
-              ))}
-            </div>
-          ) : (
-            <div key={`mov-${ev.movimiento.id}`} style={s.movRow}>
-              <span style={s.movTipo}>{TIPO_LABEL[ev.movimiento.tipo]}</span>
-              <span style={s.movConcepto}>{ev.movimiento.concepto}</span>
-              <span style={s.movFecha}>{fmtFecha(ev.movimiento.creadoEn)}</span>
-              <span style={{ ...s.movMonto, color: ev.movimiento.tipo === 'PAGO' ? '#2E9E5B' : '#C6402F' }}>
-                {ev.movimiento.tipo === 'PAGO' ? '-' : '+'}${fmt(ev.movimiento.monto)}
-              </span>
-              {esAdmin && ev.movimiento.servicioId && (
-                <button style={s.btnIconDanger} title="Eliminar servicio técnico"
-                  onClick={() => { setError(''); setConfirmarBorrarServicio(ev.movimiento.servicioId) }}>
-                  <i className="bi bi-trash" />
-                </button>
-              )}
-              {esAdmin && !ev.movimiento.ventaId && !ev.movimiento.servicioId && (
-                <button style={s.btnIconDanger} title="Eliminar movimiento"
-                  onClick={() => { setError(''); setConfirmarBorrarMovimiento(ev.movimiento.id) }}>
-                  <i className="bi bi-trash" />
-                </button>
-              )}
-            </div>
-          ))
-        }
+        <p style={s.sectionTitle}>Historial ({cliente.ventas.length + cliente.servicios.length + cliente.movimientos.filter(m => m.tipo === 'PAGO' || (!m.ventaId && !m.servicioId)).length})</p>
+        <HistorialCliente cliente={cliente} esAdmin={esAdmin}
+          onBorrarVenta={id => { setError(''); setConfirmarBorrarVenta(id) }}
+          onBorrarServicio={id => { setError(''); setConfirmarBorrarServicio(id) }}
+          onBorrarMovimiento={id => { setError(''); setConfirmarBorrarMovimiento(id) }} />
       </div>
 
       {editando && (
@@ -277,26 +211,11 @@ const s: Record<string, React.CSSProperties> = {
   datosGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' },
   dato:         { color: '#333333', fontSize: '13px' },
   sectionTitle: { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: 0 },
-  empty:        { color: '#6B6B6B', fontSize: '13px', textAlign: 'center', padding: '20px' },
 
-  ventaRow:       { padding: '10px 4px', borderBottom: '1px solid #EFF1F4', display: 'flex', flexDirection: 'column', gap: '4px' },
-  ventaHead:      { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' as const },
-  ventaId:        { color: '#111111', fontSize: '13px', fontWeight: '700', flex: 1, minWidth: '120px' },
-  ventaFecha:     { color: '#6B6B6B', fontSize: '12px' },
-  ventaMedio:     { color: '#8A6D00', fontSize: '11px', fontWeight: '700', background: '#FFFDF3', border: '1px solid rgba(245,196,0,0.3)', borderRadius: '20px', padding: '3px 10px' },
-  ventaTotal:     { color: '#111111', fontSize: '14px', fontWeight: '800', minWidth: '100px', textAlign: 'right' as const },
-  btnIconDanger:  { background: 'rgba(198,64,47,0.08)', border: '1px solid rgba(198,64,47,0.2)', borderRadius: '7px', padding: '5px 9px', cursor: 'pointer', color: '#C6402F', fontSize: '13px', flexShrink: 0 },
-  ventaItem:      { color: '#333333', fontSize: '12px', margin: 0 },
-  ventaItemPrecio:{ color: '#9A9A9A' },
 
   form:         { display: 'flex', gap: '8px', flexWrap: 'wrap' as const },
   inputMonto:   { width: '160px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none' },
   btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
   errorText:    { color: '#C6402F', fontSize: '13px', margin: 0 },
 
-  movRow:       { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 4px', borderBottom: '1px solid #EFF1F4', flexWrap: 'wrap' as const },
-  movTipo:      { color: '#8A6D00', fontSize: '11px', fontWeight: '700', background: '#FFFDF3', border: '1px solid rgba(245,196,0,0.3)', borderRadius: '20px', padding: '3px 10px', flexShrink: 0 },
-  movConcepto:  { color: '#111111', fontSize: '13px', flex: 1, minWidth: '120px' },
-  movFecha:     { color: '#6B6B6B', fontSize: '12px', flexShrink: 0 },
-  movMonto:     { fontSize: '14px', fontWeight: '700', flexShrink: 0, minWidth: '90px', textAlign: 'right' as const },
 }
