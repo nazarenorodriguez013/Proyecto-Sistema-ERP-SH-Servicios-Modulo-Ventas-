@@ -2,12 +2,11 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma, Rol } from '@prisma/client';
 import { httpError } from '../utils/http';
 import { normalizarModulos } from '../utils/modulos';
-import { enviarConfirmacion } from './confirmacion.service';
 
 const prisma = new PrismaClient();
 
 // Nunca se devuelve la contraseña ni el token de recuperación
-const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true, activo: true, correoConfirmado: true, creadoEn: true } as const;
+const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true, activo: true, dosPasos: true, creadoEn: true } as const;
 
 const ROLES: Rol[] = ['ADMIN', 'VENDEDOR', 'TECNICO'];
 
@@ -38,7 +37,7 @@ const validarRol = (rol: unknown): Rol => {
 
 export const getAll = () => prisma.usuario.findMany({ select: campos, orderBy: { nombre: 'asc' } });
 
-export const create = async (data: { nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown }, urlBase: string) => {
+export const create = async (data: { nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown }) => {
   if (!data.nombre?.trim()) throw httpError(400, 'El nombre es obligatorio');
   const rol = validarRol(data.rol);
   const usuario = await prisma.usuario.create({
@@ -49,16 +48,15 @@ export const create = async (data: { nombre?: string; correo?: string; contrasen
     },
     select: campos,
   }).catch(traducirError);
-  await enviarConfirmacion(usuario, urlBase);
-  return { ...usuario, correoConfirmado: false };
+  return usuario;
 };
 
 // Siempre tiene que quedar al menos un administrador activo, si no nadie podría volver a gestionar usuarios
 const quedaOtroAdmin = async (excluirId: number) =>
   (await prisma.usuario.count({ where: { rol: 'ADMIN', activo: true, id: { not: excluirId } } })) > 0;
 
-export const update = async (id: number, actorId: number, urlBase: string, data: {
-  nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown; activo?: boolean; correoConfirmado?: boolean
+export const update = async (id: number, actorId: number, data: {
+  nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown; activo?: boolean; dosPasos?: boolean
 }) => {
   const actual = await prisma.usuario.findUnique({ where: { id } });
   if (!actual) throw httpError(404, 'Usuario no encontrado');
@@ -70,26 +68,18 @@ export const update = async (id: number, actorId: number, urlBase: string, data:
   if (id === actorId && !activo) throw httpError(400, 'No podés desactivar tu propio usuario');
 
   const cambios: Prisma.UsuarioUpdateInput = { rol, activo };
+  // El administrador solo puede apagarla (por ejemplo si perdieron el acceso al mail); activarla lo decide cada usuario
+  if (data.dosPasos === false) cambios.dosPasos = false;
   if (data.nombre !== undefined) {
     if (!data.nombre.trim()) throw httpError(400, 'El nombre es obligatorio');
     cambios.nombre = data.nombre.trim();
   }
-  const correo = data.correo !== undefined ? normalizarCorreo(data.correo) : actual.correo;
-  if (correo !== actual.correo) cambios.correo = correo;
-  // El administrador puede confirmar a mano si el mail no llega
-  const confirmadoAMano = data.correoConfirmado === true && !actual.correoConfirmado;
-  if (confirmadoAMano) { cambios.correoConfirmado = true; cambios.confirmTokenHash = null; cambios.confirmExpira = null; }
+  if (data.correo !== undefined) cambios.correo = normalizarCorreo(data.correo);
   if (data.contrasena) cambios.contrasena = await bcrypt.hash(validarContrasena(data.contrasena), 10);
   // Si cambia el rol, los módulos se ajustan a lo que ese rol permite
   if (data.modulos !== undefined || rol !== actual.rol) cambios.modulos = normalizarModulos(data.modulos ?? actual.modulos, rol);
 
-  const actualizado = await prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
-  // Un correo nuevo hay que volver a confirmarlo
-  if (cambios.correo && !confirmadoAMano) {
-    await enviarConfirmacion(actualizado, urlBase);
-    return { ...actualizado, correoConfirmado: false };
-  }
-  return actualizado;
+  return prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
 };
 
 export const remove = async (id: number, actorId: number) => {

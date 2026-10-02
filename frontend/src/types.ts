@@ -4,4 +4,5 @@ export interface User {
   correo: string
   rol: string
   modulos: string[]
+  dosPasos?: boolean
 }

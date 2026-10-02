@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
 
-interface Props { onLogin: (user: User) => void; resetToken?: string | null; confirmarToken?: string | null }
-type Modo = 'login' | 'forgot' | 'reset'
+interface Props { onLogin: (user: User) => void; resetToken?: string | null }
+type Modo = 'login' | 'forgot' | 'reset' | '2fa'
 
-export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
+export default function Login({ onLogin, resetToken }: Props) {
   const [modo, setModo]         = useState<Modo>(resetToken ? 'reset' : 'login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -14,6 +14,9 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
   const [info, setInfo]         = useState('')
   const [loading, setLoading]   = useState(false)
   const [googleId, setGoogleId] = useState<string | null>(null)
+  const [desafio, setDesafio] = useState('')
+  const [codigo, setCodigo]     = useState('')
+  const [correoMask, setCorreoMask] = useState('')
   const googleRef = useRef<HTMLDivElement>(null)
 
   const post = async (path: string, body: object) => {
@@ -24,17 +27,6 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
   }
 
   const ingresar = (data: { token: string; user: User }) => { localStorage.setItem('token', data.token); onLogin(data.user) }
-
-  // Link del mail de confirmación: se valida al abrir y se muestra el resultado sobre el login
-  const confirmando = useRef(false)
-  useEffect(() => {
-    if (!confirmarToken || confirmando.current) return
-    confirmando.current = true
-    post('confirm', { token: confirmarToken })
-      .then(data => setInfo(data.message))
-      .catch(err => setError((err as Error).message))
-      .finally(() => window.history.replaceState({}, '', window.location.pathname))
-  }, [])
 
   // El botón de Google solo aparece si el servidor tiene configurado el Client ID
   useEffect(() => {
@@ -70,7 +62,11 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
     setLoading(true)
     try {
       if (modo === 'login') {
-        ingresar(await post('login', { correo: email, contrasena: password }))
+        const data = await post('login', { correo: email, contrasena: password })
+        if (data.requiere2fa) { setDesafio(data.desafio); setCorreoMask(data.correo); setCodigo(''); setPassword(''); setModo('2fa') }
+        else ingresar(data)
+      } else if (modo === '2fa') {
+        ingresar(await post('2fa', { desafio, codigo }))
       } else if (modo === 'forgot') {
         const data = await post('forgot', { correo: email })
         setInfo(data.message)
@@ -87,9 +83,15 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
     }
   }
 
-  const titulo = modo === 'login' ? 'Iniciar sesión' : modo === 'forgot' ? 'Recuperar contraseña' : 'Elegí una contraseña nueva'
+  const reenviar = async () => {
+    setError(''); setInfo('')
+    try { setInfo((await post('2fa/reenviar', { desafio })).message) } catch (err) { setError((err as Error).message) }
+  }
+
+  const titulo = modo === 'login' ? 'Iniciar sesión' : modo === 'forgot' ? 'Recuperar contraseña' : modo === '2fa' ? 'Verificación en dos pasos' : 'Elegí una contraseña nueva'
   const subtitulo = modo === 'login' ? 'Ingresá tus credenciales para continuar'
-    : modo === 'forgot' ? 'Te enviamos un link por mail para elegir una contraseña nueva' : 'Mínimo 8 caracteres, una mayúscula y un número'
+    : modo === 'forgot' ? 'Te enviamos un link por mail para elegir una contraseña nueva'
+    : modo === '2fa' ? `Ingresá el código de 6 dígitos que te mandamos a ${correoMask}` : 'Mínimo 8 caracteres, una mayúscula y un número'
 
   return (
     <div className="login-page">
@@ -134,7 +136,15 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
           </div>
 
           <form onSubmit={handleSubmit} style={s.form}>
-            {modo !== 'reset' && (
+            {modo === '2fa' && (
+              <div style={s.field}>
+                <label style={s.label}>Código</label>
+                <input style={{ ...s.input, letterSpacing: '8px', textAlign: 'center', fontSize: '22px' }} inputMode="numeric" maxLength={6}
+                  placeholder="000000" autoFocus autoComplete="one-time-code" value={codigo}
+                  onChange={e => setCodigo(e.target.value.replace(/\D/g, ''))} required />
+              </div>
+            )}
+            {(modo === 'login' || modo === 'forgot') && (
               <div style={s.field}>
                 <label style={s.label}>Correo electrónico</label>
                 <input
@@ -147,7 +157,7 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
                 />
               </div>
             )}
-            {modo !== 'forgot' && (
+            {(modo === 'login' || modo === 'reset') && (
               <div style={s.field}>
                 <label style={s.label}>{modo === 'reset' ? 'Contraseña nueva' : 'Contraseña'}</label>
                 <input
@@ -181,11 +191,14 @@ export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
             )}
 
             <button type="submit" style={s.btn} disabled={loading}>
-              {loading ? 'Procesando...' : modo === 'login' ? 'Ingresar al sistema' : modo === 'forgot' ? 'Enviar link' : 'Guardar contraseña'}
+              {loading ? 'Procesando...' : modo === 'login' ? 'Ingresar al sistema' : modo === 'forgot' ? 'Enviar link' : modo === '2fa' ? 'Verificar' : 'Guardar contraseña'}
             </button>
 
             {modo === 'login' && (
               <button type="button" style={s.linkBtn} onClick={() => cambiarModo('forgot')}>¿Olvidaste tu contraseña?</button>
+            )}
+            {modo === '2fa' && (
+              <button type="button" style={s.linkBtn} onClick={reenviar}>Reenviar código</button>
             )}
             {modo !== 'login' && (
               <button type="button" style={s.linkBtn} onClick={() => cambiarModo('login')}>Volver a iniciar sesión</button>

@@ -54,7 +54,7 @@ function App() {
     setUser(userData)
   }
 
-  if (!user) return <Login onLogin={handleLogin} resetToken={new URLSearchParams(window.location.search).get('reset')} confirmarToken={new URLSearchParams(window.location.search).get('confirmar')} />
+  if (!user) return <Login onLogin={handleLogin} resetToken={new URLSearchParams(window.location.search).get('reset')} />
   return <Dashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
 }
 

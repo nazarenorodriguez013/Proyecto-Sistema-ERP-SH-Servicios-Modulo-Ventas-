@@ -10,8 +10,12 @@ router.post('/login', auth.login);
 router.get('/config', auth.config);
 router.post('/google', auth.loginGoogle);
 router.post('/forgot', auth.olvideContrasena);
-router.post('/confirm', auth.confirmarCorreo);
 router.post('/reset', auth.restablecerContrasena);
+router.post('/2fa', auth.verificarDosPasos);
+router.post('/2fa/reenviar', auth.reenviarCodigo);
+router.post('/2fa/activar', authenticate, auth.solicitarActivacion);
+router.post('/2fa/activar/confirmar', authenticate, auth.confirmarActivacion);
+router.post('/2fa/desactivar', authenticate, auth.desactivarDosPasos);
 router.put('/me', authenticate, auth.actualizarCuenta);
 
 export default router;
