@@ -22,7 +22,7 @@ const traducirError = (err: unknown): never => {
 };
 
 const validar = (data: ClienteData) => {
-  if (data.nombre !== undefined && !data.nombre.trim()) throw new Error('El nombre del cliente es obligatorio');
+  if (data.nombre !== undefined && (typeof data.nombre !== 'string' || !data.nombre.trim())) throw new Error('El nombre del cliente es obligatorio');
 };
 
 export const getAll = async () => {

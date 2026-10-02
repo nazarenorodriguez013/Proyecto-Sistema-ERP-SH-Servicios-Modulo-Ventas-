@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as saleService from '../services/sale.service';
+import { mensajeSeguro } from '../utils/http';
 
 // Registra una venta a nombre del usuario logueado (sale del token, no del body)
 export const create = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -16,7 +17,7 @@ export const create = async (req: AuthRequest, res: Response): Promise<void> => 
     );
     res.status(201).json(venta);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: mensajeSeguro(err) });
   }
 };
 
@@ -29,6 +30,6 @@ export const remove = async (req: AuthRequest, res: Response): Promise<void> => 
     await saleService.remove(Number(req.params.id));
     res.status(204).send();
   } catch (err: any) {
-    res.status(err.message === 'Venta no encontrada' ? 404 : 400).json({ message: err.message });
+    res.status(err.message === 'Venta no encontrada' ? 404 : 400).json({ message: mensajeSeguro(err) });
   }
 };

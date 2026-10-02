@@ -28,7 +28,7 @@ const generateCode = async (): Promise<string> => {
 
 // Valida los campos antes de tocar la base; se comparte entre create y update
 const validateNumericFields = (data: { nombre?: string; precio?: number; stock?: number; stockMinimo?: number }) => {
-  if (data.nombre !== undefined && !data.nombre.trim()) throw new Error('El nombre del producto es obligatorio');
+  if (data.nombre !== undefined && (typeof data.nombre !== 'string' || !data.nombre.trim())) throw new Error('El nombre del producto es obligatorio');
   if (data.precio !== undefined && data.precio <= 0) throw new Error('El precio debe ser mayor a 0');
   if (data.stock !== undefined && (data.stock < 0 || !Number.isInteger(data.stock))) throw new Error('El stock debe ser un número entero mayor o igual a 0');
   if (data.stockMinimo !== undefined && (data.stockMinimo < 0 || !Number.isInteger(data.stockMinimo))) throw new Error('El stock mínimo debe ser un número entero mayor o igual a 0');

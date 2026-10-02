@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as productService from '../services/product.service';
+import { mensajeSeguro } from '../utils/http';
 
 export const getAll = async (_req: Request, res: Response): Promise<void> => {
   res.json(await productService.getAll());
@@ -22,7 +23,7 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     res.status(201).json(await productService.create(req.body));
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: mensajeSeguro(err) });
   }
 };
 
@@ -30,7 +31,7 @@ export const update = async (req: Request, res: Response): Promise<void> => {
   try {
     res.json(await productService.update(Number(req.params.id), req.body));
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: mensajeSeguro(err) });
   }
 };
 
@@ -44,6 +45,6 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ message: 'Producto no encontrado' });
       return;
     }
-    res.status(409).json({ message: err.message });
+    res.status(409).json({ message: mensajeSeguro(err) });
   }
 };

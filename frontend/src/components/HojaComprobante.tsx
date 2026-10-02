@@ -112,13 +112,6 @@ export default function HojaComprobante({ tipo, titulo, numero, fecha, receptor,
   )
 }
 
-export const tabla: Record<string, React.CSSProperties> = {
-  tabla:   { width: '100%', borderCollapse: 'collapse' as const },
-  th:      { fontSize: '10px', fontWeight: '700', color: '#111111', padding: '0 6px 5px', borderBottom: '1px solid #111111', textAlign: 'left' },
-  tr:      { borderBottom: '1px solid #E2E4E8' },
-  td:      { fontSize: '11px', color: '#111111', padding: '7px 6px' },
-}
-
 const s: Record<string, React.CSSProperties> = {
   overlay:    { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
   modalWrap:  { background: '#EFF1F4', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' },

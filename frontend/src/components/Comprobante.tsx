@@ -1,5 +1,6 @@
 import { MEDIO_CUENTA_CORRIENTE, type TipoComprobante } from '../config'
-import HojaComprobante, { tabla, type Fila, type TipoHoja } from './HojaComprobante'
+import HojaComprobante, { type Fila, type TipoHoja } from './HojaComprobante'
+import { tabla } from './hojaEstilos'
 
 interface ItemComprobante {
   id: number; cantidad: number; precioUnitario: number

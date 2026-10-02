@@ -29,6 +29,8 @@ const detalleRepuestos = (items: { cantidad: number; producto: { nombre: string 
 // Lo que realmente se puede prometer de un repuesto: el stock menos lo que otros servicios ya pidieron y todavía no retiraron.
 // El stock se descuenta recién cuando el depósito entrega el repuesto.
 const validarRepuesto = async (tx: Prisma.TransactionClient, productoId: number, cantidad: number) => {
+  // Bloquea el producto hasta que termine la transacción: sin esto, dos pedidos simultáneos ven el mismo stock libre y reservan la misma unidad
+  await tx.$queryRaw`SELECT id FROM productos WHERE id = ${productoId} FOR UPDATE`;
   const [producto, pedidos] = await Promise.all([
     tx.producto.findUnique({ where: { id: productoId } }),
     tx.servicioRepuesto.findMany({ where: { productoId }, select: { cantidad: true, cantidadRetirada: true } }),
@@ -136,7 +138,8 @@ export const create = async (data: {
       },
     });
 
-    for (const item of repuestos) {
+    // Siempre en el mismo orden, así dos pedidos con los mismos repuestos no se traban entre sí
+    for (const item of [...repuestos].sort((a, b) => a.productoId - b.productoId)) {
       if (!Number.isInteger(item.cantidad) || item.cantidad <= 0)
         throw httpError(400, 'La cantidad de cada repuesto debe ser un número entero mayor a 0');
       const producto = await validarRepuesto(tx, item.productoId, item.cantidad);

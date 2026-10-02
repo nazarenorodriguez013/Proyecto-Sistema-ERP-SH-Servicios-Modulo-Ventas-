@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
 
+// Lo mínimo que usamos del script de Google Identity Services
+interface GoogleId {
+  initialize: (cfg: { client_id: string; callback: (r: { credential: string }) => void }) => void
+  renderButton: (el: HTMLElement, opts: object) => void
+}
+const googleGsi = (): GoogleId | undefined => (window as unknown as { google?: { accounts?: { id?: GoogleId } } }).google?.accounts?.id
+
 interface Props { onLogin: (user: User) => void; resetToken?: string | null }
 type Modo = 'login' | 'forgot' | 'reset' | '2fa'
 
@@ -36,8 +43,9 @@ export default function Login({ onLogin, resetToken }: Props) {
   useEffect(() => {
     if (!googleId || modo !== 'login') return
     const iniciar = () => {
-      const google = (window as any).google
-      google.accounts.id.initialize({
+      const google = googleGsi()
+      if (!google) return
+      google.initialize({
         client_id: googleId,
         callback: async ({ credential }: { credential: string }) => {
           setError('')
@@ -48,9 +56,9 @@ export default function Login({ onLogin, resetToken }: Props) {
           } catch (err) { setError((err as Error).message || 'No se pudo iniciar sesión con Google') }
         },
       })
-      if (googleRef.current) google.accounts.id.renderButton(googleRef.current, { theme: 'filled_black', size: 'large', text: 'signin_with', locale: 'es', width: 340 })
+      if (googleRef.current) google.renderButton(googleRef.current, { theme: 'filled_black', size: 'large', text: 'signin_with', locale: 'es', width: 340 })
     }
-    if ((window as any).google?.accounts) { iniciar(); return }
+    if (googleGsi()) { iniciar(); return }
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
     script.async = true

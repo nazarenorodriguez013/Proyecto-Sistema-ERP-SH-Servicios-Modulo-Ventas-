@@ -52,7 +52,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
   const flatPages: NavItem[] = entries.flatMap(e => isGroup(e) ? [e, ...e.children] : [e])
 
   const routerNav     = useNavigate()
-  const { pathname }  = useLocation()
+  const { pathname, key: claveNavegacion } = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [expanded, setExpanded]       = useState<string[]>([])
   const [stockBajo, setStockBajo]     = useState(0)
@@ -125,11 +125,11 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
 
   const renderContent = () => {
     if (activePage.id === 'historial-ventas')    return <HistorialVentas />
-    if (activePage.id === 'servicios')           return <ServiciosTecnicos user={user} />
+    if (activePage.id === 'servicios')           return <ServiciosTecnicos key={claveNavegacion} user={user} />
     if (activePage.id === 'tecnicos')            return <Tecnicos />
     if (activePage.id === 'historial-servicios') return <HistorialServicios />
     if (activePage.id === 'clientes')            return <Clientes user={user} />
-    if (activePage.id === 'inventario')          return <Inventario user={user} />
+    if (activePage.id === 'inventario')          return <Inventario key={claveNavegacion} user={user} />
     if (activePage.id === 'configuracion')       return <Configuracion user={user} onUserUpdate={onUserUpdate} />
     return <Ventas user={user} />
   }
@@ -171,7 +171,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
                       onClick={() => navigate(entry)}
                     >
                       <span style={st.navIcon}><i className={`bi ${entry.icon}`} /></span>
-                      <span style={{ flex: 1, textAlign: 'left' }}>{entry.label}</span>
+                      <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', minWidth: 0 }}>{entry.label}</span>
                       {badge > 0 && (
                         <span style={st.navBadge} title={entry.id === 'inventario' ? 'Stock bajo o retiros de repuestos pendientes de preparar' : 'Servicios que necesitan atención'}>{badge}</span>
                       )}
@@ -267,7 +267,7 @@ const st: Record<string, React.CSSProperties> = {
   topBarAvatar: { width: '26px', height: '26px', borderRadius: '50%', background: '#111111', color: '#F5C400', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px' },
   topBarName:   { color: '#111111', fontSize: '13px', fontWeight: '500' },
 
-  contentFull:  { flex: 1, overflowY: 'auto' },
+  contentFull:  { flex: 1, minHeight: 0, overflowY: 'auto' },
 
   footer:       { padding: '10px 20px', borderTop: '1px solid #E2E4E8', textAlign: 'center', flexShrink: 0, background: '#FFFFFF' },
   footerText:   { color: '#9A9A9A', fontSize: '11px' },
