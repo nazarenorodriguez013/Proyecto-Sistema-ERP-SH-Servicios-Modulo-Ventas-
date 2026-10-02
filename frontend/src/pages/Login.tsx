@@ -41,7 +41,11 @@ export default function Login({ onLogin, resetToken }: Props) {
         client_id: googleId,
         callback: async ({ credential }: { credential: string }) => {
           setError('')
-          try { ingresar(await post('google', { credential })) } catch (err) { setError((err as Error).message || 'No se pudo iniciar sesión con Google') }
+          try {
+            const data = await post('google', { credential })
+            if (data.requiere2fa) { setDesafio(data.desafio); setCorreoMask(data.correo); setCodigo(''); setModo('2fa') }
+            else ingresar(data)
+          } catch (err) { setError((err as Error).message || 'No se pudo iniciar sesión con Google') }
         },
       })
       if (googleRef.current) google.accounts.id.renderButton(googleRef.current, { theme: 'filled_black', size: 'large', text: 'signin_with', locale: 'es', width: 340 })

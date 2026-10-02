@@ -26,9 +26,12 @@ export const login = async (correo: string, contrasena: string) => {
   const usuario = await buscarPorCorreo(String(correo ?? ''));
   if (!usuario || !(await bcrypt.compare(String(contrasena ?? ''), usuario.contrasena))) throw httpError(401, 'Credenciales inválidas');
   if (!usuario.activo) throw httpError(401, 'Tu usuario está desactivado. Consultá con el administrador');
-  if (!usuario.dosPasos) return emitirSesion(usuario);
+  return pedirSegundoPaso(usuario);
+};
 
-  // Con verificación en dos pasos: la contraseña sola no alcanza, falta el código que llega por mail
+// Con verificación en dos pasos, ni la contraseña ni Google alcanzan solos: falta el código que llega por mail
+const pedirSegundoPaso = async (usuario: Usuario) => {
+  if (!usuario.dosPasos) return emitirSesion(usuario);
   await enviarCodigo(usuario, 'login');
   return { requiere2fa: true, desafio: emitirDesafio(usuario.id), correo: enmascarar(usuario.correo) };
 };
@@ -91,7 +94,7 @@ export const loginGoogle = async (credential: string) => {
   const usuario = await buscarPorCorreo(correo);
   if (!usuario) throw httpError(403, 'Esa cuenta de Google no tiene acceso. Pedile al administrador que te cree un usuario con ese correo');
   if (!usuario.activo) throw httpError(401, 'Tu usuario está desactivado. Consultá con el administrador');
-  return emitirSesion(usuario);
+  return pedirSegundoPaso(usuario);
 };
 
 // Cambio de datos propios: para cambiar correo o contraseña hay que confirmar la contraseña actual
