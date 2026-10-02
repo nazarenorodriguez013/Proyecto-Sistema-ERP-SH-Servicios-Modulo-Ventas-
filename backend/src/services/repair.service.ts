@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma, EstadoServicio, EstadoRetiro, TipoComprobante } from '@prisma/client';
 import { getIO } from '../socket';
 import { httpError } from '../utils/http';
-import { registrarCargo } from './movement.service';
+import { registrarCargo, saldoDeCliente } from './movement.service';
 import { siguienteNumero } from './correlativo.service';
 import * as notificaciones from './notification.service';
 
@@ -297,11 +297,12 @@ export const finalizar = async (id: number, data: {
       clienteId: actual.clienteId, tipo: 'SERVICIO', concepto: `Servicio técnico #${id}`, total,
       medioPago: data.medioPago, usarSaldo: data.usarSaldo !== false, servicioId: id,
     });
+    const saldoCliente = await saldoDeCliente(tx, actual.clienteId);
     const numero = await siguienteNumero(data.tipoComprobante, tx);
     return tx.servicioTecnico.update({
       where: { id },
       data: {
-        estado: 'FINALIZADO', tipoComprobante: data.tipoComprobante, numero, medioPago: data.medioPago, total, saldoAplicado,
+        estado: 'FINALIZADO', tipoComprobante: data.tipoComprobante, numero, medioPago: data.medioPago, total, saldoAplicado, saldoCliente,
         proximoMantenimiento: fechaMantenimiento, finalizadoEn: new Date(),
       },
       include: includeServicio,

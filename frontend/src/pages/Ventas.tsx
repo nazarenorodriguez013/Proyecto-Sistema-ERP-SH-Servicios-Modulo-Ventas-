@@ -137,6 +137,7 @@ export default function Ventas({ user }: { user: User }) {
         items: venta.detallesVenta,
         total: venta.total,
         saldoAplicado: venta.saldoAplicado,
+        saldoCliente: venta.saldoCliente,
         medioPago: venta.medioPago,
         montoRecibido: requierePago && medioPago === 'Efectivo' && montoRecibido ? parseFloat(montoRecibido) : null,
         vendedor: user.nombre,

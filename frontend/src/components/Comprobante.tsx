@@ -1,4 +1,5 @@
 import { MEDIO_CUENTA_CORRIENTE, type TipoComprobante } from '../config'
+import { describirSaldo } from '../saldo'
 import HojaComprobante, { type Fila, type TipoHoja } from './HojaComprobante'
 import { tabla } from './hojaEstilos'
 
@@ -18,6 +19,7 @@ export interface ComprobanteData {
   items: ItemComprobante[]
   total: number
   saldoAplicado: number
+  saldoCliente?: number | null // saldo de cuenta corriente del cliente después de esta operación
   medioPago: string | null
   montoRecibido: number | null
   vendedor: string
@@ -57,6 +59,9 @@ export default function Comprobante({ data, onClose }: { data: ComprobanteData; 
     lineasTotal.push({ label: 'Saldo a favor aplicado', value: `-$${fmt(data.saldoAplicado)}` })
     lineasTotal.push({ label: data.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A cuenta corriente' : 'A pagar', value: `$${fmt(aPagar)}` })
   }
+  // El presupuesto no toca la cuenta corriente, así que no muestra saldo
+  if (cl && data.tipoComprobante !== 'PRESUPUESTO' && data.saldoCliente != null && (data.saldoCliente !== 0 || data.medioPago === MEDIO_CUENTA_CORRIENTE))
+    lineasTotal.push({ label: 'Saldo cuenta corriente', value: describirSaldo(data.saldoCliente).texto })
   if (data.montoRecibido !== null) {
     lineasTotal.push({ label: 'Monto recibido', value: `$${fmt(data.montoRecibido)}` })
     lineasTotal.push({ label: 'Vuelto', value: `$${fmt(data.montoRecibido - aPagar)}` })

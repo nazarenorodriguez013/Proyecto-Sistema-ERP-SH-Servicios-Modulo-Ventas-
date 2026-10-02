@@ -8,6 +8,10 @@ export const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
 export const calcularSaldo = (movimientos: { tipo: string; monto: number }[]) =>
   movimientos.reduce((saldo, m) => saldo + (m.tipo === 'PAGO' ? -m.monto : m.monto), 0);
 
+// Saldo de cuenta corriente del cliente en este momento (positivo = debe, negativo = a favor)
+export const saldoDeCliente = async (tx: Prisma.TransactionClient, clienteId: number) =>
+  calcularSaldo(await tx.movimientoCuenta.findMany({ where: { clienteId }, select: { tipo: true, monto: true } }));
+
 export const createPago = async (clienteId: number, monto: number) => {
   if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0');
   const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });

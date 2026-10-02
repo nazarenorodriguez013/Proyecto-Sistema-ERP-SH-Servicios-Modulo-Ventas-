@@ -1,4 +1,5 @@
 import { MEDIO_CUENTA_CORRIENTE } from '../config'
+import { describirSaldo } from '../saldo'
 import { formatNumero } from '../empresa'
 import type { Servicio } from '../servicios'
 import HojaComprobante, { type Fila, type TipoHoja } from './HojaComprobante'
@@ -48,6 +49,9 @@ export default function ServicioTicket({ modo, servicio, onClose }: { modo: Modo
     lineasTotal.push({ label: 'Saldo a favor aplicado', value: `-$${fmt(servicio.saldoAplicado)}` })
     lineasTotal.push({ label: servicio.medioPago === MEDIO_CUENTA_CORRIENTE ? 'A cuenta corriente' : 'A pagar', value: `$${fmt(aPagar)}` })
   }
+
+  if (modo === 'comprobante' && servicio.saldoCliente != null && (servicio.saldoCliente !== 0 || servicio.medioPago === MEDIO_CUENTA_CORRIENTE))
+    lineasTotal.push({ label: 'Saldo cuenta corriente', value: describirSaldo(servicio.saldoCliente).texto })
 
   const nota = modo === 'presupuesto' ? 'Presupuesto sin cargo, sujeto a disponibilidad de repuestos'
     : modo === 'retiro' ? 'Presentar esta hoja en el área de repuestos para retirar el pedido' : undefined

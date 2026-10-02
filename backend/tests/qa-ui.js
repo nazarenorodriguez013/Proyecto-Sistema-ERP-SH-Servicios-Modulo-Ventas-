@@ -143,10 +143,20 @@ const RUIDO = [/status of 401/, /accounts\.google\.com/, /gsi\/client/, /Failed 
     await page.getByRole('button', { name: /Confirmar Venta/ }).click(); await page.waitForTimeout(1000)
     const txt = await page.locator('#ticket').innerText()
     ok('remito con los datos completos del cliente', /REMITO/.test(txt) && /Responsable Inscripto/.test(txt) && /Av\. Test 100/.test(txt) && /U[a-z0-9]+/.test(txt), txt.slice(0, 300))
+    ok('una venta en efectivo a un cliente al día no ensucia la hoja con el saldo', !/Saldo cuenta corriente/.test(txt))
     // impresión A4
     await page.setViewportSize({ width: 794, height: 1123 }); await page.emulateMedia({ media: 'print' }); await page.waitForTimeout(300)
     const caja = await page.locator('#ticket').boundingBox(); ok('al imprimir la hoja ocupa toda el A4', Math.abs(caja.width - 793.7) < 2 && Math.abs(caja.height - 1122.5) < 3 && caja.x === 0 && caja.y === 0, caja)
     await page.emulateMedia({ media: 'screen' }); await page.setViewportSize({ width: 1366, height: 768 })
+    await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+    // factura a cuenta corriente: la hoja trae el saldo actualizado; el presupuesto no
+    await page.locator('input[placeholder*="Buscar cliente"]').fill('Cliente UI ' + SUF); await page.waitForTimeout(300)
+    await page.locator('div', { hasText: new RegExp('^Cliente UI ' + SUF) }).last().dispatchEvent('mousedown'); await page.waitForTimeout(300)
+    await page.locator('input[placeholder*="compresor"]').fill('Filtro UI ' + SUF); await page.waitForTimeout(300); await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Cuenta Corriente', exact: true }).click()
+    await page.getByRole('button', { name: /Confirmar Venta/ }).click(); await page.waitForTimeout(1000)
+    const txtCC = await page.locator('#ticket').innerText()
+    ok('la factura a cuenta corriente muestra el saldo actualizado', /Saldo cuenta corriente\s*Debe \$1\.500,00/.test(txtCC), txtCC.slice(-300))
     await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
     // solicitud rápida de servicio
     await page.getByRole('button', { name: /Solicitar servicio técnico/ }).click(); await page.waitForTimeout(400)

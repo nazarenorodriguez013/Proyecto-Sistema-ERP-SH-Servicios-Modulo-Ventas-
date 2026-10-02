@@ -5,7 +5,7 @@ import Comprobante, { type ClienteComprobante, type ComprobanteData } from '../c
 
 interface Venta {
   id: number; numero: number; total: number; tipoComprobante: TipoComprobante; medioPago: string; montoRecibido: number | null
-  saldoAplicado: number; creadoEn: string
+  saldoAplicado: number; saldoCliente?: number | null; creadoEn: string
   usuario: { nombre: string }; cliente: ClienteComprobante | null
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string; codigo: string | null } }[]
 }
@@ -40,6 +40,7 @@ export default function HistorialVentas() {
     items: v.detallesVenta,
     total: v.total,
     saldoAplicado: v.saldoAplicado,
+    saldoCliente: v.saldoCliente,
     medioPago: v.medioPago,
     montoRecibido: v.montoRecibido,
     vendedor: v.usuario.nombre,

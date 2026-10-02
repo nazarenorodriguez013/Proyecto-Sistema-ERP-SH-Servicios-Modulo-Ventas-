@@ -1,6 +1,6 @@
 import { PrismaClient, TipoComprobante } from '@prisma/client';
 import { getIO } from '../socket';
-import { MEDIO_CUENTA_CORRIENTE, registrarCargo } from './movement.service';
+import { MEDIO_CUENTA_CORRIENTE, registrarCargo, saldoDeCliente } from './movement.service';
 import { siguienteNumero } from './correlativo.service';
 
 const prisma = new PrismaClient();
@@ -111,8 +111,9 @@ export const createSale = async (
     const saldoAplicado = await registrarCargo(tx, {
       clienteId, tipo: 'VENTA', concepto: `Venta #${nueva.id}`, total, medioPago, usarSaldo, ventaId: nueva.id,
     });
-    if (!saldoAplicado) return nueva;
-    return tx.venta.update({ where: { id: nueva.id }, data: { saldoAplicado }, include: includeVenta });
+    // El comprobante lleva el saldo de la cuenta corriente que quedó después de esta venta
+    const saldoCliente = await saldoDeCliente(tx, clienteId);
+    return tx.venta.update({ where: { id: nueva.id }, data: { saldoAplicado, saldoCliente }, include: includeVenta });
   });
 
   // Se avisa recién cuando la transacción quedó confirmada

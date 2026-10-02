@@ -109,6 +109,7 @@ model Venta {
   medioPago       String          @default("Efectivo") @map("medio_pago")
   montoRecibido   Float?          @map("monto_recibido")
   saldoAplicado   Float           @default(0) @map("saldo_aplicado")
+  saldoCliente    Float?          @map("saldo_cliente")
   usuarioId       Int             @map("usuario_id")
   clienteId       Int?            @map("cliente_id")
   creadoEn        DateTime        @default(now()) @map("creado_en")
@@ -209,6 +210,7 @@ model ServicioTecnico {
   medioPago            String?         @map("medio_pago")
   total                Float?
   saldoAplicado        Float           @default(0) @map("saldo_aplicado")
+  saldoCliente         Float?          @map("saldo_cliente")
   proximoMantenimiento DateTime?       @map("proximo_mantenimiento")
   codigoRetiro         String?         @unique @map("codigo_retiro")
   estadoRetiro         EstadoRetiro?   @map("estado_retiro")

@@ -6,7 +6,7 @@ import ServicioTicket from './ServicioTicket'
 
 export interface VentaCliente {
   id: number; numero: number; tipoComprobante: 'FACTURA' | 'REMITO'; total: number; medioPago: string
-  montoRecibido: number | null; saldoAplicado: number; creadoEn: string; usuario: { nombre: string }
+  montoRecibido: number | null; saldoAplicado: number; saldoCliente?: number | null; creadoEn: string; usuario: { nombre: string }
   detallesVenta: { id: number; cantidad: number; precioUnitario: number; producto: { nombre: string; codigo: string | null } }[]
 }
 export type ServicioCliente = Omit<Servicio, 'cliente'>
@@ -51,7 +51,7 @@ export default function HistorialCliente({ cliente, esAdmin, onBorrarVenta, onBo
 
   const abrirComprobanteVenta = (v: VentaCliente) => setVerVenta({
     id: v.id, numero: v.numero, fecha: new Date(v.creadoEn), tipoComprobante: v.tipoComprobante, items: v.detallesVenta,
-    total: v.total, saldoAplicado: v.saldoAplicado, medioPago: v.medioPago, montoRecibido: v.montoRecibido,
+    total: v.total, saldoAplicado: v.saldoAplicado, saldoCliente: v.saldoCliente, medioPago: v.medioPago, montoRecibido: v.montoRecibido,
     vendedor: v.usuario.nombre, cliente: datosCliente,
   })
 

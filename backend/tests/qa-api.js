@@ -209,6 +209,15 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     const cl = (await api('POST', '/clients', A, { nombre: 'CC ' + SUF, documento: 'CC' + SUF })).d.id
     r = await api('POST', '/sales', A, { items: items(2), medioPago: 'Cuenta Corriente', clienteId: cl }); ok('venta a cuenta corriente deja deuda', r.s === 201, r)
     const vCC = r.d.id; ok('saldo = deuda', (await api('GET', '/clients/' + cl, A)).d.saldo === 400)
+    ok('el comprobante a cuenta corriente trae el saldo actualizado (debe 400)', r.d.saldoCliente === 400, r.d.saldoCliente)
+    r = await api('POST', '/sales', A, { items: items(1), medioPago: 'Cuenta Corriente', clienteId: cl, tipoComprobante: 'REMITO' }); ok('el remito también trae el saldo acumulado (600)', r.d.saldoCliente === 600, r.d.saldoCliente)
+    const saldoPrevio = (await api('GET', '/clients/' + cl, A)).d.saldo
+    r = await api('POST', '/sales', A, { items: items(3), medioPago: 'Cuenta Corriente', clienteId: cl, tipoComprobante: 'PRESUPUESTO' })
+    ok('un presupuesto no trae saldo ni toca la cuenta del cliente', r.s === 201 && (r.d.saldoCliente ?? null) === null && (await api('GET', '/clients/' + cl, A)).d.saldo === saldoPrevio, [r.s, r.d?.saldoCliente, saldoPrevio])
+    r = await api('POST', '/repairs/presupuesto', A, { clienteId: cl, equipo: 'P', descripcionFalla: 'p', costoManoObra: 5000 })
+    ok('un presupuesto de servicio tampoco cambia el saldo', r.s === 201 && (await api('GET', '/clients/' + cl, A)).d.saldo === saldoPrevio, r.s)
+    await api('DELETE', '/sales/' + (await api('GET', '/clients/' + cl, A)).d.ventas.find(v => v.tipoComprobante === 'REMITO').id, A)
+    ok('(control) al borrar el remito el saldo vuelve a 400', (await api('GET', '/clients/' + cl, A)).d.saldo === 400)
     await api('POST', `/clients/${cl}/movements`, A, { monto: 1000 }); ok('pago de más deja saldo a favor', (await api('GET', '/clients/' + cl, A)).d.saldo === -600)
     r = await api('POST', '/sales', A, { items: items(1), medioPago: 'Efectivo', clienteId: cl }); ok('con saldo a favor se aplica automático (200)', r.d.saldoAplicado === 200, r.d)
     r = await api('POST', '/sales', A, { items: items(1), medioPago: 'Efectivo', clienteId: cl, usarSaldo: false }); ok('usarSaldo=false no lo aplica', r.d.saldoAplicado === 0, r.d)
@@ -300,6 +309,7 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     r = await api('POST', '/repairs', A, { clienteId: cl, equipo: 'CC', descripcionFalla: 'cc', costoManoObra: 3000 }); const sCC = r.d.id
     r = await api('PUT', `/repairs/${sCC}/finalizar`, A, { tipoComprobante: 'FACTURA', medioPago: 'Cuenta Corriente' }); ok('finalizar a cuenta corriente', r.s === 200, r)
     ok('deja la deuda en la cuenta del cliente', (await api('GET', '/clients/' + cl, A)).d.saldo === 3000)
+    ok('la factura de servicio trae el saldo actualizado', (await api('GET', '/repairs/' + sCC, A)).d.saldoCliente === 3000, (await api('GET', '/repairs/' + sCC, A)).d.saldoCliente)
     r = await api('GET', '/clients/' + cl, A); ok('el servicio figura en la ficha del cliente', r.d.servicios.some(s => s.id === sCC), r.d.servicios?.length)
     // borrar
     r = await api('DELETE', '/repairs/' + sCC, V); ok('vendedor no borra servicios → 403', r.s === 403, r.s)
