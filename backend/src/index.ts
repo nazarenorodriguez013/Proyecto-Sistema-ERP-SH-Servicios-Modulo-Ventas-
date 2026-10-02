@@ -45,8 +45,13 @@ app.get('/health', (_req, res) => {
 // En producción el mismo servidor sirve el build del frontend (no hace falta otro servicio aparte)
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../..', 'frontend', 'dist');
-  app.use(express.static(distPath));
+  // El HTML nunca se cachea (así el navegador toma siempre los archivos nuevos tras un deploy)
+  app.use(express.static(distPath, { index: false }));
+  // Un archivo de /assets que ya no existe (pestaña abierta durante un deploy) tiene que dar 404:
+  // si se respondiera con el HTML, el navegador intentaría ejecutarlo como JavaScript y la pantalla quedaría en negro
+  app.use('/assets', (_req, res) => { res.status(404).end(); });
   app.use((_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
