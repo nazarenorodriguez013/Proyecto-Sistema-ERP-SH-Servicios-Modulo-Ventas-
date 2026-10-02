@@ -19,6 +19,10 @@ model Usuario {
   // Módulos del menú que ve el usuario; el administrador ve todos sin importar esta lista
   modulos       String[] @default([])
   activo        Boolean  @default(true)
+  // Un usuario nuevo (o con correo cambiado) no puede entrar hasta confirmar el correo con el link que recibe
+  correoConfirmado Boolean @default(true) @map("correo_confirmado")
+  confirmTokenHash String? @map("confirm_token_hash")
+  confirmExpira DateTime? @map("confirm_expira")
   // Recuperación de contraseña: se guarda solo el hash del token que se mandó por mail
   resetTokenHash String?  @map("reset_token_hash")
   resetExpira   DateTime? @map("reset_expira")

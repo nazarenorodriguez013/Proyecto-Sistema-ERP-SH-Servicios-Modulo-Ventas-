@@ -2,11 +2,12 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma, Rol } from '@prisma/client';
 import { httpError } from '../utils/http';
 import { normalizarModulos } from '../utils/modulos';
+import { enviarConfirmacion } from './confirmacion.service';
 
 const prisma = new PrismaClient();
 
 // Nunca se devuelve la contraseña ni el token de recuperación
-const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true, activo: true, creadoEn: true } as const;
+const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true, activo: true, correoConfirmado: true, creadoEn: true } as const;
 
 const ROLES: Rol[] = ['ADMIN', 'VENDEDOR', 'TECNICO'];
 
@@ -37,7 +38,7 @@ const validarRol = (rol: unknown): Rol => {
 
 export const getAll = () => prisma.usuario.findMany({ select: campos, orderBy: { nombre: 'asc' } });
 
-export const create = async (data: { nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown }) => {
+export const create = async (data: { nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown }, urlBase: string) => {
   if (!data.nombre?.trim()) throw httpError(400, 'El nombre es obligatorio');
   const rol = validarRol(data.rol);
   const usuario = await prisma.usuario.create({
@@ -48,15 +49,16 @@ export const create = async (data: { nombre?: string; correo?: string; contrasen
     },
     select: campos,
   }).catch(traducirError);
-  return usuario;
+  await enviarConfirmacion(usuario, urlBase);
+  return { ...usuario, correoConfirmado: false };
 };
 
 // Siempre tiene que quedar al menos un administrador activo, si no nadie podría volver a gestionar usuarios
 const quedaOtroAdmin = async (excluirId: number) =>
   (await prisma.usuario.count({ where: { rol: 'ADMIN', activo: true, id: { not: excluirId } } })) > 0;
 
-export const update = async (id: number, actorId: number, data: {
-  nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown; activo?: boolean
+export const update = async (id: number, actorId: number, urlBase: string, data: {
+  nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown; activo?: boolean; correoConfirmado?: boolean
 }) => {
   const actual = await prisma.usuario.findUnique({ where: { id } });
   if (!actual) throw httpError(404, 'Usuario no encontrado');
@@ -72,12 +74,22 @@ export const update = async (id: number, actorId: number, data: {
     if (!data.nombre.trim()) throw httpError(400, 'El nombre es obligatorio');
     cambios.nombre = data.nombre.trim();
   }
-  if (data.correo !== undefined) cambios.correo = normalizarCorreo(data.correo);
+  const correo = data.correo !== undefined ? normalizarCorreo(data.correo) : actual.correo;
+  if (correo !== actual.correo) cambios.correo = correo;
+  // El administrador puede confirmar a mano si el mail no llega
+  const confirmadoAMano = data.correoConfirmado === true && !actual.correoConfirmado;
+  if (confirmadoAMano) { cambios.correoConfirmado = true; cambios.confirmTokenHash = null; cambios.confirmExpira = null; }
   if (data.contrasena) cambios.contrasena = await bcrypt.hash(validarContrasena(data.contrasena), 10);
   // Si cambia el rol, los módulos se ajustan a lo que ese rol permite
   if (data.modulos !== undefined || rol !== actual.rol) cambios.modulos = normalizarModulos(data.modulos ?? actual.modulos, rol);
 
-  return prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
+  const actualizado = await prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
+  // Un correo nuevo hay que volver a confirmarlo
+  if (cambios.correo && !confirmadoAMano) {
+    await enviarConfirmacion(actualizado, urlBase);
+    return { ...actualizado, correoConfirmado: false };
+  }
+  return actualizado;
 };
 
 export const remove = async (id: number, actorId: number) => {

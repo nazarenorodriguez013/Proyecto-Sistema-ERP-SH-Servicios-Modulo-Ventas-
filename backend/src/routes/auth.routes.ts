@@ -10,6 +10,7 @@ router.post('/login', auth.login);
 router.get('/config', auth.config);
 router.post('/google', auth.loginGoogle);
 router.post('/forgot', auth.olvideContrasena);
+router.post('/confirm', auth.confirmarCorreo);
 router.post('/reset', auth.restablecerContrasena);
 router.put('/me', authenticate, auth.actualizarCuenta);
 

@@ -23,6 +23,8 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: '*' } });
 
+// Detrás del proxy de Railway, así req.protocol es https y los links de los mails salen bien
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 

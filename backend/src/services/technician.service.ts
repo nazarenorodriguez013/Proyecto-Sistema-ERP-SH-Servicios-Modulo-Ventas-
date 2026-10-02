@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { httpError } from '../utils/http';
 import { modulosPorRol } from '../utils/modulos';
 import { validarContrasena } from './user.service';
+import { enviarConfirmacion } from './confirmacion.service';
 
 const prisma = new PrismaClient();
 
@@ -32,29 +33,35 @@ const obtenerTecnico = async (id: number) => {
 export const getAll = () =>
   prisma.usuario.findMany({ where: { rol: 'TECNICO' }, select: campos, orderBy: { nombre: 'asc' } });
 
-export const create = async (data: { nombre: string; correo: string; contrasena: string }) => {
+export const create = async (data: { nombre: string; correo: string; contrasena: string }, urlBase: string) => {
   validar(data);
   validarContrasena(data.contrasena);
-  return prisma.usuario.create({
+  const tecnico = await prisma.usuario.create({
     data: { nombre: data.nombre.trim(), correo: data.correo.trim().toLowerCase(), contrasena: await bcrypt.hash(data.contrasena, 10), rol: 'TECNICO', modulos: modulosPorRol('TECNICO') },
     select: campos,
   }).catch(traducirError);
+  await enviarConfirmacion(tecnico, urlBase);
+  return tecnico;
 };
 
 // La contraseña es opcional al editar: si viene vacía se mantiene la actual
-export const update = async (id: number, data: { nombre?: string; correo?: string; contrasena?: string }) => {
+export const update = async (id: number, data: { nombre?: string; correo?: string; contrasena?: string }, urlBase: string) => {
   validar(data);
-  await obtenerTecnico(id);
+  const actual = await obtenerTecnico(id);
   if (data.contrasena) validarContrasena(data.contrasena);
-  return prisma.usuario.update({
+  const correo = data.correo?.trim().toLowerCase();
+  const tecnico = await prisma.usuario.update({
     where: { id },
     data: {
       nombre: data.nombre?.trim(),
-      correo: data.correo?.trim(),
+      correo,
       ...(data.contrasena ? { contrasena: await bcrypt.hash(data.contrasena, 10) } : {}),
     },
     select: campos,
   }).catch(traducirError);
+  // Un correo nuevo hay que volver a confirmarlo
+  if (correo && correo !== actual.correo) await enviarConfirmacion(tecnico, urlBase);
+  return tecnico;
 };
 
 export const remove = async (id: number) => {

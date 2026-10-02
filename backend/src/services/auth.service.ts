@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { PrismaClient, Usuario } from '@prisma/client';
 import { httpError } from '../utils/http';
 import { enviarMail } from './mail.service';
+import { enviarConfirmacion, confirmar } from './confirmacion.service';
 import { normalizarCorreo, validarContrasena } from './user.service';
 
 const prisma = new PrismaClient();
@@ -25,8 +26,11 @@ export const login = async (correo: string, contrasena: string) => {
   const usuario = await buscarPorCorreo(String(correo ?? ''));
   if (!usuario || !(await bcrypt.compare(String(contrasena ?? ''), usuario.contrasena))) throw httpError(401, 'Credenciales inválidas');
   if (!usuario.activo) throw httpError(401, 'Tu usuario está desactivado. Consultá con el administrador');
+  if (!usuario.correoConfirmado) throw httpError(403, 'Todavía no confirmaste tu correo. Revisá tu bandeja de entrada (y spam) o pedile al administrador que te reenvíe el link');
   return emitirSesion(usuario);
 };
+
+export const confirmarCorreo = (token: string) => confirmar(token);
 
 // Client ID de Google (se crea en Google Cloud Console); sin él el botón no se muestra
 export const config = () => ({ googleClientId: process.env.GOOGLE_CLIENT_ID || null });
@@ -47,11 +51,15 @@ export const loginGoogle = async (credential: string) => {
   const usuario = await buscarPorCorreo(correo);
   if (!usuario) throw httpError(403, 'Esa cuenta de Google no tiene acceso. Pedile al administrador que te cree un usuario con ese correo');
   if (!usuario.activo) throw httpError(401, 'Tu usuario está desactivado. Consultá con el administrador');
+  // Google ya verificó que el correo es de quien entra, así que cuenta como confirmado
+  if (!usuario.correoConfirmado) {
+    await prisma.usuario.update({ where: { id: usuario.id }, data: { correoConfirmado: true, confirmTokenHash: null, confirmExpira: null } });
+  }
   return emitirSesion(usuario);
 };
 
 // Cambio de datos propios: para cambiar correo o contraseña hay que confirmar la contraseña actual
-export const actualizarCuenta = async (id: number, data: { nombre?: string; correo?: string; contrasenaActual?: string; contrasenaNueva?: string }) => {
+export const actualizarCuenta = async (id: number, urlBase: string, data: { nombre?: string; correo?: string; contrasenaActual?: string; contrasenaNueva?: string }) => {
   const usuario = await prisma.usuario.findUnique({ where: { id } });
   if (!usuario) throw httpError(404, 'Usuario no encontrado');
 
@@ -71,6 +79,8 @@ export const actualizarCuenta = async (id: number, data: { nombre?: string; corr
     if (err?.code === 'P2002') throw httpError(400, 'Ya existe un usuario con ese correo');
     throw err;
   });
+  // Un correo nuevo hay que volver a confirmarlo
+  if (cambios.correo) await enviarConfirmacion(actualizado, urlBase);
   return emitirSesion(actualizado);
 };
 
@@ -102,6 +112,7 @@ export const restablecerContrasena = async (token: string, contrasena: string) =
   if (!usuario) throw httpError(400, 'El link no es válido o ya venció. Pedí uno nuevo');
   await prisma.usuario.update({
     where: { id: usuario.id },
-    data: { contrasena: await bcrypt.hash(contrasena, 10), resetTokenHash: null, resetExpira: null },
+    // Entrar por el link del mail también prueba que el correo es suyo
+    data: { contrasena: await bcrypt.hash(contrasena, 10), resetTokenHash: null, resetExpira: null, correoConfirmado: true },
   });
 };

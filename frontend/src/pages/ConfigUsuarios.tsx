@@ -3,7 +3,7 @@ import { API } from '../config'
 import { MODULOS_UI, modulosPorRol, ROL_LABEL } from '../modulos'
 import { campo as c } from './configEstilos'
 
-interface Usuario { id: number; nombre: string; correo: string; rol: string; modulos: string[]; activo: boolean }
+interface Usuario { id: number; nombre: string; correo: string; rol: string; modulos: string[]; activo: boolean; correoConfirmado: boolean }
 interface Form { nombre: string; correo: string; contrasena: string; rol: string; modulos: string[]; activo: boolean }
 
 const ROLES = ['ADMIN', 'VENDEDOR', 'TECNICO']
@@ -15,6 +15,7 @@ export default function ConfigUsuarios({ yoId }: { yoId: number }) {
   const [form, setForm] = useState<Form>(nuevoForm())
   const [borrar, setBorrar] = useState<Usuario | null>(null)
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
   const fetchAll = () => fetch(`${API}/users`, { headers }).then(r => r.json()).then(setUsuarios)
@@ -47,6 +48,16 @@ export default function ConfigUsuarios({ yoId }: { yoId: number }) {
     cerrar(); fetchAll()
   }
 
+  const accionConfirmacion = async (u: Usuario, manual: boolean) => {
+    setError(''); setAviso('')
+    const res = manual
+      ? await fetch(`${API}/users/${u.id}`, { method: 'PUT', headers, body: JSON.stringify({ correoConfirmado: true }) })
+      : await fetch(`${API}/users/${u.id}/reenviar-confirmacion`, { method: 'POST', headers })
+    if (!res.ok) { setError((await res.json()).message || 'No se pudo completar la acción'); return }
+    setAviso(manual ? `Correo de ${u.nombre} marcado como confirmado` : `Mail de confirmación enviado a ${u.correo}`)
+    fetchAll()
+  }
+
   const eliminar = async (u: Usuario) => {
     const res = await fetch(`${API}/users/${u.id}`, { method: 'DELETE', headers })
     if (!res.ok) setError((await res.json()).message || 'No se pudo eliminar el usuario')
@@ -60,6 +71,7 @@ export default function ConfigUsuarios({ yoId }: { yoId: number }) {
         <button style={c.btnPrimary} onClick={() => abrir(null)}><i className="bi bi-plus-lg" /> Nuevo usuario</button>
       </div>
       {error && !modal.open && <p style={c.error}>{error}</p>}
+      {aviso && !modal.open && <p style={c.ok}>{aviso}</p>}
 
       <div style={s.lista}>
         {usuarios.map(u => (
@@ -67,6 +79,11 @@ export default function ConfigUsuarios({ yoId }: { yoId: number }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={s.nombre}>{u.nombre}{u.id === yoId && <span style={s.yo}>vos</span>}</p>
               <p style={s.sub}>{u.correo}</p>
+              {!u.correoConfirmado && (
+                <p style={s.pendiente}>Correo sin confirmar: no puede entrar todavía.{' '}
+                  <button style={s.linkBtn} onClick={() => accionConfirmacion(u, false)}>Reenviar mail</button>{' · '}
+                  <button style={s.linkBtn} onClick={() => accionConfirmacion(u, true)}>Marcar como confirmado</button></p>
+              )}
             </div>
             <span style={s.rol}>{ROL_LABEL[u.rol]}</span>
             <span style={s.sub}>{u.rol === 'ADMIN' ? 'Todos los módulos' : `${u.modulos.length} ${u.modulos.length === 1 ? 'módulo' : 'módulos'}`}{!u.activo && ' · desactivado'}</span>
@@ -148,6 +165,8 @@ const s: Record<string, React.CSSProperties> = {
   fila:      { display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 4px', borderBottom: '1px solid #EFF1F4' },
   nombre:    { color: '#111111', fontSize: '14px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' },
   sub:       { color: '#6B6B6B', fontSize: '12px', margin: 0 },
+  pendiente: { color: '#97640B', fontSize: '12px', margin: '2px 0 0' },
+  linkBtn:   { background: 'transparent', border: 'none', padding: 0, color: '#8A6D00', fontSize: '12px', fontWeight: '700', textDecoration: 'underline', cursor: 'pointer' },
   yo:        { background: '#FFFDF3', color: '#8A6D00', border: '1px solid rgba(245,196,0,0.4)', borderRadius: '20px', padding: '1px 8px', fontSize: '10px', fontWeight: '700' },
   rol:       { background: '#F5F5F5', color: '#333333', border: '1px solid #E2E4E8', borderRadius: '20px', padding: '3px 10px', fontSize: '11px', fontWeight: '700' },
   btnIcon:   { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '7px', padding: '6px 9px', cursor: 'pointer', fontSize: '13px', color: '#111111' },

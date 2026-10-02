@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
 
-interface Props { onLogin: (user: User) => void; resetToken?: string | null }
+interface Props { onLogin: (user: User) => void; resetToken?: string | null; confirmarToken?: string | null }
 type Modo = 'login' | 'forgot' | 'reset'
 
-export default function Login({ onLogin, resetToken }: Props) {
+export default function Login({ onLogin, resetToken, confirmarToken }: Props) {
   const [modo, setModo]         = useState<Modo>(resetToken ? 'reset' : 'login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -24,6 +24,17 @@ export default function Login({ onLogin, resetToken }: Props) {
   }
 
   const ingresar = (data: { token: string; user: User }) => { localStorage.setItem('token', data.token); onLogin(data.user) }
+
+  // Link del mail de confirmación: se valida al abrir y se muestra el resultado sobre el login
+  const confirmando = useRef(false)
+  useEffect(() => {
+    if (!confirmarToken || confirmando.current) return
+    confirmando.current = true
+    post('confirm', { token: confirmarToken })
+      .then(data => setInfo(data.message))
+      .catch(err => setError((err as Error).message))
+      .finally(() => window.history.replaceState({}, '', window.location.pathname))
+  }, [])
 
   // El botón de Google solo aparece si el servidor tiene configurado el Client ID
   useEffect(() => {

@@ -28,8 +28,10 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
     })
     const data = await res.json()
     if (!res.ok) { setError(data.message || 'No se pudo guardar'); return }
+    const cambioCorreo = correo.trim().toLowerCase() !== user.correo
     onActualizado(data)
-    setNueva(''); setRepetir(''); setActual(''); setOk('Datos actualizados')
+    setNueva(''); setRepetir(''); setActual('')
+    setOk(cambioCorreo ? 'Datos actualizados. Te enviamos un mail al correo nuevo: confirmalo para poder volver a entrar' : 'Datos actualizados')
   }
 
   return (

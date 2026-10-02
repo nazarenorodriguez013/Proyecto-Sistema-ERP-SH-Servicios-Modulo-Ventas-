@@ -9,6 +9,7 @@ router.use(authenticate, authorizeAdmin);
 router.get('/', userController.getAll);
 router.post('/', userController.create);
 router.put('/:id', userController.update);
+router.post('/:id/reenviar-confirmacion', userController.reenviarConfirmacion);
 router.delete('/:id', userController.remove);
 
 export default router;
