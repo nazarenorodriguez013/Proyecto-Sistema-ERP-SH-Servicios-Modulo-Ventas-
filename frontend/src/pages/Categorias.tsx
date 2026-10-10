@@ -3,13 +3,18 @@ import type { User } from '../types'
 import { API } from '../config'
 import { puede } from '../permisos'
 
-interface Categoria { id: number; nombre: string; _count: { productos: number } }
+type Tipo = 'REPUESTO' | 'MAQUINARIA'
+interface Categoria { id: number; nombre: string; tipo: Tipo; _count: { productos: number } }
+const TIPO_LABEL: Record<Tipo, string> = { REPUESTO: 'Repuestos', MAQUINARIA: 'Maquinaria' }
 
 // Misma disposición que Categorías en el panel del catálogo: listado a la izquierda, alta a la derecha y edición en modal
 export default function Categorias({ user }: { user: User }) {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
   const [nuevo, setNuevo] = useState('')
+  const [nuevoTipo, setNuevoTipo] = useState<Tipo | ''>('')
+  const [tipoEdit, setTipoEdit] = useState<Tipo>('REPUESTO')
+  const [filtro, setFiltro] = useState<'' | Tipo>('')
   const [errorAlta, setErrorAlta] = useState('')
   const [editando, setEditando] = useState<Categoria | null>(null)
   const [nombre, setNombre] = useState('')
@@ -39,14 +44,14 @@ export default function Categorias({ user }: { user: User }) {
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault()
-    const err = await llamar('POST', '', { nombre: nuevo })
+    const err = await llamar('POST', '', { nombre: nuevo, tipo: nuevoTipo })
     setErrorAlta(err ?? '')
-    if (!err) setNuevo('')
+    if (!err) { setNuevo(''); setNuevoTipo('') }
   }
 
   const guardarEdicion = async (e: React.FormEvent) => {
     e.preventDefault()
-    const err = await llamar('PUT', `/${editando!.id}`, { nombre })
+    const err = await llamar('PUT', `/${editando!.id}`, { nombre, tipo: tipoEdit })
     if (err) setError(err)
     else cerrar()
   }
@@ -65,7 +70,11 @@ export default function Categorias({ user }: { user: User }) {
         <div className="card-admin">
           <div className="card-admin__head">
             <h2><i className="bi bi-diagram-3-fill" /> Categorías</h2>
-            <span className="text-muted-2" style={{ fontSize: '.875rem' }}>{categorias.length} categoría(s)</span>
+            <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {([['', 'Todas'], ['REPUESTO', 'Repuestos'], ['MAQUINARIA', 'Maquinaria']] as const).map(([v, l]) => (
+                <button key={v} type="button" className={`btn ${filtro === v ? 'btn-accent' : 'btn-ghost'}`} style={{ padding: '4px 10px', fontSize: '.8rem' }} onClick={() => setFiltro(v)}>{l}</button>
+              ))}
+            </span>
           </div>
           <div className="card-admin__body card-admin__body--flush">
             <div className="table-responsive-admin">
@@ -73,12 +82,13 @@ export default function Categorias({ user }: { user: User }) {
                 <thead>
                   <tr>
                     <th>Categoría</th>
+                    <th>Para</th>
                     <th className="num">Productos</th>
                     {isAdmin && <th className="actions">Acciones</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {categorias.map(c => (
+                  {categorias.filter(c => !filtro || c.tipo === filtro).map(c => (
                     <tr key={c.id}>
                       <td>
                         <div className="table-product">
@@ -86,11 +96,12 @@ export default function Categorias({ user }: { user: User }) {
                           <span className="table-product__name">{c.nombre}</span>
                         </div>
                       </td>
+                      <td>{TIPO_LABEL[c.tipo]}</td>
                       <td className="num">{c._count.productos}</td>
                       {isAdmin && (
                         <td className="actions">
                           <button type="button" className="btn-icon" title="Editar"
-                            onClick={() => { setNombre(c.nombre); setError(''); setEditando(c) }}>
+                            onClick={() => { setNombre(c.nombre); setTipoEdit(c.tipo); setError(''); setEditando(c) }}>
                             <i className="bi bi-pencil" />
                           </button>{' '}
                           <button type="button" className="btn-icon btn-icon--danger" title="Eliminar"
@@ -102,7 +113,7 @@ export default function Categorias({ user }: { user: User }) {
                     </tr>
                   ))}
                   {categorias.length === 0 && (
-                    <tr><td colSpan={3} className="table-admin__empty"><i className="bi bi-inbox" />Todavía no hay categorías.</td></tr>
+                    <tr><td colSpan={4} className="table-admin__empty"><i className="bi bi-inbox" />Todavía no hay categorías.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -119,6 +130,14 @@ export default function Categorias({ user }: { user: User }) {
                   <label className="form-label" htmlFor="c-name">Nombre *</label>
                   <input type="text" className="form-control" id="c-name" required maxLength={120}
                     placeholder="Herramientas neumáticas" value={nuevo} onChange={e => setNuevo(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="c-tipo">Para *</label>
+                  <select className="form-select" id="c-tipo" required value={nuevoTipo} onChange={e => setNuevoTipo(e.target.value as Tipo | '')}>
+                    <option value="">Seleccionar...</option>
+                    <option value="REPUESTO">Repuestos</option>
+                    <option value="MAQUINARIA">Maquinaria</option>
+                  </select>
                   {errorAlta && <p className="form-error">{errorAlta}</p>}
                 </div>
                 <button type="submit" className="btn btn-accent" style={{ width: '100%' }}><i className="bi bi-plus-lg" /> Crear categoría</button>
@@ -140,6 +159,13 @@ export default function Categorias({ user }: { user: User }) {
                 <div>
                   <label className="form-label">Nombre *</label>
                   <input type="text" className="form-control" required maxLength={120} autoFocus value={nombre} onChange={e => setNombre(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label">Para *</label>
+                  <select className="form-select" value={tipoEdit} onChange={e => setTipoEdit(e.target.value as Tipo)}>
+                    <option value="REPUESTO">Repuestos</option>
+                    <option value="MAQUINARIA">Maquinaria</option>
+                  </select>
                 </div>
                 {error && <p className="form-error">{error}</p>}
               </div>

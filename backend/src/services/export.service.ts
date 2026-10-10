@@ -61,7 +61,7 @@ export const obtener = async (dataset: string, permisos: string[]): Promise<Tabl
 
     case 'ventas': {
       const lista = await prisma.venta.findMany({
-        include: { cliente: true, usuario: { select: { nombre: true } }, detallesVenta: { include: { producto: true } } },
+        include: { cliente: true, usuario: { select: { nombre: true } }, detallesVenta: true },
         orderBy: { creadoEn: 'desc' },
       });
       return {
@@ -70,7 +70,7 @@ export const obtener = async (dataset: string, permisos: string[]): Promise<Tabl
         principales: ['Fecha', 'Comprobante', 'Número', 'Cliente', 'Medio de pago', 'Total'],
         filas: lista.map(v => [
           fecha(v.creadoEn), v.tipoComprobante === 'FACTURA' ? 'Factura' : 'Remito', v.numero, v.cliente?.nombre ?? 'Consumidor Final',
-          v.usuario.nombre, v.medioPago, v.detallesVenta.map(d => `${d.cantidad} x ${d.producto.nombre}`).join(' | '), v.saldoAplicado, v.total,
+          v.usuario.nombre, v.medioPago, v.detallesVenta.map(d => `${d.cantidad} x ${d.nombreProducto}`).join(' | '), v.saldoAplicado, v.total,
         ]),
       };
     }

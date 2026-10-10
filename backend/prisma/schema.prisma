@@ -97,9 +97,11 @@ model Auditoria {
 }
 
 model Categoria {
-  id       Int      @id @default(autoincrement())
-  nombre   String   @unique
-  creadoEn DateTime @default(now()) @map("creado_en")
+  id       Int          @id @default(autoincrement())
+  nombre   String       @unique
+  // Para qué sirve: una categoría de repuestos solo la usan repuestos y una de maquinaria, maquinaria
+  tipo     TipoProducto @default(REPUESTO)
+  creadoEn DateTime     @default(now()) @map("creado_en")
 
   productos Producto[]
 
@@ -174,12 +176,15 @@ model Venta {
 model DetalleVenta {
   id             Int   @id @default(autoincrement())
   ventaId        Int   @map("venta_id")
-  productoId     Int   @map("producto_id")
+  productoId     Int?  @map("producto_id")
   cantidad       Int
   precioUnitario Float @map("precio_unitario")
+  // Copia en texto del artículo al momento de la venta: el comprobante se reimprime igual aunque el artículo cambie o se elimine
+  nombreProducto String  @default("") @map("nombre_producto")
+  codigoProducto String? @map("codigo_producto")
 
-  venta    Venta    @relation(fields: [ventaId], references: [id])
-  producto Producto @relation(fields: [productoId], references: [id])
+  venta    Venta     @relation(fields: [ventaId], references: [id])
+  producto Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
 
   @@map("detalles_venta")
 }
@@ -280,14 +285,16 @@ model ServicioTecnico {
 model ServicioRepuesto {
   id             Int   @id @default(autoincrement())
   servicioId     Int   @map("servicio_id")
-  productoId     Int   @map("producto_id")
+  productoId     Int?  @map("producto_id")
+  nombreProducto String  @default("") @map("nombre_producto")
+  codigoProducto String? @map("codigo_producto")
   cantidad       Int
   // El stock se descuenta recién cuando el depósito entrega el repuesto (se marca como retirado)
   cantidadRetirada Int  @default(0) @map("cantidad_retirada")
   precioUnitario Float @map("precio_unitario")
 
   servicio ServicioTecnico @relation(fields: [servicioId], references: [id])
-  producto Producto        @relation(fields: [productoId], references: [id])
+  producto Producto?       @relation(fields: [productoId], references: [id], onDelete: SetNull)
 
   @@unique([servicioId, productoId])
   @@map("servicio_repuestos")

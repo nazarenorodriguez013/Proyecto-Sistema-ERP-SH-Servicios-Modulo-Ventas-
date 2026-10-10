@@ -27,8 +27,8 @@ const notificar = (stock = false) => {
 };
 
 const codigoDeRetiro = (id: number) => `RT-${String(id).padStart(6, '0')}`;
-const detalleRepuestos = (items: { cantidad: number; producto: { nombre: string } }[]) =>
-  items.map(r => `${r.cantidad} × ${r.producto.nombre}`).join(', ');
+const detalleRepuestos = (items: { cantidad: number; nombreProducto: string }[]) =>
+  items.map(r => `${r.cantidad} × ${r.nombreProducto}`).join(', ');
 
 // Lo que realmente se puede prometer de un repuesto: el stock menos lo que otros servicios ya pidieron y todavía no retiraron.
 // El stock se descuenta recién cuando el depósito entrega el repuesto.
@@ -149,7 +149,7 @@ export const create = async (data: {
         throw httpError(400, 'La cantidad de cada repuesto debe ser un número entero mayor a 0');
       const producto = await validarRepuesto(tx, item.productoId, item.cantidad);
       await tx.servicioRepuesto.create({
-        data: { servicioId: nuevo.id, productoId: item.productoId, cantidad: item.cantidad, precioUnitario: producto.precio },
+        data: { servicioId: nuevo.id, productoId: item.productoId, nombreProducto: producto.nombre, codigoProducto: producto.codigo, cantidad: item.cantidad, precioUnitario: producto.precio },
       });
     }
 
@@ -188,7 +188,7 @@ export const presupuesto = async (data: {
   for (const item of data.repuestos ?? []) {
     const producto = await prisma.producto.findUnique({ where: { id: item.productoId } });
     if (!producto) throw httpError(400, 'Producto no encontrado');
-    repuestos.push({ id: 0, cantidad: item.cantidad, precioUnitario: producto.precio, producto });
+    repuestos.push({ id: 0, cantidad: item.cantidad, precioUnitario: producto.precio, nombreProducto: producto.nombre, codigoProducto: producto.codigo, producto });
   }
 
   const numero = await siguienteNumero('PRESUPUESTO');
@@ -239,7 +239,7 @@ export const agregarRepuesto = async (id: number, productoId: number, cantidad: 
     const producto = await validarRepuesto(tx, productoId, cantidad);
     await tx.servicioRepuesto.upsert({
       where: { servicioId_productoId: { servicioId: id, productoId } },
-      create: { servicioId: id, productoId, cantidad, precioUnitario: producto.precio },
+      create: { servicioId: id, productoId, nombreProducto: producto.nombre, codigoProducto: producto.codigo, cantidad, precioUnitario: producto.precio },
       update: { cantidad: { increment: cantidad } },
     });
     await recalcularRetiro(tx, id);
@@ -335,7 +335,8 @@ export const remove = async (id: number) => {
     if (!servicio) throw httpError(404, 'Servicio no encontrado');
 
     for (const r of servicio.repuestos) {
-      if (r.cantidadRetirada > 0)
+      // Si el artículo ya se eliminó del inventario no hay stock para devolver
+      if (r.cantidadRetirada > 0 && r.productoId !== null)
         await tx.producto.update({ where: { id: r.productoId }, data: { stock: { increment: r.cantidadRetirada } } });
     }
 
@@ -360,9 +361,10 @@ export const marcarRetiro = async (id: number, estado: EstadoRetiro) => {
         const pendiente = r.cantidad - r.cantidadRetirada;
         if (pendiente <= 0) continue;
         // Descuenta solo si alcanza el stock en ese momento, así nunca queda negativo
+        if (r.productoId === null) throw httpError(400, `El artículo "${r.nombreProducto}" ya no existe en el inventario`);
         const { count } = await tx.producto.updateMany({ where: { id: r.productoId, stock: { gte: pendiente } }, data: { stock: { decrement: pendiente } } });
         if (count === 0)
-          throw httpError(400, `Stock insuficiente para "${r.producto.nombre}" (hay ${r.producto.stock}, se necesitan ${pendiente}). Ajustá el stock antes de entregarlo`);
+          throw httpError(400, `Stock insuficiente para "${r.nombreProducto}" (hay ${r.producto?.stock ?? 0}, se necesitan ${pendiente}). Ajustá el stock antes de entregarlo`);
         await tx.servicioRepuesto.update({ where: { id: r.id }, data: { cantidadRetirada: r.cantidad } });
       }
     }

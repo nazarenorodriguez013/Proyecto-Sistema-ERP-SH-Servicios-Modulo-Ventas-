@@ -6,7 +6,7 @@ import { siguienteNumero } from './correlativo.service';
 const prisma = new PrismaClient();
 
 const includeVenta = {
-  detallesVenta: { include: { producto: { include: { categoria: true } } } },
+  detallesVenta: true,
   usuario: true,
   cliente: true,
 };
@@ -46,7 +46,7 @@ export const createSale = async (
     for (const [productoId, cantidad] of cantidades) {
       const producto = await prisma.producto.findUnique({ where: { id: productoId }, include: { categoria: true } });
       if (!producto) throw new Error('Producto no encontrado');
-      detallesVenta.push({ id: 0, ventaId: 0, productoId, cantidad, precioUnitario: producto.precio, producto });
+      detallesVenta.push({ id: 0, ventaId: 0, productoId, cantidad, precioUnitario: producto.precio, nombreProducto: producto.nombre, codigoProducto: producto.codigo, producto });
     }
     const total = detallesVenta.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
     const numero = await siguienteNumero('PRESUPUESTO');
@@ -85,7 +85,7 @@ export const createSale = async (
       if (count === 0)
         throw new Error(`Stock insuficiente para "${producto.nombre}" (disponible: ${producto.stock})`);
 
-      detalles.push({ productoId, cantidad, precioUnitario: producto.precio });
+      detalles.push({ productoId, nombreProducto: producto.nombre, codigoProducto: producto.codigo, cantidad, precioUnitario: producto.precio });
     }
 
     const total = detalles.reduce((sum, d) => sum + d.cantidad * d.precioUnitario, 0);
@@ -131,7 +131,7 @@ export const remove = async (id: number) => {
     if (!venta) throw new Error('Venta no encontrada');
 
     for (const d of venta.detallesVenta) {
-      await tx.producto.update({ where: { id: d.productoId }, data: { stock: { increment: d.cantidad } } });
+      if (d.productoId !== null) await tx.producto.update({ where: { id: d.productoId }, data: { stock: { increment: d.cantidad } } });
     }
 
     await tx.movimientoCuenta.deleteMany({ where: { ventaId: id } });

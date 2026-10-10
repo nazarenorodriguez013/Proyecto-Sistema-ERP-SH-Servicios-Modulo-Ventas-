@@ -215,10 +215,16 @@ export const importar = async (tipoTexto: string, contenido: unknown, actualizar
 
   const resultado = await prisma.$transaction(async tx => {
     // Las categorías que no existen se crean (se comparan sin distinguir mayúsculas)
-    const categorias = new Map((await tx.categoria.findMany()).map(c => [c.nombre.toLowerCase(), c.id]));
+    // Cada categoría es de un tipo: si ya existe una con ese nombre pero del otro tipo, se crea una aparte con el tipo en el nombre
+    const categorias = new Map((await tx.categoria.findMany()).map(c => [`${c.tipo}:${c.nombre.toLowerCase()}`, c.id]));
+    const nombresUsados = new Set((await tx.categoria.findMany({ select: { nombre: true } })).map(c => c.nombre.toLowerCase()));
     const categoriaId = async (nombre: string) => {
-      const clave = nombre.toLowerCase();
-      if (!categorias.has(clave)) categorias.set(clave, (await tx.categoria.create({ data: { nombre } })).id);
+      const clave = `${tipo}:${nombre.toLowerCase()}`;
+      if (!categorias.has(clave)) {
+        const propio = nombresUsados.has(nombre.toLowerCase()) ? `${nombre} (${tipo === 'MAQUINARIA' ? 'maquinaria' : 'repuestos'})` : nombre;
+        nombresUsados.add(propio.toLowerCase());
+        categorias.set(clave, (await tx.categoria.create({ data: { nombre: propio, tipo } })).id);
+      }
       return categorias.get(clave)!;
     };
 

@@ -6,7 +6,7 @@ import { socket } from '../socket'
 import Dropdown from '../components/Dropdown'
 import { puede } from '../permisos'
 
-interface Categoria { id: number; nombre: string }
+interface Categoria { id: number; nombre: string; tipo: TipoProducto }
 type TipoProducto = 'REPUESTO' | 'MAQUINARIA'
 interface Producto {
   id: number; codigo: string | null; nombre: string; descripcion: string | null
@@ -208,7 +208,7 @@ export default function Articulos({ user, tipo }: { user: User; tipo: TipoProduc
           <label className="form-label" htmlFor="f-cat">Categoría</label>
           <select className="form-select" id="f-cat" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
             <option value="">Todas</option>
-            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            {categorias.filter(c => c.tipo === tipo).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
         </div>
         <div>
@@ -379,12 +379,12 @@ export default function Articulos({ user, tipo }: { user: User; tipo: TipoProduc
                       <label className="form-label">Categoría</label>
                       <select className="form-select" value={form.categoriaId} required onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))}>
                         <option value="">Seleccionar...</option>
-                        {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                        {categorias.filter(c => c.tipo === form.tipoProducto).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="form-label">Tipo</label>
-                      <select className="form-select" value={form.tipoProducto} onChange={e => setForm(f => ({ ...f, tipoProducto: e.target.value as TipoProducto }))}>
+                      <select className="form-select" value={form.tipoProducto} onChange={e => setForm(f => ({ ...f, tipoProducto: e.target.value as TipoProducto, categoriaId: '' }))}>
                         {(['MAQUINARIA', 'REPUESTO'] as const).map(x => <option key={x} value={x}>{TIPO_LABEL[x]}</option>)}
                       </select>
                     </div>

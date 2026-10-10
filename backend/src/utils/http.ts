@@ -21,6 +21,26 @@ export const errorJson = (err: any, _req: Request, res: Response, next: NextFunc
   next(err);
 };
 
+// Los comprobantes guardan el artículo como texto (nombre y código al momento de la operación): al responder se arma el
+// mismo formato de siempre (producto.nombre / producto.codigo) con ese texto, para que la hoja salga igual aunque el artículo cambie o se elimine
+export const conTextoDelArticulo = (valor: any): any => {
+  if (Array.isArray(valor)) return valor.map(conTextoDelArticulo);
+  if (valor && typeof valor === 'object' && Object.getPrototypeOf(valor) === Object.prototype) {
+    const copia: any = {};
+    for (const k of Object.keys(valor)) copia[k] = conTextoDelArticulo(valor[k]);
+    if (typeof valor.nombreProducto === 'string' && 'productoId' in valor)
+      copia.producto = { ...(valor.producto ?? {}), id: valor.productoId, nombre: valor.nombreProducto, codigo: valor.codigoProducto ?? null };
+    return copia;
+  }
+  return valor;
+};
+
+export const textoDelArticulo = (_req: Request, res: Response, next: NextFunction) => {
+  const json = res.json.bind(res);
+  res.json = (cuerpo: any) => json(conTextoDelArticulo(cuerpo));
+  next();
+};
+
 // Ejecuta la acción y responde con su resultado, o con el código HTTP que trae el error (400 si no trae ninguno)
 export const responder = async (res: Response, accion: () => Promise<unknown>, status = 200) => {
   try {

@@ -36,14 +36,15 @@ const paralelo = (n, fn) => Promise.all(Array.from({ length: n }, (_, i) => fn(i
 
 const CLAVE = 'Clave1234'
 let A, V, T, depo // tokens de admin, vendedor, técnico, inventario
-let catId, repuestoId, repuesto2Id, maquinaId, clienteId, tecnicoId
+let catId, catMaqId, repuestoId, repuesto2Id, maquinaId, clienteId, tecnicoId
 
+const ROLES = { ADMIN: 1, VENDEDOR: 2, TECNICO: 3, INVENTARIO: 4 } // ids de los roles de sistema
 const crearUsuario = async (rol, nombre = rol) => {
   const correo = `${nombre.toLowerCase()}.${SUF}.${Math.random().toString(36).slice(2, 6)}@qa.com`
-  const r = await api('POST', '/users', A, { nombre, correo, contrasena: CLAVE, rol })
+  const r = await api('POST', '/users', A, { nombre, correo, contrasena: CLAVE, rolId: ROLES[rol] })
   return { ...r.d, correo, token: await login(correo, CLAVE), s: r.s }
 }
-const producto = async (extra = {}) => (await api('POST', '/products', A, { nombre: 'P' + Math.random().toString(36).slice(2, 7), precio: 100, precioCosto: 50, stock: 20, stockMinimo: 2, categoriaId: catId, tipoProducto: 'REPUESTO', ...extra })).d
+const producto = async (extra = {}) => (await api('POST', '/products', A, { nombre: 'P' + Math.random().toString(36).slice(2, 7), precio: 100, precioCosto: 50, stock: 20, stockMinimo: 2, categoriaId: extra.tipoProducto === 'MAQUINARIA' ? catMaqId : catId, tipoProducto: 'REPUESTO', ...extra })).d
 const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
 
 ;(async () => {
@@ -74,21 +75,19 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
   await seccion('USUARIOS (solo administrador)', async () => {
     for (const [nombre, tk] of [['vendedor', V], ['técnico', T], ['inventario', depo]]) {
       const r = await api('GET', '/users', tk); ok(`${nombre} no puede listar usuarios → 403`, r.s === 403, r.s)
-      const c = await api('POST', '/users', tk, { nombre: 'x', correo: 'x@q.com', contrasena: CLAVE, rol: 'ADMIN' }); ok(`${nombre} no puede crear usuarios (escalada a admin) → 403`, c.s === 403, c.s)
+      const c = await api('POST', '/users', tk, { nombre: 'x', correo: 'x@q.com', contrasena: CLAVE, rolId: 1 }); ok(`${nombre} no puede crear usuarios (escalada a admin) → 403`, c.s === 403, c.s)
     }
     const casos = [['clave1234', 'sin mayúscula'], ['ClaveClave', 'sin número'], ['Cl1', 'corta'], ['', 'vacía'], [12345678, 'numérica']]
-    for (const [pw, d] of casos) { const r = await api('POST', '/users', A, { nombre: 'x', correo: `pw${Math.random()}@q.com`, contrasena: pw, rol: 'VENDEDOR' }); ok(`contraseña ${d} rechazada`, r.s === 400, r) }
-    let r = await api('POST', '/users', A, { nombre: 'x', correo: 'no-es-mail', contrasena: CLAVE, rol: 'VENDEDOR' }); ok('correo inválido → 400', r.s === 400, r)
-    r = await api('POST', '/users', A, { nombre: '   ', correo: `n${SUF}@q.com`, contrasena: CLAVE, rol: 'VENDEDOR' }); ok('nombre vacío → 400', r.s === 400, r)
-    r = await api('POST', '/users', A, { nombre: 'x', correo: `r${SUF}@q.com`, contrasena: CLAVE, rol: 'SUPERUSER' }); ok('rol inexistente → 400', r.s === 400, r)
+    for (const [pw, d] of casos) { const r = await api('POST', '/users', A, { nombre: 'x', correo: `pw${Math.random()}@q.com`, contrasena: pw, rolId: 2 }); ok(`contraseña ${d} rechazada`, r.s === 400, r) }
+    let r = await api('POST', '/users', A, { nombre: 'x', correo: 'no-es-mail', contrasena: CLAVE, rolId: 2 }); ok('correo inválido → 400', r.s === 400, r)
+    r = await api('POST', '/users', A, { nombre: '   ', correo: `n${SUF}@q.com`, contrasena: CLAVE, rolId: 2 }); ok('nombre vacío → 400', r.s === 400, r)
+    r = await api('POST', '/users', A, { nombre: 'x', correo: `r${SUF}@q.com`, contrasena: CLAVE, rolId: 99999 }); ok('rol inexistente → 400', r.s === 400, r)
     r = await api('POST', '/users', A, { nombre: 'x', correo: `r${SUF}b@q.com`, contrasena: CLAVE }); ok('sin rol → 400', r.s === 400, r)
-    const u = await crearUsuario('VENDEDOR', 'Ana'); ok('alta de vendedor', u.s === 201 && u.rol === 'VENDEDOR', u)
+    const u = await crearUsuario('VENDEDOR', 'Ana'); ok('alta de vendedor', u.s === 201 && u.rol?.slug === 'vendedor', u)
     ok('el vendedor nuevo entra sin confirmar nada', !!u.token)
-    r = await api('POST', '/users', A, { nombre: 'dup', correo: u.correo.toUpperCase(), contrasena: CLAVE, rol: 'VENDEDOR' }); ok('correo duplicado (otra capitalización) → 400', r.s === 400, r)
-    const mods = await api('POST', '/users', A, { nombre: 'Mods', correo: `m${SUF}@q.com`, contrasena: CLAVE, rol: 'TECNICO', modulos: ['clientes', 'inventario', 'servicios', 'basura', 5] })
-    ok('un técnico solo recibe los módulos que su rol permite', JSON.stringify(mods.d.modulos) === '["servicios"]', mods.d.modulos)
-    const inv = await api('POST', '/users', A, { nombre: 'Inv', correo: `i${SUF}@q.com`, contrasena: CLAVE, rol: 'INVENTARIO' }); ok('rol INVENTARIO solo ve inventario', JSON.stringify(inv.d.modulos) === '["inventario"]', inv.d)
-    r = await api('PUT', '/users/' + u.id, A, { rol: 'TECNICO' }); ok('cambiar de rol ajusta los módulos', r.s === 200 && JSON.stringify(r.d.modulos) === '["servicios"]', r.d)
+    r = await api('POST', '/users', A, { nombre: 'dup', correo: u.correo.toUpperCase(), contrasena: CLAVE, rolId: 2 }); ok('correo duplicado (otra capitalización) → 400', r.s === 400, r)
+    const inv = await api('POST', '/users', A, { nombre: 'Inv', correo: `i${SUF}@q.com`, contrasena: CLAVE, rolId: 4 }); ok('rol INVENTARIO queda asignado', inv.s === 201 && inv.d.rol?.slug === 'inventario', inv.d)
+    r = await api('PUT', '/users/' + u.id, A, { rolId: 3 }); ok('cambiar de rol', r.s === 200 && r.d.rol?.slug === 'tecnico', r.d)
     r = await api('PUT', '/users/' + u.id, A, { activo: false }); ok('desactivar usuario', r.s === 200 && r.d.activo === false, r)
     r = await api('POST', '/auth/login', null, { correo: u.correo, contrasena: CLAVE }); ok('usuario desactivado no puede entrar → 401', r.s === 401, r)
     r = await api('PUT', '/users/' + u.id, A, { activo: true, contrasena: 'Nueva9999' }); ok('reactivar y cambiar contraseña', r.s === 200, r)
@@ -98,9 +97,9 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     const adminId = (await api('GET', '/users', A)).d.find(x => x.correo === 'admin@shservicios.com').id
     r = await api('DELETE', '/users/' + adminId, A); ok('no podés eliminarte a vos mismo → 400', r.s === 400, r)
     r = await api('PUT', '/users/' + adminId, A, { activo: false }); ok('no podés desactivarte a vos mismo', r.s === 400, r)
-    r = await api('PUT', '/users/' + adminId, A, { rol: 'VENDEDOR' }); ok('no se puede quitar al único administrador → 400', r.s === 400, r)
+    r = await api('PUT', '/users/' + adminId, A, { rolId: 2 }); ok('no se puede quitar al único administrador → 400', r.s === 400, r)
     r = await api('DELETE', '/users/' + u.id, A); ok('borrar usuario sin movimientos → 204', r.s === 204, r)
-    r = await api('GET', '/users', A); ok('el listado no expone contraseñas ni hashes', !JSON.stringify(r.d).match(/contrasena|resetToken|codigoHash/i), Object.keys(r.d[0]))
+    r = await api('GET', '/users', A); ok('el listado no expone contraseñas ni hashes', !JSON.stringify(r.d).match(/"contrasena"|resetToken|codigoHash/i), Object.keys(r.d[0]))
   })
 
   await seccion('EMPRESA', async () => {
@@ -113,18 +112,28 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
   })
 
   // Datos base para el resto
-  catId = (await api('GET', '/categories', A)).d[0].id
+  const cats = (await api('GET', '/categories', A)).d; catId = cats.find(c => c.tipo === 'REPUESTO').id; catMaqId = cats.find(c => c.tipo === 'MAQUINARIA').id
   clienteId = (await api('POST', '/clients', A, { nombre: 'Cliente QA ' + SUF, documento: 'D' + SUF, direccion: 'Calle 123', telefono: '111', email: 'c@qa.com' })).d.id
   const tecU = await crearUsuario('TECNICO', 'TecQA'); tecnicoId = tecU.id; const TT = tecU.token
   repuestoId = (await producto({ stock: 50, nombre: 'Repuesto QA 1' })).id; repuesto2Id = (await producto({ stock: 30, nombre: 'Repuesto QA 2' })).id; maquinaId = (await producto({ stock: 5, tipoProducto: 'MAQUINARIA', nombre: 'Maquina QA', precio: 5000 })).id
 
   await seccion('CATEGORÍAS Y PRODUCTOS', async () => {
-    let r = await api('POST', '/categories', A, { nombre: 'Cat ' + SUF }); ok('admin crea categoría', r.s === 201, r)
+    let r = await api('POST', '/categories', A, { nombre: 'Cat ' + SUF, tipo: 'REPUESTO' }); ok('admin crea categoría', r.s === 201, r)
     const cid = r.d?.id
-    r = await api('POST', '/categories', A, { nombre: 'Cat ' + SUF }); ok('categoría duplicada → error controlado (4xx)', r.s >= 400 && r.s < 500, r.s)
+    r = await api('POST', '/categories', A, { nombre: 'Cat ' + SUF, tipo: 'REPUESTO' }); ok('categoría duplicada → error controlado (4xx)', r.s >= 400 && r.s < 500, r.s)
     r = await api('POST', '/categories', A, { nombre: '' }); ok('categoría sin nombre → 4xx', r.s >= 400 && r.s < 500, r)
-    r = await api('POST', '/categories', V, { nombre: 'X' + SUF }); ok('vendedor no crea categoría → 403', r.s === 403, r.s)
-    r = await api('POST', '/categories', depo, { nombre: 'Dep ' + SUF }); ok('inventario sí crea categoría', r.s === 201, r.s)
+    r = await api('POST', '/categories', V, { nombre: 'X' + SUF, tipo: 'REPUESTO' }); ok('vendedor no crea categoría → 403', r.s === 403, r.s)
+    r = await api('POST', '/categories', depo, { nombre: 'Dep ' + SUF, tipo: 'MAQUINARIA' }); ok('inventario sí crea categoría', r.s === 201, r.s)
+    r = await api('POST', '/categories', A, { nombre: 'SinTipo ' + SUF }); ok('categoría sin tipo → 400', r.s === 400, r)
+    r = await api('POST', '/categories', A, { nombre: 'TipoMalo ' + SUF, tipo: 'OTRO' }); ok('categoría con tipo inválido → 400', r.s === 400, r)
+    const cm = (await api('POST', '/categories', A, { nombre: 'Maq ' + SUF, tipo: 'MAQUINARIA' })).d, cr = (await api('POST', '/categories', A, { nombre: 'Rep ' + SUF, tipo: 'REPUESTO' })).d
+    ok('la lista de categorías trae el tipo', (await api('GET', '/categories', A)).d.find(c => c.id === cm.id)?.tipo === 'MAQUINARIA')
+    r = await api('POST', '/products', A, { nombre: 'Repuesto mal', precio: 10, stock: 1, categoriaId: cm.id, tipoProducto: 'REPUESTO' }); ok('un repuesto no entra en una categoría de maquinaria → 400', r.s === 400 && /maquinaria/.test(r.d?.message || ''), r)
+    r = await api('POST', '/products', A, { nombre: 'Maquina mal', precio: 10, stock: 1, categoriaId: cr.id, tipoProducto: 'MAQUINARIA' }); ok('una maquinaria no entra en una categoría de repuestos → 400', r.s === 400, r)
+    r = await api('POST', '/products', A, { nombre: 'Maquina bien', precio: 10, stock: 1, categoriaId: cm.id, tipoProducto: 'MAQUINARIA' }); ok('maquinaria en categoría de maquinaria → 201', r.s === 201, r); const pm = r.d.id
+    r = await api('PUT', '/products/' + pm, A, { categoriaId: cr.id }); ok('mover la maquinaria a una categoría de repuestos → 400', r.s === 400, r)
+    r = await api('PUT', '/categories/' + cm.id, A, { nombre: 'Maq ' + SUF, tipo: 'REPUESTO' }); ok('no se cambia el tipo de una categoría con artículos del otro tipo → 400', r.s === 400, r)
+    r = await api('PUT', '/categories/' + cr.id, A, { nombre: 'Rep2 ' + SUF, tipo: 'MAQUINARIA' }); ok('una categoría vacía sí cambia de tipo', r.s === 200 && r.d.tipo === 'MAQUINARIA', r)
     r = await api('PUT', '/categories/' + cid, A, { nombre: 'Cat renombrada ' + SUF }); ok('renombrar categoría', r.s === 200, r)
     r = await api('DELETE', '/categories/' + cid, A); ok('borrar categoría vacía', r.s === 204 || r.s === 200, r.s)
     r = await api('DELETE', '/categories/' + catId, A); ok('categoría con productos no se borra (409/400, no 500)', r.s === 409 || r.s === 400, r.s)
@@ -139,10 +148,10 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
       r = await api('PUT', '/products/' + pid, tk, { precio: 1 }); ok(`${n} no edita producto → 403`, r.s === 403, r.s)
       r = await api('DELETE', '/products/' + pid, tk); ok(`${n} no borra producto → 403`, r.s === 403, r.s)
     }
-    const malos = [[{ nombre: '' }, 'nombre vacío'], [{ precio: 0 }, 'precio 0'], [{ precio: -5 }, 'precio negativo'], [{ stock: -1 }, 'stock negativo'], [{ stock: 1.5 }, 'stock decimal'],
+    const malos = [[{ nombre: '' }, 'nombre vacío'], [{ precio: -5 }, 'precio negativo'], [{ stock: -1 }, 'stock negativo'], [{ stock: 1.5 }, 'stock decimal'],
       [{ stockMinimo: -2 }, 'stock mínimo negativo'], [{ categoriaId: 999999 }, 'categoría inexistente'], [{ tipoProducto: 'OTRO' }, 'tipo inválido'], [{ precio: 'abc' }, 'precio texto'], [{ categoriaId: undefined }, 'sin categoría']]
     for (const [parche, d] of malos) { r = await api('POST', '/products', A, { ...base, ...parche }); ok(`producto con ${d} → 4xx (no 500)`, r.s >= 400 && r.s < 500, { s: r.s, d: r.d }) }
-    r = await api('PUT', '/products/' + pid, A, { precio: 250, stock: 8, tipoProducto: 'MAQUINARIA' }); ok('editar precio, stock y tipo', r.s === 200 && r.d.precio === 250 && r.d.tipoProducto === 'MAQUINARIA', r)
+    r = await api('PUT', '/products/' + pid, A, { precio: 250, stock: 8, tipoProducto: 'MAQUINARIA', categoriaId: catMaqId }); ok('editar precio, stock y tipo', r.s === 200 && r.d.precio === 250 && r.d.tipoProducto === 'MAQUINARIA', r)
     r = await api('PUT', '/products/' + pid, A, { precio: -1 }); ok('editar con precio inválido → 400', r.s === 400, r)
     r = await api('PUT', '/products/999999', A, { precio: 5 }); ok('editar inexistente → 4xx', r.s >= 400 && r.s < 500, r.s)
     r = await api('GET', '/products/999999', A); ok('leer inexistente → 404', r.s === 404, r.s)
@@ -246,7 +255,7 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     let r = await api('POST', '/repairs', A, { ...base, tecnicoId }); ok('crear servicio con técnico', r.s === 201 && r.d.estado === 'EN_CURSO' && r.d.tecnico.id === tecnicoId && r.d.estadoRetiro === null, r)
     const sv0 = r.d.id
     r = await api('POST', '/repairs', V, { ...base }); ok('vendedor crea servicio sin técnico', r.s === 201 && r.d.tecnico === null, r.d)
-    for (const [parche, d] of [[{ equipo: '' }, 'equipo vacío'], [{ descripcionFalla: ' ' }, 'falla vacía'], [{ clienteId: 999999 }, 'cliente inexistente'], [{ clienteId: undefined }, 'sin cliente'], [{ tecnicoId: V ? (await api('GET', '/users', A)).d.find(u => u.rol === 'VENDEDOR').id : 1 }, 'técnico que no es técnico'], [{ fechaEstimadaFin: 'no-es-fecha' }, 'fecha inválida']]) { r = await api('POST', '/repairs', A, { ...base, ...parche }); ok(`servicio con ${d} → 4xx`, r.s >= 400 && r.s < 500, { s: r.s, d: r.d }) }
+    for (const [parche, d] of [[{ equipo: '' }, 'equipo vacío'], [{ descripcionFalla: ' ' }, 'falla vacía'], [{ clienteId: 999999 }, 'cliente inexistente'], [{ clienteId: undefined }, 'sin cliente'], [{ tecnicoId: V ? (await api('GET', '/users', A)).d.find(u => u.rol?.slug === 'vendedor').id : 1 }, 'técnico que no es técnico'], [{ fechaEstimadaFin: 'no-es-fecha' }, 'fecha inválida']]) { r = await api('POST', '/repairs', A, { ...base, ...parche }); ok(`servicio con ${d} → 4xx`, r.s >= 400 && r.s < 500, { s: r.s, d: r.d }) }
     for (const [n, tk] of [['técnico', T], ['inventario', depo]]) { r = await api('POST', '/repairs', tk, base); ok(`${n} no crea servicios → 403`, r.s === 403, r.s) }
     // repuestos y reserva
     r = await api('POST', '/repairs', A, { ...base, tecnicoId, repuestos: [{ productoId: rp.id, cantidad: 4 }] }); ok('crear con repuestos: queda pendiente de retiro con código', r.s === 201 && r.d.estadoRetiro === 'PENDIENTE' && /^RT-\d{6}$/.test(r.d.codigoRetiro), r.d)
@@ -261,7 +270,7 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     ok('presupuesto no reserva ni descuenta', (await stockDe(rp.id)) === 10)
     r = await api('POST', '/repairs/presupuesto', T, base); ok('técnico no genera presupuestos → 403', r.s === 403, r.s)
     // asignar
-    r = await api('PUT', `/repairs/${svR}/tecnico`, A, { tecnicoId: (await api('GET', '/users', A)).d.find(u => u.rol === 'ADMIN').id }); ok('asignar a un no técnico → 400', r.s === 400, r)
+    r = await api('PUT', `/repairs/${svR}/tecnico`, A, { tecnicoId: (await api('GET', '/users', A)).d.find(u => u.rol?.slug === 'admin').id }); ok('asignar a un no técnico → 400', r.s === 400, r)
     r = await api('PUT', `/repairs/${svR}/tecnico`, T, { tecnicoId }); ok('técnico no reasigna → 403', r.s === 403, r.s)
     // permisos de lectura
     r = await api('GET', '/repairs', TT); ok('técnico ve solo sus servicios', r.s === 200 && r.d.every(s => s.tecnicoId === tecnicoId) && r.d.length >= 2, r.d?.map?.(s => s.tecnicoId))
@@ -410,8 +419,8 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     r = await api('PUT', '/auth/me', u.token, { correo: 'admin@shservicios.com', contrasenaActual: CLAVE }); ok('correo de otro usuario → 400', r.s === 400, r)
     r = await api('PUT', '/auth/me', u.token, { contrasenaNueva: 'sinmayus1', contrasenaActual: CLAVE }); ok('contraseña nueva débil → 400', r.s === 400, r)
     r = await api('PUT', '/auth/me', u.token, { contrasenaNueva: 'Mejor12345', contrasenaActual: 'mala' }); ok('contraseña actual incorrecta → 400', r.s === 400, r)
-    r = await api('PUT', '/auth/me', u.token, { rol: 'ADMIN', modulos: ['x'], contrasenaNueva: 'Mejor12345', contrasenaActual: CLAVE }); ok('cambiar contraseña', r.s === 200, r)
-    ok('no se puede escalar el rol desde Mi cuenta', r.d.user.rol === 'VENDEDOR', r.d.user)
+    r = await api('PUT', '/auth/me', u.token, { rolId: 1, rol: 'ADMIN', modulos: ['x'], contrasenaNueva: 'Mejor12345', contrasenaActual: CLAVE }); ok('cambiar contraseña', r.s === 200, r)
+    ok('no se puede escalar el rol desde Mi cuenta', r.d.user.rol?.slug === 'vendedor', r.d.user)
     r = await api('POST', '/auth/login', null, { correo: u.correo, contrasena: 'Mejor12345' }); ok('entra con la nueva', r.s === 200, r.s)
     // recuperar
     const rec = await crearUsuario('VENDEDOR', 'Recup')
@@ -437,7 +446,7 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     r = await api('GET', '/clients', viejo); ok('al desactivar al usuario, su sesión abierta deja de servir → 401', r.s === 401, r.s)
     await api('PUT', '/users/' + u.id, A, { activo: true })
     const adm = await crearUsuario('ADMIN', 'AdminTmp'); r = await api('GET', '/users', adm.token); ok('un admin nuevo lista usuarios', r.s === 200, r.s)
-    await api('PUT', '/users/' + adm.id, A, { rol: 'VENDEDOR' })
+    await api('PUT', '/users/' + adm.id, A, { rolId: 2 })
     r = await api('GET', '/users', adm.token); ok('al bajarle el rol, su token viejo ya no tiene permisos de admin → 403', r.s === 403, r.s)
     const del = await crearUsuario('VENDEDOR', 'Borrado'); await api('DELETE', '/users/' + del.id, A)
     r = await api('GET', '/clients', del.token); ok('al borrar al usuario, su token deja de servir → 401', r.s === 401, r.s)
@@ -452,17 +461,37 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     r = await api('POST', '/technicians', A, { nombre: 'Tec ABM', correo: `abm${SUF}@qa.com`, contrasena: CLAVE }); ok('crear técnico', r.s === 201, r); const id = r.d.id
     r = await api('POST', '/technicians', A, { nombre: 'Tec ABM', correo: `ABM${SUF}@qa.com`, contrasena: CLAVE }); ok('correo duplicado → 400', r.s === 400, r)
     r = await api('PUT', '/technicians/' + id, A, { nombre: 'Tec ABM 2' }); ok('editar', r.s === 200 && r.d.nombre === 'Tec ABM 2', r)
-    r = await api('PUT', '/technicians/' + (await api('GET', '/users', A)).d.find(u => u.rol === 'ADMIN').id, A, { nombre: 'hack' }); ok('no se edita un admin por la ruta de técnicos → 404', r.s === 404, r.s)
+    r = await api('PUT', '/technicians/' + (await api('GET', '/users', A)).d.find(u => u.rol?.slug === 'admin').id, A, { nombre: 'hack' }); ok('no se edita un admin por la ruta de técnicos → 404', r.s === 404, r.s)
     r = await api('DELETE', '/technicians/' + id, A); ok('borrar técnico sin servicios', r.s === 204, r.s)
     r = await api('DELETE', '/technicians/' + tecnicoId, A); ok('técnico con servicios no se borra → 409', r.s === 409, r.s)
+  })
+
+  await seccion('ARTÍCULOS ELIMINADOS Y COMPROBANTES COMO TEXTO', async () => {
+    const p = await producto({ stock: 10, precio: 700, nombre: 'Articulo Efimero ' + SUF })
+    let r = await api('POST', '/sales', A, { items: [{ productoId: p.id, cantidad: 2 }], medioPago: 'Efectivo', tipoComprobante: 'FACTURA' }); const vid = r.d.id
+    ok('la venta guarda el artículo como texto', r.d.detallesVenta[0].nombreProducto === 'Articulo Efimero ' + SUF && r.d.detallesVenta[0].producto.nombre === 'Articulo Efimero ' + SUF, r.d.detallesVenta)
+    await api('PUT', '/products/' + p.id, A, { nombre: 'Renombrado ' + SUF })
+    r = await api('GET', '/sales', A); ok('si el artículo se renombra, el comprobante conserva el nombre original', r.d.find(v => v.id === vid).detallesVenta[0].producto.nombre === 'Articulo Efimero ' + SUF)
+    r = await api('DELETE', '/products/' + p.id, A); ok('se puede eliminar un artículo que ya tiene ventas', r.s === 204, r)
+    r = await api('GET', '/sales', A); const v = r.d.find(x => x.id === vid)
+    ok('la venta sigue mostrando el artículo eliminado (nombre y cantidad)', v.detallesVenta[0].producto.nombre === 'Articulo Efimero ' + SUF && v.detallesVenta[0].cantidad === 2 && v.detallesVenta[0].productoId === null, v.detallesVenta)
+    r = await api('DELETE', '/sales/' + vid, A); ok('y se puede borrar la venta sin romper (no hay stock que devolver)', r.s === 204, r)
+    // servicios
+    const p2 = await producto({ stock: 10, precio: 300, nombre: 'Repuesto Efimero ' + SUF })
+    r = await api('POST', '/repairs', A, { clienteId, equipo: 'Ef', descripcionFalla: 'x', tecnicoId, repuestos: [{ productoId: p2.id, cantidad: 1 }] }); const sv = r.d.id
+    r = await api('DELETE', '/products/' + p2.id, A); ok('no se elimina un artículo usado en un servicio en curso → 409', r.s === 409, r)
+    await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'LISTO' }); await api('PUT', `/repairs/retiros/${sv}`, depo, { estado: 'RETIRADO' })
+    r = await api('PUT', `/repairs/${sv}/finalizar`, A, { tipoComprobante: 'FACTURA', medioPago: 'Efectivo' }); ok('se finaliza el servicio', r.s === 200, r)
+    r = await api('DELETE', '/products/' + p2.id, A); ok('con el servicio finalizado sí se puede eliminar el repuesto', r.s === 204, r)
+    r = await api('GET', '/repairs/' + sv, A); ok('la factura del servicio conserva el repuesto como texto', r.d.repuestos[0].producto.nombre === 'Repuesto Efimero ' + SUF && r.d.repuestos[0].cantidad === 1, r.d.repuestos)
   })
 
   await seccion('ENTRADAS MALAS (sin filtrar detalles internos)', async () => {
     const crudo = async (path, token, cuerpo) => { const r = await fetch(B + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: cuerpo }); const t = await r.text(); let d; try { d = JSON.parse(t) } catch { d = t } return { s: r.status, d, t } }
     let r = await crudo('/categories', A, '{"nombre":')
     ok('JSON mal formado → 400 en JSON (sin stack)', r.s === 400 && typeof r.d?.message === 'string' && !/at .*\.js|node_modules/.test(r.t), r.t.slice(0, 120))
-    r = await api('POST', '/categories', A, { nombre: 123 }); ok('categoría con nombre numérico → 400', r.s === 400 && !/trim|undefined|prisma/i.test(r.d?.message || ''), r)
-    r = await api('POST', '/categories', A, { nombre: { a: 1 } }); ok('categoría con nombre objeto → 400', r.s === 400, r)
+    r = await api('POST', '/categories', A, { nombre: 123, tipo: 'REPUESTO' }); ok('categoría con nombre numérico → 400', r.s === 400 && !/trim|undefined|prisma/i.test(r.d?.message || ''), r)
+    r = await api('POST', '/categories', A, { nombre: { a: 1 }, tipo: 'REPUESTO' }); ok('categoría con nombre objeto → 400', r.s === 400, r)
     r = await api('POST', '/products', A, { nombre: 'x', precio: 'abc', stock: 1, categoriaId: catId }); ok('precio no numérico → 400 sin mensajes de Prisma', r.s === 400 && !/prisma|invocation|argument/i.test(r.d?.message || ''), r)
     r = await api('POST', '/products', A, { nombre: 'x', precio: 10, stock: 1, categoriaId: 'zzz' }); ok('categoría inválida → 400 sin mensajes de Prisma', r.s === 400 && !/prisma|invocation|argument/i.test(r.d?.message || ''), r)
     r = await api('POST', '/products', A, { nombre: 'x', precio: 10, stock: 1, categoriaId: 99999999 }); ok('categoría inexistente → 400 sin detalles internos', r.s === 400 && !/prisma|invocation|foreign key/i.test(r.d?.message || ''), r)

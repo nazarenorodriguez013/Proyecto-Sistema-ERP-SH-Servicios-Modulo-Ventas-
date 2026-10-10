@@ -34,6 +34,14 @@ const validateNumericFields = (data: { nombre?: string; precio?: number; stock?:
   if (data.stockMinimo !== undefined && (data.stockMinimo < 0 || !Number.isInteger(data.stockMinimo))) throw new Error('El stock mínimo debe ser un número entero mayor o igual a 0');
 };
 
+// La categoría tiene que ser del mismo tipo que el artículo (repuestos con categorías de repuestos, maquinaria con las de maquinaria)
+const validarCategoria = async (categoriaId: number, tipo: 'REPUESTO' | 'MAQUINARIA') => {
+  const categoria = await prisma.categoria.findUnique({ where: { id: Number(categoriaId) } });
+  if (!categoria) throw new Error('La categoría no existe');
+  if (categoria.tipo !== tipo)
+    throw new Error(`La categoría «${categoria.nombre}» es de ${categoria.tipo === 'MAQUINARIA' ? 'maquinaria' : 'repuestos'}: elegí una de ${tipo === 'MAQUINARIA' ? 'maquinaria' : 'repuestos'}`);
+};
+
 export const create = async (data: {
   nombre: string;
   descripcion?: string;
@@ -46,6 +54,7 @@ export const create = async (data: {
   activo?: boolean;
 }) => {
   validateNumericFields(data);
+  await validarCategoria(data.categoriaId, data.tipoProducto ?? 'REPUESTO');
   // El código se genera acá, no lo manda el cliente, para garantizar unicidad y orden
   const codigo = await generateCode();
   const producto = await prisma.producto.create({ data: { ...data, codigo }, include: { categoria: true } });
@@ -65,6 +74,10 @@ export const update = async (id: number, data: {
   activo?: boolean;
 }) => {
   validateNumericFields(data);
+  if (data.categoriaId !== undefined || data.tipoProducto !== undefined) {
+    const actual = await prisma.producto.findUniqueOrThrow({ where: { id } });
+    await validarCategoria(data.categoriaId ?? actual.categoriaId, data.tipoProducto ?? actual.tipoProducto);
+  }
   const producto = await prisma.producto.update({ where: { id }, data, include: { categoria: true } });
   // Avisa a todas las terminales para que refresquen el stock en tiempo real
   getIO()?.emit('stock-actualizado');
@@ -72,12 +85,11 @@ export const update = async (id: number, data: {
 };
 
 export const remove = async (id: number) => {
-  const [ventas, servicios] = await Promise.all([
-    prisma.detalleVenta.count({ where: { productoId: id } }),
-    prisma.servicioRepuesto.count({ where: { productoId: id } }),
-  ]);
-  if (ventas || servicios)
-    throw new Error('No se puede eliminar: tiene ventas o servicios registrados. Desactivalo en su lugar');
+  // Las ventas y los servicios finalizados guardan el artículo como texto, así que no impiden eliminarlo.
+  // Solo se bloquea si lo usa un servicio que todavía está en curso (tiene repuestos reservados o por retirar)
+  const enServiciosAbiertos = await prisma.servicioRepuesto.count({ where: { productoId: id, servicio: { estado: 'EN_CURSO' } } });
+  if (enServiciosAbiertos)
+    throw new Error('No se puede eliminar: está en servicios técnicos en curso. Finalizá esos servicios o desactivá el artículo');
   await prisma.producto.delete({ where: { id } });
   getIO()?.emit('stock-actualizado');
 };

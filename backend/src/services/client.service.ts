@@ -38,7 +38,7 @@ export const getById = async (id: number) => {
   const cliente = await prisma.cliente.findUniqueOrThrow({
     where: { id },
     include: {
-      ventas: { include: { detallesVenta: { include: { producto: true } }, usuario: { select: { nombre: true } } }, orderBy: { creadoEn: 'desc' } },
+      ventas: { include: { detallesVenta: true, usuario: { select: { nombre: true } } }, orderBy: { creadoEn: 'desc' } },
       servicios: { include: { repuestos: { include: { producto: true } }, tecnico: { select: { id: true, nombre: true } } }, orderBy: { fechaIngreso: 'desc' } },
       movimientos: { orderBy: { creadoEn: 'desc' } },
     },

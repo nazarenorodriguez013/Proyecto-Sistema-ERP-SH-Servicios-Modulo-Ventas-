@@ -1,4 +1,4 @@
-import { errorJson } from './utils/http';
+import { errorJson, textoDelArticulo } from './utils/http';
 import dotenv from 'dotenv';
 dotenv.config();
 // Carga también prisma/.env por si Prisma define ahí su propia DATABASE_URL
@@ -36,6 +36,7 @@ app.use(cors());
 app.use('/api', dataRoutes);
 app.use(express.json());
 
+app.use('/api', textoDelArticulo);
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
