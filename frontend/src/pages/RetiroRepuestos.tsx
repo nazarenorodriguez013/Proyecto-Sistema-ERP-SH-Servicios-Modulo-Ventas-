@@ -76,10 +76,11 @@ export default function RetiroRepuestos() {
         }
       </div>
 
-      {retirados.length > 0 && (
-        <details>
-          <summary style={s.summary}>Retirados ({retirados.length})</summary>
-          <div className="stock-table-wrap" style={{ marginTop: '10px' }}>
+      <div style={s.summary}>Historial de retiros ({retirados.length})</div>
+      {retirados.length === 0
+        ? <div className="stock-table-wrap"><div style={s.empty}>Todavía no hay retiros entregados</div></div>
+        : (
+          <div className="stock-table-wrap">
             <div style={s.thead}>
               <span style={{ ...s.th, width: '110px' }}>Código</span>
               <span style={{ ...s.th, flex: 1 }}>Servicio</span>
@@ -117,8 +118,7 @@ export default function RetiroRepuestos() {
               </div>
             ))}
           </div>
-        </details>
-      )}
+        )}
     </div>
   )
 }
@@ -144,5 +144,5 @@ const s: Record<string, React.CSSProperties> = {
   tabla:        { width: '100%', maxWidth: '460px', borderCollapse: 'collapse' as const, fontSize: '13px' },
   thD:          { textAlign: 'left' as const, color: '#6B6B6B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase' as const, padding: '4px 0', borderBottom: '1px solid #E7E9ED' },
   tdD:          { padding: '5px 0', color: '#111111', borderBottom: '1px solid #EFF1F4' },
-  summary:      { color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  summary:      { color: '#111111', fontSize: '14px', fontWeight: '700' },
 }
