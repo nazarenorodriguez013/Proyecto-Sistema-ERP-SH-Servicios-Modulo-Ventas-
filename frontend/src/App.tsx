@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import CambiarContrasena from './pages/CambiarContrasena'
 import type { User } from './types'
 
 const SESSION_DURATION = 8 * 60 * 60 * 1000 // 8 horas en ms, igual que la expiración del JWT
@@ -16,7 +17,8 @@ function App() {
     const saved = localStorage.getItem('user')
     if (!saved) return null
     const parsed = JSON.parse(saved)
-    if (!parsed.nombre) {
+    // Las sesiones de antes de los roles con permisos no traen la lista de permisos: se vuelve a iniciar sesión
+    if (!parsed.nombre || !Array.isArray(parsed.permisos)) {
       clearSession()
       return null
     }
@@ -55,6 +57,8 @@ function App() {
   }
 
   if (!user) return <Login onLogin={handleLogin} resetToken={new URLSearchParams(window.location.search).get('reset')} />
+  // Si el administrador marcó "Debe cambiar la contraseña", no entra al sistema hasta elegir una nueva
+  if (user.debeCambiarContrasena) return <CambiarContrasena user={user} onListo={handleUserUpdate} onLogout={handleLogout} />
   return <Dashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
 }
 

@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../types'
 import { API } from '../config'
+import { puede } from '../permisos'
 
 interface Categoria { id: number; nombre: string; _count: { productos: number } }
 
+// Misma disposición que Categorías en el panel del catálogo: listado a la izquierda, alta a la derecha y edición en modal
 export default function Categorias({ user }: { user: User }) {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<{ open: boolean; editing: Categoria | null }>({ open: false, editing: null })
+  const [nuevo, setNuevo] = useState('')
+  const [errorAlta, setErrorAlta] = useState('')
+  const [editando, setEditando] = useState<Categoria | null>(null)
   const [nombre, setNombre] = useState('')
-  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
+  const [borrando, setBorrando] = useState<Categoria | null>(null)
   const [error, setError] = useState('')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
-  // El administrador y el rol Inventario editan; el vendedor solo consulta
-  const isAdmin = user.rol === 'ADMIN' || user.rol === 'INVENTARIO'
+  // Editan los roles con "categorias.gestionar"; el resto solo consulta
+  const isAdmin = puede(user, 'categorias.gestionar')
 
   const fetchAll = () =>
     fetch(`${API}/categories`, { headers })
@@ -23,108 +27,149 @@ export default function Categorias({ user }: { user: User }) {
 
   useEffect(() => { fetchAll() }, [])
 
-  const abrir = (c: Categoria | null) => {
-    setNombre(c?.nombre ?? ''); setError(''); setConfirmarBorrado(false); setModal({ open: true, editing: c })
-  }
-  const cerrar = () => setModal({ open: false, editing: null })
+  const cerrar = () => { setEditando(null); setBorrando(null); setError('') }
 
-  const guardar = async (method: string, path: string, body?: object) => {
-    setError('')
+  // Devuelve el mensaje de error de la API, o null si salió bien (y en ese caso refresca la lista)
+  const llamar = async (method: string, path: string, body?: object) => {
     const res = await fetch(`${API}/categories${path}`, { method, headers, body: body && JSON.stringify(body) })
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.message || 'No se pudo guardar la categoría')
-      setConfirmarBorrado(false)
-      return
-    }
-    cerrar(); fetchAll()
+    if (!res.ok) return (await res.json()).message || 'No se pudo guardar la categoría'
+    fetchAll()
+    return null
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const crear = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (modal.editing) guardar('PUT', `/${modal.editing.id}`, { nombre })
-    else guardar('POST', '', { nombre })
+    const err = await llamar('POST', '', { nombre: nuevo })
+    setErrorAlta(err ?? '')
+    if (!err) setNuevo('')
   }
 
-  if (loading) return <div style={s.loading}>Cargando categorías...</div>
+  const guardarEdicion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const err = await llamar('PUT', `/${editando!.id}`, { nombre })
+    if (err) setError(err)
+    else cerrar()
+  }
+
+  const eliminar = async () => {
+    const err = await llamar('DELETE', `/${borrando!.id}`)
+    if (err) setError(err)
+    else cerrar()
+  }
+
+  if (loading) return <div className="admin-page text-muted-2" style={{ textAlign: 'center', padding: '40px' }}>Cargando...</div>
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <p style={s.subtitle}>{categorias.length} categorías</p>
-        {isAdmin && <button style={s.btnPrimary} onClick={() => abrir(null)}><i className="bi bi-plus-lg" /> Nueva categoría</button>}
+    <div className="admin-page">
+      <div className={isAdmin ? 'admin-grid-8-4' : undefined}>
+        <div className="card-admin">
+          <div className="card-admin__head">
+            <h2><i className="bi bi-diagram-3-fill" /> Categorías</h2>
+            <span className="text-muted-2" style={{ fontSize: '.875rem' }}>{categorias.length} categoría(s)</span>
+          </div>
+          <div className="card-admin__body card-admin__body--flush">
+            <div className="table-responsive-admin">
+              <table className="table-admin">
+                <thead>
+                  <tr>
+                    <th>Categoría</th>
+                    <th className="num">Productos</th>
+                    {isAdmin && <th className="actions">Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {categorias.map(c => (
+                    <tr key={c.id}>
+                      <td>
+                        <div className="table-product">
+                          <span className="table-thumb table-thumb--dark"><i className="bi bi-folder" /></span>
+                          <span className="table-product__name">{c.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="num">{c._count.productos}</td>
+                      {isAdmin && (
+                        <td className="actions">
+                          <button type="button" className="btn-icon" title="Editar"
+                            onClick={() => { setNombre(c.nombre); setError(''); setEditando(c) }}>
+                            <i className="bi bi-pencil" />
+                          </button>{' '}
+                          <button type="button" className="btn-icon btn-icon--danger" title="Eliminar"
+                            onClick={() => { setError(''); setBorrando(c) }}>
+                            <i className="bi bi-trash" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {categorias.length === 0 && (
+                    <tr><td colSpan={3} className="table-admin__empty"><i className="bi bi-inbox" />Todavía no hay categorías.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <div className="card-admin">
+            <div className="card-admin__head"><h2><i className="bi bi-plus-circle" /> Nueva categoría</h2></div>
+            <div className="card-admin__body">
+              <form onSubmit={crear} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label className="form-label" htmlFor="c-name">Nombre *</label>
+                  <input type="text" className="form-control" id="c-name" required maxLength={120}
+                    placeholder="Herramientas neumáticas" value={nuevo} onChange={e => setNuevo(e.target.value)} />
+                  {errorAlta && <p className="form-error">{errorAlta}</p>}
+                </div>
+                <button type="submit" className="btn btn-accent" style={{ width: '100%' }}><i className="bi bi-plus-lg" /> Crear categoría</button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
-      {categorias.length === 0
-        ? <div style={s.empty}>Todavía no hay categorías</div>
-        : (
-          <div>
-            {categorias.map(c => (
-              <button key={c.id} style={{ ...s.row, cursor: isAdmin ? 'pointer' : 'default' }} disabled={!isAdmin} onClick={() => abrir(c)}>
-                <span style={s.nombre}>{c.nombre}</span>
-                <span style={s.meta}>{c._count.productos} artículos</span>
-                {isAdmin && <i className="bi bi-chevron-right" style={s.chevron} />}
-              </button>
-            ))}
-          </div>
-        )
-      }
-
-      {modal.open && (
-        <div style={s.overlay}>
-          <div className="page-modal">
-            <div style={s.modalHeader}>
-              <h3 style={s.modalTitle}>{modal.editing ? 'Editar categoría' : 'Nueva categoría'}</h3>
-              <button style={s.closeBtn} onClick={cerrar}><i className="bi bi-x-lg" /></button>
+      {editando && (
+        <div className="modal-admin-backdrop modal-admin-backdrop--center" onMouseDown={e => { if (e.target === e.currentTarget) cerrar() }}>
+          <div className="modal-admin modal-admin--sm" role="dialog" aria-modal="true">
+            <div className="modal-admin__head">
+              <h3>Editar «{editando.nombre}»</h3>
+              <button type="button" className="modal-admin__close" aria-label="Cerrar" onClick={cerrar}><i className="bi bi-x-lg" /></button>
             </div>
-            <form onSubmit={handleSubmit}>
-              <input style={s.input} value={nombre} onChange={e => setNombre(e.target.value)}
-                placeholder="Herramientas neumáticas" required autoFocus />
-              {error && <p style={s.errorText}>{error}</p>}
-              {confirmarBorrado ? (
-                <div style={s.confirmar}>
-                  <span style={s.texto}>¿Eliminar esta categoría?</span>
-                  <button type="button" style={s.btnSecondary} onClick={() => setConfirmarBorrado(false)}>Cancelar</button>
-                  <button type="button" style={s.btnDanger} onClick={() => guardar('DELETE', `/${modal.editing!.id}`)}>Eliminar</button>
+            <form onSubmit={guardarEdicion}>
+              <div className="modal-admin__body">
+                <div>
+                  <label className="form-label">Nombre *</label>
+                  <input type="text" className="form-control" required maxLength={120} autoFocus value={nombre} onChange={e => setNombre(e.target.value)} />
                 </div>
-              ) : (
-                <div style={s.modalActions}>
-                  {modal.editing && (
-                    <button type="button" style={s.btnLink} onClick={() => setConfirmarBorrado(true)}>Eliminar</button>
-                  )}
-                  <span style={{ flex: 1 }} />
-                  <button type="button" style={s.btnSecondary} onClick={cerrar}>Cancelar</button>
-                  <button type="submit" style={s.btnPrimary}>{modal.editing ? 'Guardar' : 'Crear categoría'}</button>
-                </div>
-              )}
+                {error && <p className="form-error">{error}</p>}
+              </div>
+              <div className="modal-admin__foot" style={{ justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-ghost" onClick={cerrar}>Cancelar</button>
+                <button type="submit" className="btn btn-accent"><i className="bi bi-check-lg" /> Guardar</button>
+              </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {borrando && (
+        <div className="modal-admin-backdrop modal-admin-backdrop--center" onMouseDown={e => { if (e.target === e.currentTarget) cerrar() }}>
+          <div className="modal-admin modal-admin--sm" role="dialog" aria-modal="true">
+            <div className="modal-admin__head">
+              <h3>Eliminar categoría</h3>
+              <button type="button" className="modal-admin__close" aria-label="Cerrar" onClick={cerrar}><i className="bi bi-x-lg" /></button>
+            </div>
+            <div className="modal-admin__body">
+              <p style={{ margin: 0 }}>¿Eliminar la categoría «{borrando.nombre}»?</p>
+              {error && <p className="form-error">{error}</p>}
+            </div>
+            <div className="modal-admin__foot" style={{ justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={cerrar}>Cancelar</button>
+              <button type="button" className="btn btn-danger" onClick={eliminar}><i className="bi bi-trash" /> Eliminar</button>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
-}
-
-const s: Record<string, React.CSSProperties> = {
-  loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
-  subtitle:     { color: '#6B6B6B', fontSize: '13px', margin: 0 },
-  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '48px 20px', fontSize: '14px' },
-  row:          { width: '100%', display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFFFF', border: 'none', borderBottom: '1px solid #EFF1F4', padding: '14px 12px', textAlign: 'left', font: 'inherit' },
-  nombre:       { flex: 1, color: '#111111', fontSize: '14px', fontWeight: '600' },
-  meta:         { color: '#8A8A8A', fontSize: '13px' },
-  chevron:      { color: '#B0B0B0', fontSize: '12px' },
-
-  overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
-  modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: 0 },
-  closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
-  input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '10px 14px', color: '#111111', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
-  errorText:    { color: '#C6402F', fontSize: '13px', margin: '12px 0 0' },
-  texto:        { color: '#333333', fontSize: '13px', flex: 1 },
-  modalActions: { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px' },
-  confirmar:    { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px', background: '#FBE5E2', borderRadius: '10px', padding: '10px 12px' },
-  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
-  btnSecondary: { background: '#FFFFFF', color: '#333333', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
-  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
-  btnLink:      { background: 'transparent', border: 'none', color: '#C6402F', fontSize: '13px', fontWeight: '600', cursor: 'pointer', padding: '9px 4px' },
 }

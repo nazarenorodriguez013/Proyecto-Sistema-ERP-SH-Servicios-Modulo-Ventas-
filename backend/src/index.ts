@@ -18,8 +18,12 @@ import technicianRoutes from './routes/technician.routes';
 import userRoutes from './routes/user.routes';
 import companyRoutes from './routes/company.routes';
 import notificationRoutes from './routes/notification.routes';
+import roleRoutes from './routes/role.routes';
+import auditRoutes from './routes/audit.routes';
+import dataRoutes from './routes/data.routes';
 import { setIO } from './socket';
 import { seed } from './seed';
+import { purgarAuditoriaVieja } from './utils/auditoria';
 
 const app = express();
 const httpServer = createServer(app);
@@ -28,6 +32,8 @@ const io = new Server(httpServer, { cors: { origin: '*' } });
 // Detrás del proxy de Railway, así req.protocol es https y los links de los mails salen bien
 app.set('trust proxy', 1);
 app.use(cors());
+// Importar/Exportar va antes del JSON general porque acepta cuerpos más grandes (los CSV)
+app.use('/api', dataRoutes);
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -40,6 +46,8 @@ app.use('/api/technicians', technicianRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/audit', auditRoutes);
 app.use('/api', errorJson);
 
 app.get('/health', (_req, res) => {
@@ -70,6 +78,9 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 
 seed().then(() => {
+  // La auditoría guarda solo los últimos 7 días: se limpia al arrancar y después una vez por día
+  purgarAuditoriaVieja();
+  setInterval(purgarAuditoriaVieja, 24 * 60 * 60 * 1000).unref();
   httpServer.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
   });

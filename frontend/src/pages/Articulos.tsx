@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import type { User } from '../types'
 import { API } from '../config'
 import { socket } from '../socket'
+import Dropdown from '../components/Dropdown'
+import { puede } from '../permisos'
 
 interface Categoria { id: number; nombre: string }
 type TipoProducto = 'REPUESTO' | 'MAQUINARIA'
@@ -17,13 +20,12 @@ interface ProductoForm {
   stock: string; stockMinimo: string
 }
 
-const TIPO_PRODUCTO_LABEL: Record<TipoProducto, string> = { REPUESTO: 'Repuesto', MAQUINARIA: 'Maquinaria' }
-
-const EMPTY_FORM: ProductoForm = {
-  nombre: '', descripcion: '', tipoProducto: 'REPUESTO', categoriaId: '',
-  precioCosto: '', precio: '', margen: '',
-  stock: '0', stockMinimo: '5',
+// Textos de cada listado: Maquinaria y Repuestos son la misma pantalla filtrada por tipo, como en el catálogo
+const TEXTOS: Record<TipoProducto, { titulo: string; icono: string; columna: string; plural: string; nuevo: string; crear: string; uno: string; ninguno: string; archivo: string }> = {
+  MAQUINARIA: { titulo: 'Maquinaria', icono: 'bi-truck-front-fill', columna: 'Máquina',  plural: 'máquinas',  nuevo: 'Nueva máquina',  crear: 'Crear máquina',  uno: 'esta máquina',  ninguno: 'No hay máquinas que coincidan con los filtros.',  archivo: 'maquinaria' },
+  REPUESTO:   { titulo: 'Repuestos',  icono: 'bi-nut-fill',         columna: 'Repuesto', plural: 'repuestos', nuevo: 'Nuevo repuesto', crear: 'Crear repuesto', uno: 'este repuesto', ninguno: 'No hay repuestos que coincidan con los filtros.', archivo: 'repuestos' },
 }
+const TIPO_LABEL: Record<TipoProducto, string> = { REPUESTO: 'Repuesto', MAQUINARIA: 'Maquinaria' }
 
 const calcMargen = (costo: number, venta: number) =>
   costo ? (((venta - costo) / costo) * 100).toFixed(2) : ''
@@ -42,7 +44,7 @@ const numeroCsv = (n: number) => String(Math.round(n * 100) / 100).replace('.', 
 const campoCsv = (valor: string) => `"${valor.replace(/"/g, '""')}"`
 
 // Descarga lo que se está viendo en pantalla; el BOM hace que Excel respete los acentos
-const exportarCsv = (productos: Producto[]) => {
+const exportarCsv = (productos: Producto[], archivo: string) => {
   const encabezado = ['Código', 'Nombre', 'Categoría', 'Costo', 'Precio de venta', 'Margen %', 'Stock', 'Stock mínimo', 'Estado']
   const filas = productos.map(p => [
     p.codigo ?? '', p.nombre, p.categoria.nombre, numeroCsv(p.precioCosto), numeroCsv(p.precio),
@@ -53,40 +55,64 @@ const exportarCsv = (productos: Producto[]) => {
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }))
   // Fecha local en formato AAAA-MM-DD (toISOString usaría UTC y de noche daría el día siguiente)
-  link.download = `inventario-${new Date().toLocaleDateString('sv-SE')}.csv`
+  link.download = `${archivo}-${new Date().toLocaleDateString('sv-SE')}.csv`
   link.click()
   // Se libera en el ciclo siguiente: revocarlo en el acto puede cancelar la descarga en Firefox y Safari
   setTimeout(() => URL.revokeObjectURL(link.href))
 }
 
-type Orden = 'asc' | 'desc' | null
-// Cada click en "Stock" pasa a la siguiente: menor a mayor, mayor a menor y de vuelta al orden alfabético
-const SIGUIENTE_ORDEN: Record<string, Orden> = { null: 'asc', asc: 'desc', desc: null }
-
-type Filtro = 'activos' | 'reponer' | 'inactivos'
+type Filtro = 'activos' | 'reponer' | 'inactivos' | 'todos'
 const FILTROS: { key: Filtro; label: string; cumple: (p: Producto) => boolean }[] = [
   { key: 'activos',   label: 'Activos',      cumple: p => p.activo },
   { key: 'reponer',   label: 'Para reponer', cumple: paraReponer },
   { key: 'inactivos', label: 'Inactivos',    cumple: p => !p.activo },
+  { key: 'todos',     label: 'Todos',        cumple: () => true },
 ]
 
-export default function Articulos({ user }: { user: User }) {
+// Orden del listado: menú en el encabezado de la columna, agrupado como en el catálogo
+type Orden = 'az' | 'za' | 'codigo_desc' | 'codigo' | 'precio_asc' | 'precio_desc' | 'stock_asc' | 'stock_desc'
+const GRUPOS_ORDEN: { grupo: string; opciones: { key: Orden; label: string }[] }[] = [
+  { grupo: 'Nombre', opciones: [{ key: 'az', label: 'A-Z' }, { key: 'za', label: 'Z-A' }] },
+  { grupo: 'Código', opciones: [{ key: 'codigo_desc', label: 'Mayor a menor' }, { key: 'codigo', label: 'Menor a mayor' }] },
+  { grupo: 'Precio', opciones: [{ key: 'precio_asc', label: 'Menor a mayor' }, { key: 'precio_desc', label: 'Mayor a menor' }] },
+  { grupo: 'Stock',  opciones: [{ key: 'stock_asc', label: 'Menor a mayor' }, { key: 'stock_desc', label: 'Mayor a menor' }] },
+]
+const COMPARAR: Record<Orden, (a: Producto, b: Producto) => number> = {
+  az:          (a, b) => a.nombre.localeCompare(b.nombre, 'es'),
+  za:          (a, b) => b.nombre.localeCompare(a.nombre, 'es'),
+  codigo:      (a, b) => (a.codigo ?? '').localeCompare(b.codigo ?? '', 'es', { numeric: true }),
+  codigo_desc: (a, b) => (b.codigo ?? '').localeCompare(a.codigo ?? '', 'es', { numeric: true }),
+  precio_asc:  (a, b) => a.precio - b.precio,
+  precio_desc: (a, b) => b.precio - a.precio,
+  stock_asc:   (a, b) => a.stock - b.stock,
+  stock_desc:  (a, b) => b.stock - a.stock,
+}
+
+export default function Articulos({ user, tipo }: { user: User; tipo: TipoProducto }) {
+  const t = TEXTOS[tipo]
+  const emptyForm: ProductoForm = {
+    nombre: '', descripcion: '', tipoProducto: tipo, categoriaId: '',
+    precioCosto: '', precio: '', margen: '', stock: '0', stockMinimo: '5',
+  }
+
   const [productos, setProductos] = useState<Producto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
-  const [filterTipo, setFilterTipo] = useState<TipoProducto | ''>('')
-  const [filtro, setFiltro] = useState<Filtro>('activos')
-  const [orden, setOrden] = useState<Orden>(null)
+  // Desde Inicio se puede llegar con un filtro ("Para reponer") o pidiendo abrir el alta ("Cargar una máquina")
+  const { state } = useLocation()
+  const [filtro, setFiltro] = useState<Filtro>(state?.filtro === 'reponer' ? 'reponer' : 'activos')
+  const [orden, setOrden] = useState<Orden>('az')
   const [modal, setModal] = useState<{ open: boolean; editing: Producto | null }>({ open: false, editing: null })
-  const [form, setForm] = useState<ProductoForm>(EMPTY_FORM)
-  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
+  const [form, setForm] = useState<ProductoForm>(emptyForm)
+  const [confirmarBorrado, setConfirmarBorrado] = useState<Producto | null>(null)
   const [error, setError] = useState('')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
-  // El administrador y el rol Inventario editan; el vendedor solo consulta
-  const isAdmin = user.rol === 'ADMIN' || user.rol === 'INVENTARIO'
+  // Editan los roles con "productos.editar"; el resto solo consulta. Costos y ganancia, solo con "productos.costos"
+  const isAdmin = puede(user, 'productos.editar')
+  const veCostos = puede(user, 'productos.costos')
 
   const fetchAll = () =>
     Promise.all([
@@ -96,6 +122,7 @@ export default function Articulos({ user }: { user: User }) {
 
   useEffect(() => {
     fetchAll()
+    if (state?.nuevo && isAdmin) abrir(null)
     socket.on('stock-actualizado', fetchAll)
     return () => { socket.off('stock-actualizado', fetchAll) }
   }, [])
@@ -106,10 +133,10 @@ export default function Articulos({ user }: { user: User }) {
       precioCosto: String(p.precioCosto), precio: String(p.precio),
       margen: calcMargen(p.precioCosto, p.precio),
       stock: String(p.stock), stockMinimo: String(p.stockMinimo),
-    } : EMPTY_FORM)
-    setError(''); setConfirmarBorrado(false); setModal({ open: true, editing: p })
+    } : emptyForm)
+    setError(''); setConfirmarBorrado(null); setModal({ open: true, editing: p })
   }
-  const cerrar = () => setModal({ open: false, editing: null })
+  const cerrar = () => { setModal({ open: false, editing: null }); setConfirmarBorrado(null) }
 
   const handleCostChange = (val: string) => {
     const costo = parseFloat(val) || 0
@@ -125,14 +152,15 @@ export default function Articulos({ user }: { user: User }) {
     setForm(f => ({ ...f, margen: val, precio: calcVenta(costo, parseFloat(val) || 0) }))
   }
 
-  // Todas las acciones sobre un artículo siguen el mismo patrón: llamar a la API y, si sale bien, cerrar y refrescar
+  // Todas las acciones sobre un artículo siguen el mismo patrón: llamar a la API y, si sale bien, cerrar y refrescar.
+  // Si falla con el modal cerrado (acción desde el menú de la fila), el error se muestra arriba de la tabla.
   const guardar = async (method: string, path: string, body?: object) => {
     setError('')
     const res = await fetch(`${API}/products${path}`, { method, headers, body: body && JSON.stringify(body) })
     if (!res.ok) {
       const data = await res.json()
       setError(data.message || 'No se pudo guardar el artículo')
-      setConfirmarBorrado(false)
+      setConfirmarBorrado(null)
       return
     }
     cerrar(); fetchAll()
@@ -150,246 +178,281 @@ export default function Articulos({ user }: { user: User }) {
     else guardar('POST', '', body)
   }
 
+  const delTipo = productos.filter(p => p.tipoProducto === tipo)
   const cumpleFiltro = FILTROS.find(f => f.key === filtro)!.cumple
-  const filtered = productos.filter(p => {
+  const visibles = delTipo.filter(p => {
     if (filterCat && String(p.categoriaId) !== filterCat) return false
-    if (filterTipo && p.tipoProducto !== filterTipo) return false
     if (!cumpleFiltro(p)) return false
     if (search) {
       const q = search.toLowerCase()
       if (!p.nombre.toLowerCase().includes(q) && !(p.codigo?.toLowerCase().includes(q))) return false
     }
     return true
-  })
-  const visibles = orden ? [...filtered].sort((a, b) => orden === 'asc' ? a.stock - b.stock : b.stock - a.stock) : filtered
+  }).sort(COMPARAR[orden])
+  const hayFiltros = search !== '' || filterCat !== '' || filtro !== 'activos'
+  const limpiar = () => { setSearch(''); setFilterCat(''); setFiltro('activos') }
 
-  if (loading) return <div style={s.loading}>Cargando artículos...</div>
+  if (loading) return <div className="admin-page text-muted-2" style={{ textAlign: 'center', padding: '40px' }}>Cargando...</div>
+
+  const reponer = delTipo.filter(paraReponer).length
 
   return (
-    <div className="page-container">
-      <div style={s.toolbar}>
-        <input style={s.search} placeholder="Buscar por nombre o código" autoFocus value={search} onChange={e => setSearch(e.target.value)} />
-        <select style={s.select} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-          <option value="">Todas las categorías</option>
-          {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
-        <div style={s.tipoFiltros}>
-          {(['', 'REPUESTO', 'MAQUINARIA'] as const).map(t => (
-            <button key={t || 'todos'} type="button"
-              style={{ ...s.tipoFiltroBtn, ...(filterTipo === t ? s.tipoFiltroBtnOn : {}) }}
-              onClick={() => setFilterTipo(t)}
-            >{t ? TIPO_PRODUCTO_LABEL[t] : 'Todos'}</button>
-          ))}
+    <div className="admin-page">
+      <div className="admin-filters">
+        <div>
+          <label className="form-label" htmlFor="f-q">Buscar</label>
+          <input type="search" className="form-control" id="f-q" placeholder="Nombre o código" autoFocus
+            value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <button style={s.btnSecondary} onClick={() => exportarCsv(visibles)} disabled={!visibles.length}>
-          <i className="bi bi-download" /> Exportar
-        </button>
-        {isAdmin && <button style={s.btnPrimary} onClick={() => abrir(null)}><i className="bi bi-plus-lg" /> Nuevo artículo</button>}
+        <div>
+          <label className="form-label" htmlFor="f-cat">Categoría</label>
+          <select className="form-select" id="f-cat" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+            <option value="">Todas</option>
+            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="form-label" htmlFor="f-estado">Estado</label>
+          <select className="form-select" id="f-estado" value={filtro} onChange={e => setFiltro(e.target.value as Filtro)}>
+            {FILTROS.map(f => <option key={f.key} value={f.key}>{f.label} ({delTipo.filter(f.cumple).length})</option>)}
+          </select>
+        </div>
+        <div className="ms-auto">
+          <button type="button" className="btn btn-ghost" onClick={limpiar} disabled={!hayFiltros}>Limpiar</button>
+        </div>
       </div>
 
-      <div style={s.filtros}>
-        {FILTROS.map(f => {
-          const cantidad = productos.filter(f.cumple).length
-          return (
-            <button key={f.key} style={{ ...s.filtro, ...(filtro === f.key ? s.filtroActivo : {}) }} onClick={() => setFiltro(f.key)}>
-              {f.label} <span style={f.key === 'reponer' && cantidad > 0 ? s.contadorAviso : s.contador}>{cantidad}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      <div>
-        <div className="inv-row" style={s.thead}>
-          <span>Artículo</span>
-          <span className="inv-precio" style={s.derecha}>Precio</span>
-          <button style={s.ordenStock} onClick={() => setOrden(o => SIGUIENTE_ORDEN[String(o)])} title="Ordenar por stock">
-            Stock <i className={`bi ${orden === 'asc' ? 'bi-arrow-up' : orden === 'desc' ? 'bi-arrow-down' : 'bi-arrow-down-up'}`}
-              style={{ color: orden ? '#111111' : '#C0C0C0' }} />
-          </button>
-          <span />
+      {filtro !== 'reponer' && reponer > 0 && (
+        <div className="admin-alert">
+          <span><i className="bi bi-exclamation-triangle-fill" /> Hay <strong>{reponer}</strong> {reponer === 1 ? t.columna.toLowerCase() : t.plural} con stock bajo.</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFiltro('reponer')}>Ver para reponer</button>
         </div>
-        {visibles.length === 0
-          ? <div style={s.empty}>No hay artículos para mostrar</div>
-          : visibles.map(p => (
-            <button key={p.id} className="inv-row" style={s.row} onClick={() => abrir(p)}>
-              <span style={s.celdaNombre}>
-                <span style={s.nombreRow}>
-                  <span style={s.nombre}>{p.nombre}</span>
-                  <span style={{ ...s.tipoTag, ...(p.tipoProducto === 'MAQUINARIA' ? s.tipoTagMaquinaria : s.tipoTagRepuesto) }}>
-                    {TIPO_PRODUCTO_LABEL[p.tipoProducto]}
-                  </span>
-                </span>
-                <span style={s.meta}>{p.codigo ? `${p.codigo} · ` : ''}{p.categoria.nombre}</span>
-              </span>
-              <span className="inv-precio" style={{ ...s.derecha, ...s.valor }}>${fmt(p.precio)}</span>
-              <span style={{ ...s.derecha, ...s.valor, ...(!p.activo ? s.inactivo : p.stock === 0 ? s.sinStock : p.stock <= p.stockMinimo ? s.bajo : {}) }}>
-                {p.stock} u.
-              </span>
-              <i className="bi bi-chevron-right" style={s.chevron} />
+      )}
+
+      {error && !modal.open && <div className="admin-alert admin-alert--danger"><span>{error}</span></div>}
+
+      <div className="card-admin">
+        <div className="card-admin__head">
+          <h2>
+            <i className={`bi ${t.icono}`} /> {t.titulo}
+            <span className="text-muted-2">{visibles.length} registro(s)</span>
+          </h2>
+          <div className="card-admin__actions">
+            {isAdmin && (
+              <button type="button" className="btn btn-accent btn-sm" onClick={() => abrir(null)}>
+                <i className="bi bi-plus-lg" /> {t.nuevo}
+              </button>
+            )}
+            <button type="button" className="btn btn-ghost btn-sm" title="Exportar a Excel (CSV)" disabled={!visibles.length}
+              onClick={() => exportarCsv(visibles, t.archivo)}>
+              <i className="bi bi-file-earmark-excel" />
             </button>
-          ))
-        }
+          </div>
+        </div>
+
+        <div className="card-admin__body card-admin__body--flush">
+          <div className="table-responsive-admin">
+            <table className="table-admin">
+              <thead>
+                <tr>
+                  <th>
+                    <Dropdown triggerClassName="th-sort" title="Ordenar" trigger={<>{t.columna} <i className="bi bi-filter" /></>}>
+                      {cerrarMenu => GRUPOS_ORDEN.map((g, i) => (
+                        <div key={g.grupo}>
+                          <h6 className="dropdown-header">{g.grupo}</h6>
+                          {g.opciones.map(o => (
+                            <button key={o.key} type="button" className={`dropdown-item${orden === o.key ? ' active' : ''}`}
+                              onClick={() => { setOrden(o.key); cerrarMenu() }}>{o.label}</button>
+                          ))}
+                          {i < GRUPOS_ORDEN.length - 1 && <hr className="dropdown-divider" />}
+                        </div>
+                      ))}
+                    </Dropdown>
+                  </th>
+                  <th>Categoría</th>
+                  <th className="num">Precio</th>
+                  <th className="num">Stock</th>
+                  <th>Estado</th>
+                  <th className="actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibles.map(p => {
+                  const margen = p.precioCosto ? (p.precio - p.precioCosto) / p.precioCosto * 100 : 0
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <div className="table-product">
+                          <span className="table-thumb"><i className={`bi ${t.icono}`} /></span>
+                          <span>
+                            <button type="button" className="table-product__name table-product__link" onClick={() => abrir(p)}>{p.nombre}</button>
+                            <span className="table-product__meta text-mono">{p.codigo ?? '—'}</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td>{p.categoria.nombre}</td>
+                      <td className="num">
+                        <strong>${fmt(p.precio)}</strong>
+                        {veCostos && margen > 0 && <small className="d-block text-muted-2">+{Math.round(margen)}%</small>}
+                      </td>
+                      <td className="num">
+                        <strong style={{ color: !p.activo ? 'var(--gray)' : p.stock === 0 ? 'var(--danger)' : p.stock <= p.stockMinimo ? '#97640B' : undefined }}>
+                          {p.stock}
+                        </strong>
+                        <small className="d-block text-muted-2">mín. {p.stockMinimo}</small>
+                      </td>
+                      <td>
+                        {!p.activo
+                          ? <span className="chip chip--neutral">Inactivo</span>
+                          : p.stock === 0
+                            ? <span className="chip chip--danger">Sin stock</span>
+                            : p.stock <= p.stockMinimo
+                              ? <span className="chip chip--warn">Stock bajo</span>
+                              : <span className="chip chip--ok">Activo</span>}
+                      </td>
+                      <td className="actions">
+                        <Dropdown align="end" triggerClassName="btn-icon" title="Acciones" trigger={<i className="bi bi-three-dots-vertical" />}>
+                          {cerrarMenu => <>
+                            <button type="button" className="dropdown-item" onClick={() => { cerrarMenu(); abrir(p) }}>
+                              <i className={`bi ${isAdmin ? 'bi-pencil' : 'bi-eye'}`} /> {isAdmin ? 'Editar' : 'Ver ficha'}
+                            </button>
+                            {isAdmin && <>
+                              <button type="button" className="dropdown-item" onClick={() => { cerrarMenu(); guardar('PUT', `/${p.id}`, { activo: !p.activo }) }}>
+                                <i className={`bi ${p.activo ? 'bi-eye-slash' : 'bi-eye'}`} /> {p.activo ? 'Desactivar' : 'Activar'}
+                              </button>
+                              <button type="button" className="dropdown-item"
+                                onClick={() => { cerrarMenu(); guardar('PUT', `/${p.id}`, { tipoProducto: tipo === 'MAQUINARIA' ? 'REPUESTO' : 'MAQUINARIA' }) }}>
+                                <i className="bi bi-arrow-repeat" /> Pasar a {tipo === 'MAQUINARIA' ? 'Repuestos' : 'Maquinaria'}
+                              </button>
+                              <hr className="dropdown-divider" />
+                              <button type="button" className="dropdown-item text-danger" onClick={() => { cerrarMenu(); abrir(p); setConfirmarBorrado(p) }}>
+                                <i className="bi bi-trash" /> Eliminar
+                              </button>
+                            </>}
+                          </>}
+                        </Dropdown>
+                      </td>
+                    </tr>
+                  )
+                })}
+
+                {visibles.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="table-admin__empty">
+                      <i className="bi bi-inbox" />
+                      {t.ninguno}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {modal.open && (
-        <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.modalHeader}>
+        <div className="modal-admin-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) cerrar() }}>
+          <div className="modal-admin" role="dialog" aria-modal="true">
+            <div className="modal-admin__head">
               <div>
-                <h3 style={s.modalTitle}>{modal.editing ? modal.editing.nombre : 'Nuevo artículo'}</h3>
-                {modal.editing && <p style={s.meta}>{modal.editing.codigo} · {modal.editing.activo ? 'Activo' : 'Inactivo'}</p>}
+                <h3>{modal.editing ? modal.editing.nombre : t.nuevo}</h3>
+                {modal.editing && (
+                  <small className="text-muted-2">
+                    <span className="text-mono">{modal.editing.codigo}</span> · {modal.editing.activo ? 'Activo' : 'Inactivo'}
+                  </small>
+                )}
               </div>
-              <button style={s.closeBtn} onClick={cerrar}><i className="bi bi-x-lg" /></button>
+              <button type="button" className="modal-admin__close" aria-label="Cerrar" onClick={cerrar}><i className="bi bi-x-lg" /></button>
             </div>
+
             <form onSubmit={handleSubmit}>
-              {/* El vendedor ve la ficha completa pero no puede modificarla */}
-              <fieldset disabled={!isAdmin} style={s.fieldset}>
-                <div style={s.field}>
-                  <label style={s.label}>Nombre</label>
-                  <input style={s.input} value={form.nombre} required onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
-                </div>
-                <div style={s.row2}>
-                  <div style={s.field}>
-                    <label style={s.label}>Categoría</label>
-                    <select style={s.input} value={form.categoriaId} required onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))}>
-                      <option value="">Seleccionar...</option>
-                      {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                    </select>
+              <div className="modal-admin__body">
+                {/* El vendedor ve la ficha completa pero no puede modificarla */}
+                <fieldset className="form-fieldset" disabled={!isAdmin}>
+                  <p className="form-section__title">Datos</p>
+                  <div>
+                    <label className="form-label">Nombre</label>
+                    <input className="form-control" value={form.nombre} required onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
                   </div>
-                  <div style={s.field}>
-                    <label style={s.label}>Tipo</label>
-                    <div style={s.tipos}>
-                      {(['REPUESTO', 'MAQUINARIA'] as const).map(t => (
-                        <button type="button" key={t} style={{ ...s.tipoBtn, ...(form.tipoProducto === t ? s.tipoBtnOn : {}) }}
-                          onClick={() => setForm(f => ({ ...f, tipoProducto: t }))}>
-                          {TIPO_PRODUCTO_LABEL[t]}
-                        </button>
-                      ))}
+                  <div className="form-grid form-grid--2">
+                    <div>
+                      <label className="form-label">Categoría</label>
+                      <select className="form-select" value={form.categoriaId} required onChange={e => setForm(f => ({ ...f, categoriaId: e.target.value }))}>
+                        <option value="">Seleccionar...</option>
+                        {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label">Tipo</label>
+                      <select className="form-select" value={form.tipoProducto} onChange={e => setForm(f => ({ ...f, tipoProducto: e.target.value as TipoProducto }))}>
+                        {(['MAQUINARIA', 'REPUESTO'] as const).map(x => <option key={x} value={x}>{TIPO_LABEL[x]}</option>)}
+                      </select>
                     </div>
                   </div>
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>Descripción</label>
-                  <textarea style={{ ...s.input, resize: 'vertical', minHeight: '44px', height: '44px' }} value={form.descripcion}
-                    onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
-                </div>
+                  <div>
+                    <label className="form-label">Descripción</label>
+                    <textarea className="form-control" rows={2} style={{ resize: 'vertical' }} value={form.descripcion}
+                      onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+                  </div>
 
-                <p style={s.seccion}>Precio</p>
-                <div style={s.row3}>
-                  <div style={s.field}>
-                    <label style={s.label}>Costo</label>
-                    <input style={s.input} type="number" min="0" step="0.01" value={form.precioCosto} onChange={e => handleCostChange(e.target.value)} />
+                  <p className="form-section__title">Precio</p>
+                  <div className={`form-grid ${veCostos ? 'form-grid--3' : 'form-grid--2'}`}>
+                    {veCostos && <>
+                      <div>
+                        <label className="form-label">Costo</label>
+                        <input className="form-control" type="number" min="0" step="0.01" value={form.precioCosto} onChange={e => handleCostChange(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="form-label">Margen %</label>
+                        <input className="form-control" type="number" step="0.01" value={form.margen} onChange={e => handleMargenChange(e.target.value)} />
+                      </div>
+                    </>}
+                    <div>
+                      <label className="form-label">Venta</label>
+                      <input className="form-control" type="number" min="0" step="0.01" value={form.precio} required onChange={e => handleVentaChange(e.target.value)} />
+                    </div>
                   </div>
-                  <div style={s.field}>
-                    <label style={s.label}>Margen %</label>
-                    <input style={s.input} type="number" step="0.01" value={form.margen} onChange={e => handleMargenChange(e.target.value)} />
-                  </div>
-                  <div style={s.field}>
-                    <label style={s.label}>Venta</label>
-                    <input style={s.input} type="number" min="0" step="0.01" value={form.precio} required onChange={e => handleVentaChange(e.target.value)} />
-                  </div>
-                </div>
 
-                <p style={s.seccion}>Stock</p>
-                <div style={s.row3}>
-                  <div style={s.field}>
-                    <label style={s.label}>Unidades</label>
-                    <input style={s.input} type="number" min="0" value={form.stock} required onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
+                  <p className="form-section__title">Stock</p>
+                  <div className="form-grid form-grid--3">
+                    <div>
+                      <label className="form-label">Unidades</label>
+                      <input className="form-control" type="number" min="0" value={form.stock} required onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="form-label">Stock mínimo</label>
+                      <input className="form-control" type="number" min="0" value={form.stockMinimo} onChange={e => setForm(f => ({ ...f, stockMinimo: e.target.value }))} />
+                    </div>
                   </div>
-                  <div style={s.field}>
-                    <label style={s.label}>Stock mínimo</label>
-                    <input style={s.input} type="number" min="0" value={form.stockMinimo} onChange={e => setForm(f => ({ ...f, stockMinimo: e.target.value }))} />
+                </fieldset>
+
+                {error && <p className="form-error">{error}</p>}
+              </div>
+
+              <div className="modal-admin__foot">
+                {confirmarBorrado ? (
+                  <div className="modal-admin__confirm">
+                    <span style={{ flex: 1 }}>¿Eliminar {t.uno}? Esta acción no se puede deshacer.</span>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmarBorrado(null)}>Cancelar</button>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => guardar('DELETE', `/${confirmarBorrado.id}`)}>Eliminar</button>
                   </div>
-                </div>
-              </fieldset>
-
-              {error && <p style={s.errorText}>{error}</p>}
-
-              {confirmarBorrado ? (
-                <div style={s.confirmar}>
-                  <span style={s.texto}>¿Eliminar este artículo? No se puede deshacer.</span>
-                  <button type="button" style={s.btnSecondary} onClick={() => setConfirmarBorrado(false)}>Cancelar</button>
-                  <button type="button" style={s.btnDanger} onClick={() => guardar('DELETE', `/${modal.editing!.id}`)}>Eliminar</button>
-                </div>
-              ) : (
-                <div style={s.modalActions}>
-                  {isAdmin && modal.editing && (
-                    <>
-                      <button type="button" style={s.btnLink}
-                        onClick={() => guardar('PUT', `/${modal.editing!.id}`, { activo: !modal.editing!.activo })}>
-                        {modal.editing.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button type="button" style={{ ...s.btnLink, color: '#C6402F' }} onClick={() => setConfirmarBorrado(true)}>Eliminar</button>
-                    </>
-                  )}
+                ) : <>
+                  {isAdmin && modal.editing && <>
+                    <button type="button" className="btn btn-ghost btn-sm"
+                      onClick={() => guardar('PUT', `/${modal.editing!.id}`, { activo: !modal.editing!.activo })}>
+                      {modal.editing.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => setConfirmarBorrado(modal.editing)}>Eliminar</button>
+                  </>}
                   <span style={{ flex: 1 }} />
-                  <button type="button" style={s.btnSecondary} onClick={cerrar}>{isAdmin ? 'Cancelar' : 'Cerrar'}</button>
-                  {isAdmin && <button type="submit" style={s.btnPrimary}>{modal.editing ? 'Guardar' : 'Crear artículo'}</button>}
-                </div>
-              )}
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={cerrar}>{isAdmin ? 'Cancelar' : 'Cerrar'}</button>
+                  {isAdmin && <button type="submit" className="btn btn-accent btn-sm">{modal.editing ? 'Guardar' : t.crear}</button>}
+                </>}
+              </div>
             </form>
           </div>
         </div>
       )}
     </div>
   )
-}
-
-const s: Record<string, React.CSSProperties> = {
-  loading:      { color: '#6B6B6B', padding: '40px', textAlign: 'center' },
-  toolbar:      { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, alignItems: 'center' },
-  search:       { flex: 1, minWidth: '200px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#111111', fontSize: '14px', outline: 'none' },
-  select:       { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 14px', color: '#333333', fontSize: '13px', outline: 'none', cursor: 'pointer' },
-  tipoFiltros:  { display: 'flex', gap: '4px', background: '#F1F2F4', borderRadius: '8px', padding: '3px' },
-  tipoFiltroBtn:{ background: 'transparent', border: 'none', borderRadius: '6px', padding: '7px 12px', color: '#6B6B6B', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
-  tipoFiltroBtnOn:{ background: '#FFFFFF', color: '#111111', boxShadow: '0 1px 3px rgba(17,17,17,.12)' },
-
-  filtros:      { display: 'flex', gap: '20px', borderBottom: '1px solid #E2E4E8' },
-  filtro:       { background: 'transparent', border: 'none', borderBottom: '2px solid transparent', padding: '8px 0', marginBottom: '-1px', color: '#6B6B6B', fontSize: '13px', fontWeight: '500', cursor: 'pointer' },
-  filtroActivo: { color: '#111111', borderBottom: '2px solid #111111', fontWeight: '600' },
-  contador:     { color: '#9A9A9A', marginLeft: '4px' },
-  contadorAviso:{ color: '#B86E00', fontWeight: '700', marginLeft: '4px' },
-
-  thead:        { color: '#9A9A9A', fontSize: '12px', padding: '8px 12px' },
-  row:          { width: '100%', background: '#FFFFFF', border: 'none', borderBottom: '1px solid #EFF1F4', padding: '12px', cursor: 'pointer', textAlign: 'left', font: 'inherit' },
-  celdaNombre:  { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
-  nombreRow:    { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
-  nombre:       { color: '#111111', fontSize: '14px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
-  meta:         { color: '#8A8A8A', fontSize: '12px', margin: 0 },
-  tipoTag:      { fontSize: '10px', fontWeight: '700', borderRadius: '20px', padding: '2px 8px', flexShrink: 0, letterSpacing: '0.3px' },
-  tipoTagRepuesto:  { background: '#EFF3FE', color: '#3557B7', border: '1px solid rgba(53,87,183,0.25)' },
-  tipoTagMaquinaria:{ background: '#FDF0DA', color: '#97640B', border: '1px solid rgba(224,138,0,0.3)' },
-  derecha:      { textAlign: 'right' as const },
-  valor:        { color: '#111111', fontSize: '14px' },
-  bajo:         { color: '#B86E00', fontWeight: '600' },
-  inactivo:     { color: '#9A9A9A' },
-  ordenStock:   { background: 'transparent', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifySelf: 'end', gap: '4px' },
-  sinStock:     { color: '#C6402F', fontWeight: '600' },
-  chevron:      { color: '#B0B0B0', fontSize: '12px', textAlign: 'right' as const },
-  empty:        { color: '#6B6B6B', textAlign: 'center', padding: '48px 20px', fontSize: '14px' },
-
-  overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' },
-  modal:        { background: '#FFFFFF', borderRadius: '16px', padding: '20px 24px', width: '100%', maxWidth: '520px', boxShadow: '0 18px 46px rgba(17,17,17,.18)' },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' },
-  modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: '0 0 2px' },
-  closeBtn:     { background: 'transparent', border: 'none', color: '#6B6B6B', fontSize: '18px', cursor: 'pointer' },
-  fieldset:     { border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' },
-  row2:         { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' },
-  seccion:      { color: '#6B6B6B', fontSize: '12px', fontWeight: '600', margin: '8px 0 -4px' },
-  tipos:        { display: 'flex', gap: '6px' },
-  tipoBtn:      { padding: '7px 16px', background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', color: '#6B6B6B', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
-  tipoBtnOn:    { background: 'rgba(245,196,0,0.15)', border: '1px solid #F5C400', color: '#8A6D00' },
-  row3:         { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' },
-  field:        { display: 'flex', flexDirection: 'column', gap: '5px' },
-  label:        { color: '#6B6B6B', fontSize: '12px' },
-  input:        { background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
-  errorText:    { color: '#C6402F', fontSize: '13px', margin: '12px 0 0' },
-  texto:        { color: '#333333', fontSize: '13px', flex: 1 },
-
-  modalActions: { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '14px' },
-  confirmar:    { display: 'flex', gap: '10px', alignItems: 'center', marginTop: '20px', background: '#FBE5E2', borderRadius: '10px', padding: '10px 12px' },
-  btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
-  btnSecondary: { background: '#FFFFFF', color: '#333333', border: '1px solid #E2E4E8', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
-  btnDanger:    { background: '#C6402F', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' },
-  btnLink:      { background: 'transparent', border: 'none', color: '#333333', fontSize: '13px', fontWeight: '600', cursor: 'pointer', padding: '9px 4px' },
 }

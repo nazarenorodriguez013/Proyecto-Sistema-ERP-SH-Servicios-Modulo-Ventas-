@@ -6,6 +6,7 @@ import { socket } from '../socket'
 import ClienteSelector from '../components/ClienteSelector'
 import ServicioTicket from '../components/ServicioTicket'
 import ServicioDetalle from './ServicioDetalle'
+import { puede } from '../permisos'
 import { ESTADO_LABEL, ESTADO_COLOR, ESTADO_RETIRO_LABEL, ESTADO_RETIRO_COLOR, type Servicio } from '../servicios'
 
 interface Cliente { id: number; nombre: string; documento: string | null }
@@ -35,7 +36,8 @@ export default function ServiciosTecnicos({ user }: { user: User }) {
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-  const esAdministracion = user.rol !== 'TECNICO'
+  // Quien gestiona servicios ve todos; el técnico, solo los suyos
+  const esAdministracion = puede(user, 'servicios.gestionar')
 
   const fetchAll = () => fetch(`${API}/repairs`, { headers }).then(r => r.json()).then(data => { setServicios(data); setLoading(false) })
 

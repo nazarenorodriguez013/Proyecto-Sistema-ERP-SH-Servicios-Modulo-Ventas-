@@ -1,19 +1,29 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../types';
 import * as movementService from '../services/movement.service';
 import { mensajeSeguro } from '../utils/http';
+import { auditar } from '../utils/auditoria';
+
+const pesos = (n: number) => `$${n.toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
 // Desde la cuenta del cliente solo se registran pagos: las deudas las genera el punto de venta
-export const createPago = async (req: Request, res: Response): Promise<void> => {
+export const createPago = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    res.status(201).json(await movementService.createPago(Number(req.params.id), Number(req.body.monto)));
+    const clienteId = Number(req.params.id);
+    const monto = Number(req.body.monto);
+    const movimiento = await movementService.createPago(clienteId, monto);
+    auditar(req, { accion: 'create', seccion: 'clientes', entidad: 'cliente', entidadId: clienteId, descripcion: `Registró un pago de ${pesos(monto)} en la cuenta corriente del cliente #${clienteId}` });
+    res.status(201).json(movimiento);
   } catch (err: any) {
     res.status(400).json({ message: mensajeSeguro(err) });
   }
 };
 
-export const remove = async (req: Request, res: Response): Promise<void> => {
+export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await movementService.remove(Number(req.params.movementId));
+    const movementId = Number(req.params.movementId);
+    await movementService.remove(movementId);
+    auditar(req, { accion: 'delete', seccion: 'clientes', entidad: 'movimiento', entidadId: movementId, descripcion: `Eliminó el movimiento #${movementId} de la cuenta corriente del cliente #${req.params.id}` });
     res.status(204).send();
   } catch (err: any) {
     res.status(err.message === 'Movimiento no encontrado' ? 404 : 400).json({ message: mensajeSeguro(err) });

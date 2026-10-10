@@ -1,14 +1,16 @@
 import bcrypt from 'bcryptjs';
-import { PrismaClient, Prisma, Rol } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { httpError } from '../utils/http';
-import { normalizarModulos } from '../utils/modulos';
+import { SLUG_ADMIN } from '../utils/permisos';
 
 const prisma = new PrismaClient();
 
 // Nunca se devuelve la contraseña ni el token de recuperación
-const campos = { id: true, nombre: true, correo: true, rol: true, modulos: true, activo: true, dosPasos: true, creadoEn: true } as const;
-
-const ROLES: Rol[] = ['ADMIN', 'VENDEDOR', 'TECNICO', 'INVENTARIO'];
+const campos = {
+  id: true, nombre: true, correo: true, activo: true, telefono: true, puesto: true,
+  rolId: true, rol: { select: { id: true, nombre: true, slug: true } },
+  ultimoAcceso: true, ultimaIp: true, bloqueadoHasta: true, dosPasos: true, debeCambiarContrasena: true, creadoEn: true,
+} as const;
 
 export const validarContrasena = (contrasena: unknown) => {
   if (typeof contrasena !== 'string' || contrasena.length < 8 || !/[A-ZÁÉÍÓÚÑ]/.test(contrasena) || !/[0-9]/.test(contrasena))
@@ -22,6 +24,11 @@ export const normalizarCorreo = (correo: unknown) => {
   return c;
 };
 
+const textoOpcional = (v: unknown, max: number) => {
+  const t = typeof v === 'string' ? v.trim().slice(0, max) : '';
+  return t || null;
+};
+
 const traducirError = (err: unknown): never => {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') throw httpError(400, 'Ya existe un usuario con ese correo');
@@ -30,64 +37,76 @@ const traducirError = (err: unknown): never => {
   throw err;
 };
 
-const validarRol = (rol: unknown): Rol => {
-  if (!ROLES.includes(rol as Rol)) throw httpError(400, 'El rol no es válido');
-  return rol as Rol;
+type Actor = { id: number; rolSlug: string };
+
+// Solo un administrador puede dar el rol Administrador o modificar a otro administrador:
+// así nadie con permiso de usuarios puede darse acceso total a sí mismo
+const validarRol = async (rolId: unknown, actor: Actor) => {
+  const rol = await prisma.rol.findUnique({ where: { id: Number(rolId) || 0 } });
+  if (!rol) throw httpError(400, 'El rol no es válido');
+  if (rol.slug === SLUG_ADMIN && actor.rolSlug !== SLUG_ADMIN) throw httpError(403, 'Solo un administrador puede asignar el rol Administrador');
+  return rol;
 };
 
 export const getAll = () => prisma.usuario.findMany({ select: campos, orderBy: { nombre: 'asc' } });
+export const obtener = (id: number) => prisma.usuario.findUnique({ where: { id }, select: campos });
 
-export const create = async (data: { nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown }) => {
-  if (!data.nombre?.trim()) throw httpError(400, 'El nombre es obligatorio');
-  const rol = validarRol(data.rol);
-  const usuario = await prisma.usuario.create({
+export const create = async (data: Record<string, unknown>, actor: Actor) => {
+  if (typeof data.nombre !== 'string' || !data.nombre.trim()) throw httpError(400, 'El nombre es obligatorio');
+  const rol = await validarRol(data.rolId, actor);
+  return prisma.usuario.create({
     data: {
-      nombre: data.nombre.trim(), correo: normalizarCorreo(data.correo), rol,
+      nombre: data.nombre.trim().slice(0, 120), correo: normalizarCorreo(data.correo), rolId: rol.id,
       contrasena: await bcrypt.hash(validarContrasena(data.contrasena), 10),
-      modulos: normalizarModulos(data.modulos, rol),
+      telefono: textoOpcional(data.telefono, 40), puesto: textoOpcional(data.puesto, 120),
+      activo: data.activo !== false, debeCambiarContrasena: data.debeCambiarContrasena === true,
     },
     select: campos,
   }).catch(traducirError);
-  return usuario;
 };
 
 // Siempre tiene que quedar al menos un administrador activo, si no nadie podría volver a gestionar usuarios
 const quedaOtroAdmin = async (excluirId: number) =>
-  (await prisma.usuario.count({ where: { rol: 'ADMIN', activo: true, id: { not: excluirId } } })) > 0;
+  (await prisma.usuario.count({ where: { rol: { slug: SLUG_ADMIN }, activo: true, id: { not: excluirId } } })) > 0;
 
-export const update = async (id: number, actorId: number, data: {
-  nombre?: string; correo?: string; contrasena?: string; rol?: string; modulos?: unknown; activo?: boolean; dosPasos?: boolean
-}) => {
-  const actual = await prisma.usuario.findUnique({ where: { id } });
+export const update = async (id: number, actor: Actor, data: Record<string, unknown>) => {
+  const actual = await prisma.usuario.findUnique({ where: { id }, include: { rol: true } });
   if (!actual) throw httpError(404, 'Usuario no encontrado');
+  if (actual.rol.slug === SLUG_ADMIN && actor.rolSlug !== SLUG_ADMIN) throw httpError(403, 'Solo un administrador puede modificar a otro administrador');
 
-  const rol = data.rol !== undefined ? validarRol(data.rol) : actual.rol;
+  const rol = data.rolId !== undefined && Number(data.rolId) !== actual.rolId ? await validarRol(data.rolId, actor) : actual.rol;
   const activo = data.activo !== undefined ? !!data.activo : actual.activo;
-  if (actual.rol === 'ADMIN' && actual.activo && (rol !== 'ADMIN' || !activo) && !(await quedaOtroAdmin(id)))
+  if (actual.rol.slug === SLUG_ADMIN && actual.activo && (rol.slug !== SLUG_ADMIN || !activo) && !(await quedaOtroAdmin(id)))
     throw httpError(400, 'Tiene que quedar al menos un administrador activo');
-  if (id === actorId && !activo) throw httpError(400, 'No podés desactivar tu propio usuario');
+  if (id === actor.id && !activo) throw httpError(400, 'No podés desactivar tu propio usuario');
 
-  const cambios: Prisma.UsuarioUpdateInput = { rol, activo };
+  const cambios: Prisma.UsuarioUncheckedUpdateInput = { rolId: rol.id, activo };
   // El administrador solo puede apagarla (por ejemplo si perdieron el acceso al mail); activarla lo decide cada usuario
   if (data.dosPasos === false) cambios.dosPasos = false;
   if (data.nombre !== undefined) {
-    if (!data.nombre.trim()) throw httpError(400, 'El nombre es obligatorio');
-    cambios.nombre = data.nombre.trim();
+    if (typeof data.nombre !== 'string' || !data.nombre.trim()) throw httpError(400, 'El nombre es obligatorio');
+    cambios.nombre = data.nombre.trim().slice(0, 120);
   }
   if (data.correo !== undefined) cambios.correo = normalizarCorreo(data.correo);
+  if (data.telefono !== undefined) cambios.telefono = textoOpcional(data.telefono, 40);
+  if (data.puesto !== undefined) cambios.puesto = textoOpcional(data.puesto, 120);
+  if (data.debeCambiarContrasena !== undefined) cambios.debeCambiarContrasena = data.debeCambiarContrasena === true;
   if (data.contrasena) cambios.contrasena = await bcrypt.hash(validarContrasena(data.contrasena), 10);
-  // Si cambia el rol, los módulos se ajustan a lo que ese rol permite
-  if (data.modulos !== undefined || rol !== actual.rol) cambios.modulos = normalizarModulos(data.modulos ?? actual.modulos, rol);
+  // "Desbloquear intentos fallidos": vuelve a dejarlo entrar sin esperar
+  if (data.desbloquear === true) Object.assign(cambios, { intentosFallidos: 0, bloqueosSeguidos: 0, bloqueadoHasta: null });
 
   return prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
 };
 
-export const remove = async (id: number, actorId: number) => {
-  if (id === actorId) throw httpError(400, 'No podés eliminar tu propio usuario');
-  const usuario = await prisma.usuario.findUnique({ where: { id }, include: { _count: { select: { ventas: true, serviciosAsignados: true } } } });
+// Eliminar definitivamente (desactivar es un update con activo = false)
+export const remove = async (id: number, actor: Actor) => {
+  if (id === actor.id) throw httpError(400, 'No podés eliminar tu propio usuario');
+  const usuario = await prisma.usuario.findUnique({ where: { id }, include: { rol: true, _count: { select: { ventas: true, serviciosAsignados: true } } } });
   if (!usuario) throw httpError(404, 'Usuario no encontrado');
-  if (usuario.rol === 'ADMIN' && usuario.activo && !(await quedaOtroAdmin(id))) throw httpError(400, 'Tiene que quedar al menos un administrador activo');
+  if (usuario.rol.slug === SLUG_ADMIN && actor.rolSlug !== SLUG_ADMIN) throw httpError(403, 'Solo un administrador puede eliminar a otro administrador');
+  if (usuario.rol.slug === SLUG_ADMIN && usuario.activo && !(await quedaOtroAdmin(id))) throw httpError(400, 'Tiene que quedar al menos un administrador activo');
   if (usuario._count.ventas || usuario._count.serviciosAsignados)
     throw httpError(409, 'No se puede eliminar: tiene ventas o servicios registrados. Desactivalo en su lugar');
   await prisma.usuario.delete({ where: { id } });
+  return usuario;
 };

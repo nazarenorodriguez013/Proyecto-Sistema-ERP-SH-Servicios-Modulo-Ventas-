@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import * as userController from '../controllers/user.controller';
-import { authenticate, authorizeAdmin } from '../middlewares/auth.middleware';
+import { authenticate, requierePermiso } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Alta, edición y baja de usuarios son solo del administrador
-router.use(authenticate, authorizeAdmin);
-router.get('/', userController.getAll);
-router.post('/', userController.create);
-router.put('/:id', userController.update);
-router.delete('/:id', userController.remove);
+router.use(authenticate);
+router.get('/', requierePermiso('usuarios.ver', 'usuarios.gestionar'), userController.getAll);
+router.post('/', requierePermiso('usuarios.gestionar'), userController.create);
+router.put('/:id', requierePermiso('usuarios.gestionar'), userController.update);
+router.delete('/:id', requierePermiso('usuarios.gestionar'), userController.remove);
 
 export default router;

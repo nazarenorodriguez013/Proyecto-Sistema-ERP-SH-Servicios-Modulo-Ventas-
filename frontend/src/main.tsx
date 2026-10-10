@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './index.css'
+import './catalogo.css'
 import App from './App.tsx'
 
 // Si el servidor invalida la sesión (usuario desactivado o borrado, token vencido) se vuelve al login en vez de dejar

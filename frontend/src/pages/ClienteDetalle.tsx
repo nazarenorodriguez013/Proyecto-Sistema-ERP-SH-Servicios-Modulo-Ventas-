@@ -4,6 +4,7 @@ import { API } from '../config'
 import HistorialCliente, { type VentaCliente, type ServicioCliente, type MovimientoCliente } from '../components/HistorialCliente'
 import ClienteFormModal from '../components/ClienteFormModal'
 import { describirSaldo } from '../saldo'
+import { puede } from '../permisos'
 
 interface ClienteFicha {
   id: number; nombre: string; documento: string | null; telefono: string | null
@@ -21,7 +22,8 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
   const [confirmarBorrarServicio, setConfirmarBorrarServicio] = useState<number | null>(null)
   const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
-  const esAdmin = user.rol === 'ADMIN'
+  // Eliminar clientes, movimientos y comprobantes es solo de quien tiene "clientes.eliminar"
+  const esAdmin = puede(user, 'clientes.eliminar')
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }

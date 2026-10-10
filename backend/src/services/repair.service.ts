@@ -4,6 +4,7 @@ import { httpError } from '../utils/http';
 import { registrarCargo, saldoDeCliente } from './movement.service';
 import { siguienteNumero } from './correlativo.service';
 import * as notificaciones from './notification.service';
+import { esTecnico } from './technician.service';
 
 const prisma = new PrismaClient();
 
@@ -13,7 +14,10 @@ const includeServicio = {
   repuestos: { include: { producto: true } },
 };
 
-type Usuario = { id: number; rol: string };
+type Usuario = { id: number; permisos: string[] };
+
+// Quien no gestiona todos los servicios (el técnico) solo ve y toca los que tiene asignados
+const soloLosSuyos = (usuario: Usuario) => !usuario.permisos.includes('servicios.gestionar');
 type RepuestoInput = { productoId: number; cantidad: number };
 
 // Avisa a todas las pantallas; si cambiaron repuestos, también al inventario
@@ -67,7 +71,7 @@ const recalcularRetiro = async (tx: Prisma.TransactionClient, id: number) => {
 const obtener = async (id: number, estados: EstadoServicio[], usuario?: Usuario) => {
   const servicio = await prisma.servicioTecnico.findUnique({ where: { id } });
   if (!servicio) throw httpError(404, 'Servicio no encontrado');
-  if (usuario?.rol === 'TECNICO' && servicio.tecnicoId !== usuario.id)
+  if (usuario && soloLosSuyos(usuario) && servicio.tecnicoId !== usuario.id)
     throw httpError(403, 'El servicio está asignado a otro técnico');
   if (!estados.includes(servicio.estado)) throw httpError(409, 'La acción no corresponde al estado actual del servicio');
   return servicio;
@@ -97,7 +101,7 @@ const parseFecha = (fecha?: string | null) => {
 // El técnico solo ve los servicios que tiene asignados
 export const getAll = (usuario: Usuario) =>
   prisma.servicioTecnico.findMany({
-    where: usuario.rol === 'TECNICO' ? { tecnicoId: usuario.id } : {},
+    where: soloLosSuyos(usuario) ? { tecnicoId: usuario.id } : {},
     include: includeServicio,
     orderBy: { fechaIngreso: 'desc' },
   });
@@ -105,7 +109,7 @@ export const getAll = (usuario: Usuario) =>
 export const getById = async (id: number, usuario: Usuario) => {
   const servicio = await prisma.servicioTecnico.findUnique({ where: { id }, include: includeServicio });
   if (!servicio) throw httpError(404, 'Servicio no encontrado');
-  if (usuario.rol === 'TECNICO' && servicio.tecnicoId !== usuario.id)
+  if (soloLosSuyos(usuario) && servicio.tecnicoId !== usuario.id)
     throw httpError(403, 'El servicio está asignado a otro técnico');
   return servicio;
 };
@@ -118,10 +122,7 @@ export const create = async (data: {
   const fechaEstimadaFin = parseFecha(data.fechaEstimadaFin);
   if (!(await prisma.cliente.findUnique({ where: { id: data.clienteId } }))) throw httpError(400, 'Cliente no encontrado');
   // Sin técnico queda como solicitud pendiente de asignar (por ejemplo, la que llega desde el punto de venta)
-  if (data.tecnicoId) {
-    const tecnico = await prisma.usuario.findUnique({ where: { id: data.tecnicoId } });
-    if (tecnico?.rol !== 'TECNICO') throw httpError(400, 'El usuario seleccionado no es técnico');
-  }
+  if (data.tecnicoId && !(await esTecnico(data.tecnicoId))) throw httpError(400, 'El usuario seleccionado no es técnico');
 
   const repuestos = data.repuestos ?? [];
   const hayRepuestos = repuestos.length > 0;
@@ -203,8 +204,7 @@ export const presupuesto = async (data: {
 // Asigna o reasigna el técnico de una solicitud (por ejemplo, la que llegó sin técnico desde el punto de venta)
 export const asignarTecnico = async (id: number, tecnicoId: number) => {
   await obtener(id, ['EN_CURSO']);
-  const tecnico = await prisma.usuario.findUnique({ where: { id: tecnicoId } });
-  if (tecnico?.rol !== 'TECNICO') throw httpError(400, 'El usuario seleccionado no es técnico');
+  if (!(await esTecnico(tecnicoId))) throw httpError(400, 'El usuario seleccionado no es técnico');
   const servicio = await prisma.servicioTecnico.update({ where: { id }, data: { tecnicoId }, include: includeServicio });
   notificar();
   await notificaciones.crear({ area: 'SERVICIOS', usuarioId: tecnicoId, servicioId: id, titulo: 'Servicio asignado', mensaje: `#${id} · ${servicio.equipo} (${servicio.cliente.nombre})` });
@@ -310,7 +310,7 @@ export const finalizar = async (id: number, data: {
   });
   notificar();
   // Si lo cerró el técnico, administración se entera para ver el comprobante
-  if (usuario.rol === 'TECNICO')
+  if (soloLosSuyos(usuario))
     await notificaciones.crear({ area: 'SERVICIOS', servicioId: id, titulo: 'Servicio finalizado', mensaje: `#${id} · ${servicio.equipo} (${servicio.cliente.nombre}) lo finalizó ${servicio.tecnico?.nombre ?? 'el técnico'}` });
   return servicio;
 };

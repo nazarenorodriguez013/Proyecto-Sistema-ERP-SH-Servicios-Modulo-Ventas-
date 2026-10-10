@@ -2,14 +2,29 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../types';
 import * as authService from '../services/auth.service';
 import { responder, urlBase } from '../utils/http';
+import { auditar } from '../utils/auditoria';
+
+const ipDe = (req: Request) => (req.ip ?? '').replace(/^::ffff:/, '') || null;
+
+// Deja en la auditoría los ingresos y los intentos fallidos (con el correo que se probó)
+const conAuditoria = async (req: Request, intento: string, accion: () => Promise<any>) => {
+  try {
+    const r = await accion();
+    if (r?.user) auditar(req, { accion: 'login', seccion: 'acceso', descripcion: `Ingresó al sistema${intento ? ` (${intento})` : ''}`, usuario: { id: r.user.id, nombre: r.user.nombre } });
+    return r;
+  } catch (err: any) {
+    auditar(req, { accion: 'login_failed', seccion: 'acceso', descripcion: `Intento de ingreso fallido${intento ? ` (${intento})` : ''}: ${err.message}`.slice(0, 255), usuario: null });
+    throw err;
+  }
+};
 
 export const login = (req: Request, res: Response) =>
-  responder(res, () => authService.login(req.body.correo, req.body.contrasena));
+  responder(res, () => conAuditoria(req, String(req.body.correo ?? '').slice(0, 120), () => authService.login(req.body.correo, req.body.contrasena, ipDe(req))));
 
 export const config = (_req: Request, res: Response) => responder(res, async () => authService.config());
 
 export const loginGoogle = (req: Request, res: Response) =>
-  responder(res, () => authService.loginGoogle(req.body.credential));
+  responder(res, () => conAuditoria(req, 'con Google', () => authService.loginGoogle(req.body.credential, ipDe(req))));
 
 export const actualizarCuenta = (req: AuthRequest, res: Response) =>
   responder(res, () => authService.actualizarCuenta(req.user!.id, req.body));
@@ -22,7 +37,7 @@ export const olvideContrasena = (req: Request, res: Response) =>
   });
 
 export const verificarDosPasos = (req: Request, res: Response) =>
-  responder(res, () => authService.verificarDosPasos(req.body.desafio, req.body.codigo));
+  responder(res, () => conAuditoria(req, 'verificación en dos pasos', () => authService.verificarDosPasos(req.body.desafio, req.body.codigo, ipDe(req))));
 
 export const reenviarCodigo = (req: Request, res: Response) =>
   responder(res, async () => { await authService.reenviarCodigo(req.body.desafio); return { message: 'Te enviamos un código nuevo' }; });

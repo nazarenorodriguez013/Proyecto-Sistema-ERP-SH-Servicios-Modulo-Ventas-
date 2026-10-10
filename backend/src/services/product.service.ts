@@ -1,7 +1,14 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { getIO } from '../socket';
 
 const prisma = new PrismaClient();
+
+// Siguiente número para un código automático. Solo cuentan los códigos numéricos: los que vienen del
+// catálogo (por ejemplo "AE-0113") conviven sin romper la numeración
+export const siguienteCodigoNumerico = async (db: Prisma.TransactionClient | PrismaClient = prisma) => {
+  const codigos = await db.producto.findMany({ where: { codigo: { not: null } }, select: { codigo: true } });
+  return codigos.reduce((max, { codigo }) => /^\d+$/.test(codigo!) ? Math.max(max, parseInt(codigo!, 10)) : max, 0) + 1;
+};
 
 export const getAll = () =>
   prisma.producto.findMany({ include: { categoria: true }, orderBy: { nombre: 'asc' } });
@@ -15,21 +22,14 @@ export const getLowStock = async () => {
   return productos.filter(p => p.stock <= p.stockMinimo);
 };
 
-// Genera un código incremental de 4 dígitos basado en el último código asignado
-const generateCode = async (): Promise<string> => {
-  const last = await prisma.producto.findFirst({
-    where: { codigo: { not: null } },
-    orderBy: { codigo: 'desc' },
-  });
-  if (!last?.codigo) return '0001';
-  const next = parseInt(last.codigo, 10) + 1;
-  return String(next).padStart(4, '0');
-};
+// Genera un código incremental de 4 dígitos basado en el mayor código numérico asignado
+const generateCode = async (): Promise<string> => String(await siguienteCodigoNumerico()).padStart(4, '0');
 
 // Valida los campos antes de tocar la base; se comparte entre create y update
 const validateNumericFields = (data: { nombre?: string; precio?: number; stock?: number; stockMinimo?: number }) => {
   if (data.nombre !== undefined && (typeof data.nombre !== 'string' || !data.nombre.trim())) throw new Error('El nombre del producto es obligatorio');
-  if (data.precio !== undefined && data.precio <= 0) throw new Error('El precio debe ser mayor a 0');
+  // Precio 0 se permite: son los productos "a consultar" (como en el catálogo)
+  if (data.precio !== undefined && (!Number.isFinite(data.precio) || data.precio < 0)) throw new Error('El precio no puede ser negativo');
   if (data.stock !== undefined && (data.stock < 0 || !Number.isInteger(data.stock))) throw new Error('El stock debe ser un número entero mayor o igual a 0');
   if (data.stockMinimo !== undefined && (data.stockMinimo < 0 || !Number.isInteger(data.stockMinimo))) throw new Error('El stock mínimo debe ser un número entero mayor o igual a 0');
 };

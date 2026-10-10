@@ -1,17 +1,18 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { modulosPorRol } from './utils/modulos';
 
 const prisma = new PrismaClient();
 
-// Crea los usuarios de prueba que falten y, solo si no hay catálogo, los datos de ejemplo; nunca pisa datos existentes
+// Crea los usuarios de prueba que falten y, solo si no hay catálogo, los datos de ejemplo; nunca pisa datos existentes.
+// Los roles de sistema (y sus permisos) los crea la migración 20261010120000_roles_permisos_auditoria.
 export async function seed() {
+  const rol = async (slug: string) => (await prisma.rol.findUniqueOrThrow({ where: { slug } })).id;
   await prisma.usuario.createMany({
     data: [
-      { nombre: 'Administrador', correo: 'admin@shservicios.com',    contrasena: await bcrypt.hash('admin123',    10), rol: 'ADMIN',    modulos: modulosPorRol('ADMIN')    },
-      { nombre: 'Vendedor',      correo: 'vendedor@shservicios.com', contrasena: await bcrypt.hash('vendedor123', 10), rol: 'VENDEDOR', modulos: modulosPorRol('VENDEDOR') },
-      { nombre: 'Técnico',       correo: 'tecnico@shservicios.com',  contrasena: await bcrypt.hash('tecnico123',  10), rol: 'TECNICO',  modulos: modulosPorRol('TECNICO')  },
+      { nombre: 'Administrador', correo: 'admin@shservicios.com',    contrasena: await bcrypt.hash('admin123',    10), rolId: await rol('admin')    },
+      { nombre: 'Vendedor',      correo: 'vendedor@shservicios.com', contrasena: await bcrypt.hash('vendedor123', 10), rolId: await rol('vendedor') },
+      { nombre: 'Técnico',       correo: 'tecnico@shservicios.com',  contrasena: await bcrypt.hash('tecnico123',  10), rolId: await rol('tecnico')  },
     ],
     skipDuplicates: true,
   });

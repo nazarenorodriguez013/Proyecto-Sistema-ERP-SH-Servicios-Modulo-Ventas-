@@ -3,6 +3,7 @@ import type { User } from '../types'
 import { API, MEDIOS_PAGO, MEDIO_CUENTA_CORRIENTE } from '../config'
 import { socket } from '../socket'
 import ServicioTicket from '../components/ServicioTicket'
+import { puede } from '../permisos'
 import { ESTADO_LABEL, ESTADO_COLOR, ESTADO_RETIRO_LABEL, ESTADO_RETIRO_COLOR, type Servicio } from '../servicios'
 
 interface Producto { id: number; codigo: string | null; nombre: string; tipoProducto: 'REPUESTO' | 'MAQUINARIA'; precio: number; stock: number; activo: boolean }
@@ -32,10 +33,10 @@ export default function ServicioDetalle({ servicioId, user, onBack }: { servicio
 
   const token = localStorage.getItem('token') ?? ''
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-  const esAdministracion = user.rol === 'ADMIN' || user.rol === 'VENDEDOR'
-  const esTaller = user.rol === 'ADMIN' || user.rol === 'TECNICO'
+  const esAdministracion = puede(user, 'servicios.gestionar')
+  const esTaller = puede(user, 'servicios.repuestos')
   // Finaliza administración, o el técnico sobre su propio servicio (el backend lo vuelve a verificar)
-  const puedeFinalizar = esAdministracion || user.rol === 'TECNICO'
+  const puedeFinalizar = esAdministracion || puede(user, 'servicios.tecnico')
 
   const fetchServicio = () =>
     fetch(`${API}/repairs/${servicioId}`, { headers }).then(r => r.json()).then(data => {

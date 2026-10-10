@@ -15,10 +15,19 @@ model Usuario {
   nombre        String
   correo        String   @unique
   contrasena    String
-  rol           Rol      @default(VENDEDOR)
-  // Módulos del menú que ve el usuario; el administrador ve todos sin importar esta lista
-  modulos       String[] @default([])
+  // Lo que puede hacer el usuario sale de los permisos de su rol (ver utils/permisos.ts)
+  rolId         Int      @map("rol_id")
   activo        Boolean  @default(true)
+  telefono      String?
+  puesto        String?
+  // Al entrar por primera vez (o si el administrador lo marca) tiene que elegir una contraseña nueva
+  debeCambiarContrasena Boolean @default(false) @map("debe_cambiar_contrasena")
+  ultimoAcceso  DateTime? @map("ultimo_acceso")
+  ultimaIp      String?  @map("ultima_ip")
+  // Bloqueo por contraseñas incorrectas: cada tanda de intentos fallidos bloquea más tiempo (ver auth.service)
+  intentosFallidos Int     @default(0) @map("intentos_fallidos")
+  bloqueosSeguidos Int     @default(0) @map("bloqueos_seguidos")
+  bloqueadoHasta   DateTime? @map("bloqueado_hasta")
   // Verificación en dos pasos por correo: cada usuario la activa o no; guardamos solo el hash del código vigente
   dosPasos      Boolean  @default(false) @map("dos_pasos")
   codigoHash    String?  @map("codigo_hash")
@@ -33,18 +42,58 @@ model Usuario {
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
+  rol                Rol               @relation(fields: [rolId], references: [id])
   ventas             Venta[]
   serviciosAsignados ServicioTecnico[]
 
   @@map("usuarios")
 }
 
-// INVENTARIO es el depósito: maneja artículos, stock y retiros de repuestos, y nada más
-enum Rol {
-  ADMIN
-  VENDEDOR
-  TECNICO
-  INVENTARIO
+// Roles como en el panel del catálogo: los de sistema (Administrador, Vendedor, Técnico, Inventario) no se borran,
+// y se pueden crear roles personalizados eligiendo sus permisos. El Administrador tiene siempre todos.
+model Rol {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @unique
+  slug        String   @unique
+  descripcion String?
+  esSistema   Boolean  @default(false) @map("es_sistema")
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  usuarios Usuario[]
+  permisos RolPermiso[]
+
+  @@map("roles")
+}
+
+model RolPermiso {
+  rolId   Int    @map("rol_id")
+  permiso String
+
+  rol Rol @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@id([rolId, permiso])
+  @@map("rol_permisos")
+}
+
+// Registro de auditoría: quién hizo qué, cuándo y desde dónde. Se guardan los últimos 7 días.
+model Auditoria {
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int?     @map("usuario_id")
+  usuarioNombre String?  @map("usuario_nombre")
+  accion        String
+  seccion       String
+  entidad       String?
+  entidadId     Int?     @map("entidad_id")
+  descripcion   String
+  // Detalle opcional; en las modificaciones, { campo: { antes, ahora } }
+  datos         Json?
+  ip            String?
+  userAgent     String?  @map("user_agent")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+
+  @@index([creadoEn])
+  @@map("auditoria")
 }
 
 model Categoria {

@@ -1,5 +1,6 @@
 import { PrismaClient, AreaNotificacion, Prisma } from '@prisma/client';
 import { getIO } from '../socket';
+import { permisosDeRol } from '../utils/permisos';
 
 const prisma = new PrismaClient();
 
@@ -9,21 +10,18 @@ export const crear = async (data: { area: AreaNotificacion; usuarioId?: number |
   getIO()?.emit('notificaciones-actualizadas');
 };
 
-type Destinatario = { id: number; rol: string; modulos: string[] };
-
-// Qué avisos ve cada uno: el técnico solo los que son para él; el resto, los de las áreas a las que tiene acceso
-// (el administrador, todas)
-const filtroVisibles = (u: Destinatario): Prisma.NotificacionWhereInput => {
-  if (u.rol === 'TECNICO') return { area: 'SERVICIOS', usuarioId: u.id };
+// Qué avisos ve cada uno según los permisos de su rol: los de las áreas que maneja (depósito o servicios)
+// y, además, los dirigidos a él (por ejemplo al técnico asignado). El administrador ve todo.
+const filtroVisibles = (id: number, permisos: string[]): Prisma.NotificacionWhereInput => {
   const areas: AreaNotificacion[] = [];
-  if (u.rol === 'ADMIN' || u.modulos.includes('inventario')) areas.push('INVENTARIO');
-  if (u.rol === 'ADMIN' || u.modulos.includes('servicios')) areas.push('SERVICIOS');
-  return { area: { in: areas } };
+  if (permisos.includes('retiros.gestionar')) areas.push('INVENTARIO');
+  if (permisos.includes('servicios.gestionar')) areas.push('SERVICIOS');
+  return { OR: [{ area: { in: areas } }, { usuarioId: id }] };
 };
 
 export const listar = async (userId: number) => {
-  const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id: userId } });
-  const where = filtroVisibles(usuario);
+  const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id: userId }, include: { rol: { include: { permisos: true } } } });
+  const where = filtroVisibles(usuario.id, permisosDeRol(usuario.rol));
   const [items, noLeidas] = await Promise.all([
     prisma.notificacion.findMany({ where, orderBy: { creadoEn: 'desc' }, take: 30 }),
     prisma.notificacion.count({ where: { ...where, creadoEn: { gt: usuario.notifVistasHasta } } }),

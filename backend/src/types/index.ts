@@ -5,6 +5,9 @@ export interface AuthRequest extends Request {
   user?: {
     id: number;
     correo: string;
-    rol: string;
+    nombre: string;
+    rolSlug: string;
+    // Permisos efectivos del rol del usuario (ver utils/permisos.ts)
+    permisos: string[];
   };
 }
