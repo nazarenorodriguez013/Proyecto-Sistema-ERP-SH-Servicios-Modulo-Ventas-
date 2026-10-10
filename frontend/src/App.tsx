@@ -49,7 +49,7 @@ function App() {
   useEffect(() => {
     if (!user) return
     const refrescar = () =>
-      fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` } })
+      fetch(`${API}/auth/me`, { cache: 'no-store', headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` } })
         .then(r => r.ok ? r.json() : null)
         .then((actual: User | null) => {
           if (!actual) return

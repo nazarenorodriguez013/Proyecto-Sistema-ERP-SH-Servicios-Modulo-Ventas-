@@ -36,6 +36,8 @@ app.use(cors());
 app.use('/api', dataRoutes);
 app.use(express.json());
 
+// Las respuestas de la API nunca se guardan en caché del navegador ni de proxys: los permisos y el stock tienen que ser siempre los actuales
+app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 app.use('/api', textoDelArticulo);
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
