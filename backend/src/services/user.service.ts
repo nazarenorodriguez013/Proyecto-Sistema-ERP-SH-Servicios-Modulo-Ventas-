@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { httpError } from '../utils/http';
+import { getIO } from '../socket';
 import { SLUG_ADMIN } from '../utils/permisos';
 
 const prisma = new PrismaClient();
@@ -95,7 +96,9 @@ export const update = async (id: number, actor: Actor, data: Record<string, unkn
   // "Desbloquear intentos fallidos": vuelve a dejarlo entrar sin esperar
   if (data.desbloquear === true) Object.assign(cambios, { intentosFallidos: 0, bloqueosSeguidos: 0, bloqueadoHasta: null });
 
-  return prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
+  const usuario = await prisma.usuario.update({ where: { id }, data: cambios, select: campos }).catch(traducirError);
+  getIO()?.emit('permisos-actualizados');
+  return usuario;
 };
 
 // Eliminar definitivamente (desactivar es un update con activo = false)

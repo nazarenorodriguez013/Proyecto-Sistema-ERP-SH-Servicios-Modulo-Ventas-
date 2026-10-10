@@ -8,28 +8,35 @@ const seccion = (p: { tipoProducto: string }) => p.tipoProducto === 'MAQUINARIA'
 const CAMPOS = ['nombre', 'descripcion', 'tipoProducto', 'categoria', 'precioCosto', 'precio', 'stock', 'stockMinimo', 'activo'];
 const paraAuditar = (p: { categoria: { nombre: string } } & Record<string, unknown>) => ({ ...p, categoria: p.categoria.nombre });
 
-export const getAll = async (_req: AuthRequest, res: Response): Promise<void> => {
-  res.json(await productService.getAll());
+// El costo y la ganancia solo los ven los roles con "productos.costos": los demás reciben el artículo sin esos datos
+const sinCostos = <T>(req: AuthRequest, dato: T): T => {
+  if (req.user?.permisos.includes('productos.costos')) return dato;
+  const quitar = (p: any) => { const { precioCosto: _costo, ...resto } = p; return resto; };
+  return (Array.isArray(dato) ? dato.map(quitar) : quitar(dato)) as T;
+};
+
+export const getAll = async (req: AuthRequest, res: Response): Promise<void> => {
+  res.json(sinCostos(req, await productService.getAll()));
 };
 
 export const getById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    res.json(await productService.getById(Number(req.params.id)));
+    res.json(sinCostos(req, await productService.getById(Number(req.params.id))));
   } catch {
     res.status(404).json({ message: 'Producto no encontrado' });
   }
 };
 
 // Usado por el dashboard para mostrar alertas de stock bajo
-export const getLowStock = async (_req: AuthRequest, res: Response): Promise<void> => {
-  res.json(await productService.getLowStock());
+export const getLowStock = async (req: AuthRequest, res: Response): Promise<void> => {
+  res.json(sinCostos(req, await productService.getLowStock()));
 };
 
 export const create = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const producto = await productService.create(req.body);
     auditar(req, { accion: 'create', seccion: seccion(producto), entidad: 'producto', entidadId: producto.id, descripcion: `Creó ${producto.codigo} · ${producto.nombre}` });
-    res.status(201).json(producto);
+    res.status(201).json(sinCostos(req, producto));
   } catch (err: any) {
     res.status(400).json({ message: mensajeSeguro(err) });
   }
@@ -46,7 +53,7 @@ export const update = async (req: AuthRequest, res: Response): Promise<void> => 
       const accion = 'precio' in cambios || 'precioCosto' in cambios ? 'price_change' : 'update';
       auditar(req, { accion, seccion: seccion(producto), entidad: 'producto', entidadId: id, descripcion: `Modificó ${producto.codigo} · ${producto.nombre}`, datos: cambios });
     }
-    res.json(producto);
+    res.json(sinCostos(req, producto));
   } catch (err: any) {
     res.status(400).json({ message: mensajeSeguro(err) });
   }

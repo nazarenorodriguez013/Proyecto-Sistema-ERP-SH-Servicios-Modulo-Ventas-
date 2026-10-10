@@ -3,6 +3,8 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import CambiarContrasena from './pages/CambiarContrasena'
 import type { User } from './types'
+import { API } from './config'
+import { socket } from './socket'
 
 const SESSION_DURATION = 8 * 60 * 60 * 1000 // 8 horas en ms, igual que la expiración del JWT
 
@@ -42,6 +44,29 @@ function App() {
     const timer = setTimeout(handleLogout, remaining)
     return () => clearTimeout(timer)
   }, [user])
+
+  // Si cambiaron el rol del usuario o los permisos del rol, el menú se actualiza solo (sin volver a iniciar sesión)
+  useEffect(() => {
+    if (!user) return
+    const refrescar = () =>
+      fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then((actual: User | null) => {
+          if (!actual) return
+          setUser(prev => {
+            if (!prev || (JSON.stringify(prev.permisos) === JSON.stringify(actual.permisos) && prev.rol?.id === actual.rol?.id && prev.nombre === actual.nombre)) return prev
+            const nuevo = { ...prev, ...actual }
+            localStorage.setItem('user', JSON.stringify(nuevo))
+            return nuevo
+          })
+        })
+        .catch(() => {})
+    refrescar()
+    const cada = setInterval(refrescar, 60_000)
+    window.addEventListener('focus', refrescar)
+    socket.on('permisos-actualizados', refrescar)
+    return () => { clearInterval(cada); window.removeEventListener('focus', refrescar); socket.off('permisos-actualizados', refrescar) }
+  }, [!!user])
 
   // Tras cambiar correo o contraseña el backend devuelve una sesión nueva
   const handleUserUpdate = ({ token, user: userData }: { token: string; user: User }) => {

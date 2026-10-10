@@ -486,6 +486,44 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     r = await api('GET', '/repairs/' + sv, A); ok('la factura del servicio conserva el repuesto como texto', r.d.repuestos[0].producto.nombre === 'Repuesto Efimero ' + SUF && r.d.repuestos[0].cantidad === 1, r.d.repuestos)
   })
 
+  await seccion('PERMISOS POR ROL (matriz)', async () => {
+    const e = async (tk, m, ruta, cuerpo) => (await api(m, ruta, tk, cuerpo)).s
+    const matriz = [
+      // [rol, token, [ruta, estado esperado]...]
+      ['vendedor', V, [['/products', 200], ['/categories', 200], ['/clients', 200], ['/sales', 200], ['/repairs', 200], ['/repairs/retiros', 200], ['/technicians', 200], ['/users', 403], ['/roles', 403], ['/audit', 403], ['/company', 200], ['/export/repuestos', 200]]],
+      ['técnico', T, [['/products', 200], ['/categories', 403], ['/clients', 403], ['/sales', 403], ['/repairs', 200], ['/repairs/retiros', 403], ['/technicians', 403], ['/users', 403], ['/roles', 403], ['/audit', 403], ['/company', 200], ['/export/repuestos', 403]]],
+      ['inventario', depo, [['/products', 200], ['/categories', 200], ['/clients', 403], ['/sales', 403], ['/repairs', 403], ['/repairs/retiros', 200], ['/technicians', 403], ['/users', 403], ['/roles', 403], ['/audit', 403], ['/company', 200], ['/export/repuestos', 200]]],
+      ['administrador', A, [['/products', 200], ['/categories', 200], ['/clients', 200], ['/sales', 200], ['/repairs', 200], ['/repairs/retiros', 200], ['/technicians', 200], ['/users', 200], ['/roles', 200], ['/audit', 200], ['/company', 200], ['/export/repuestos', 200]]],
+    ]
+    for (const [rol, tk, filas] of matriz) for (const [ruta, esperado] of filas) {
+      const s = await e(tk, 'GET', ruta); ok(`${rol}: GET ${ruta} → ${esperado}`, s === esperado, s)
+    }
+    // costos: solo los ven los roles con "productos.costos"
+    ok('el técnico no recibe el costo de los artículos', (await api('GET', '/products', T)).d.every(p => !('precioCosto' in p)))
+    ok('el vendedor y el depósito sí lo reciben', 'precioCosto' in (await api('GET', '/products', V)).d[0] && 'precioCosto' in (await api('GET', '/products', depo)).d[0])
+    ok('ni por id ni en stock bajo el técnico ve el costo', !('precioCosto' in (await api('GET', '/products/' + repuestoId, T)).d) && (await api('GET', '/products/low-stock', T)).d.every(p => !('precioCosto' in p)))
+    // escrituras
+    for (const [rol, tk] of [['vendedor', V], ['técnico', T]]) { ok(`${rol} no crea artículos`, await e(tk, 'POST', '/products', { nombre: 'x', precio: 1, stock: 1, categoriaId: catId }) === 403); ok(`${rol} no anula ventas`, await e(tk, 'DELETE', '/sales/1') === 403) }
+    ok('el vendedor no elimina clientes', await e(V, 'DELETE', '/clients/' + clienteId) === 403)
+    ok('el depósito no importa/exporta lo que no tiene: importar sí, configuración no', await e(depo, 'PUT', '/company', { razonSocial: 'x' }) === 403)
+    ok('el técnico no marca retiros', await e(T, 'PUT', '/repairs/retiros/1', { estado: 'LISTO' }) === 403)
+    // rol a medida: solo vender
+    const rol = (await api('POST', '/roles', A, { nombre: 'Solo ventas ' + SUF, permisos: ['ventas.crear'] })).d
+    const correo = `solov.${SUF}@qa.com`; const u = await api('POST', '/users', A, { nombre: 'SoloV', correo, contrasena: CLAVE, rolId: rol.id }); const tk = await login(correo, CLAVE)
+    ok('rol a medida creado', !!rol.id && u.s === 201, [rol, u.d])
+    ok('solo-ventas: puede listar artículos y clientes para vender', await e(tk, 'GET', '/products') === 200 && await e(tk, 'GET', '/clients') === 200)
+    ok('solo-ventas: no ve el historial, ni servicios, ni categorías', await e(tk, 'GET', '/sales') === 403 && await e(tk, 'GET', '/repairs') === 403 && await e(tk, 'GET', '/categories') === 403)
+    ok('solo-ventas: no recibe costos', (await api('GET', '/products', tk)).d.every(p => !('precioCosto' in p)))
+    ok('solo-ventas: vende', await e(tk, 'POST', '/sales', { items: [{ productoId: repuestoId, cantidad: 1 }], medioPago: 'Efectivo' }) === 201)
+    // los cambios del rol se ven al instante en /auth/me (sin volver a iniciar sesión)
+    let me = await api('GET', '/auth/me', tk); ok('/auth/me trae los permisos actuales', me.s === 200 && JSON.stringify(me.d.permisos) === '["ventas.crear"]', me.d)
+    await api('PUT', '/roles/' + rol.id, A, { permisos: ['ventas.crear', 'servicios.gestionar'] })
+    me = await api('GET', '/auth/me', tk); ok('al agregarle un permiso al rol, /auth/me lo refleja de inmediato', me.d.permisos.includes('servicios.gestionar'), me.d.permisos)
+    ok('y la API ya lo deja entrar a servicios con la misma sesión', await e(tk, 'GET', '/repairs') === 200)
+    await api('PUT', '/roles/' + rol.id, A, { permisos: ['ventas.crear'], activo: false })
+    ok('un rol desactivado deja al usuario sin permisos', (await api('GET', '/auth/me', tk)).d.permisos.length === 0 || (await e(tk, 'GET', '/products')) === 403)
+  })
+
   await seccion('ENTRADAS MALAS (sin filtrar detalles internos)', async () => {
     const crudo = async (path, token, cuerpo) => { const r = await fetch(B + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: cuerpo }); const t = await r.text(); let d; try { d = JSON.parse(t) } catch { d = t } return { s: r.status, d, t } }
     let r = await crudo('/categories', A, '{"nombre":')

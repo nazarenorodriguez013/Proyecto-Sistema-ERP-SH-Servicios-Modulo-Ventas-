@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { httpError } from '../utils/http';
+import { getIO } from '../socket';
 import { MODULOS_PERMISOS, SLUG_ADMIN, TODOS_LOS_PERMISOS, normalizarPermisos } from '../utils/permisos';
 
 const prisma = new PrismaClient();
@@ -86,6 +87,8 @@ export const update = async (id: number, actor: Actor, data: Record<string, unkn
     }
     return tx.rol.update({ where: { id }, data: cambios, include: incluir });
   }).catch(traducirError);
+  // Las pantallas abiertas de quienes tienen este rol vuelven a pedir sus permisos
+  getIO()?.emit('permisos-actualizados');
   return resumen(rol);
 };
 

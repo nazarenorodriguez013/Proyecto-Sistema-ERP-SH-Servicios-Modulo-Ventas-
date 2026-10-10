@@ -26,6 +26,9 @@ export const config = (_req: Request, res: Response) => responder(res, async () 
 export const loginGoogle = (req: Request, res: Response) =>
   responder(res, () => conAuditoria(req, 'con Google', () => authService.loginGoogle(req.body.credential, ipDe(req))));
 
+export const sesionActual = (req: AuthRequest, res: Response) =>
+  responder(res, () => authService.sesionActual(req.user!.id));
+
 export const actualizarCuenta = (req: AuthRequest, res: Response) =>
   responder(res, () => authService.actualizarCuenta(req.user!.id, req.body));
 

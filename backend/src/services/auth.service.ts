@@ -23,6 +23,9 @@ const emitirSesion = async (id: number) => {
   };
 };
 
+// Datos actuales del usuario (rol y permisos tal como están ahora en la base): el frontend los pide para que un cambio de rol se vea sin volver a iniciar sesión
+export const sesionActual = async (id: number) => (await emitirSesion(id)).user;
+
 // Ingreso completo (con o sin segundo paso): se registra cuándo y desde dónde, y se olvidan los intentos fallidos
 const iniciarSesion = async (id: number, ip: string | null) => {
   await prisma.usuario.update({
