@@ -52,14 +52,15 @@ export default function Clientes({ user }: { user: User }) {
         : (
           <div style={s.grid}>
             {filtered.map(c => (
-              <button key={c.id} style={s.card} onClick={() => setVerCliente(c.id)}>
+              // El nombre y el documento usan todo el ancho; el saldo va abajo como chip (a la derecha apretaba el nombre)
+              <button key={c.id} style={s.card} onClick={() => setVerCliente(c.id)} title={c.nombre}>
                 <div style={s.cardIcon}><i className="bi bi-person" /></div>
                 <div style={s.cardBody}>
                   <p style={s.cardName}>{c.nombre}</p>
                   <p style={s.cardSub}>{c.documento || c.telefono || 'Sin datos de contacto'}</p>
-                </div>
-                <div style={{ ...s.saldoBadge, color: describirSaldo(c.saldo).color }}>
-                  {describirSaldo(c.saldo).texto}
+                  <span className={`chip chip--${c.saldo > 0 ? 'danger' : c.saldo < 0 ? 'ok' : 'neutral'}`} style={s.saldoChip}>
+                    {describirSaldo(c.saldo).texto}
+                  </span>
                 </div>
                 <i className="bi bi-chevron-right" style={s.chevron} />
               </button>
@@ -85,12 +86,12 @@ const s: Record<string, React.CSSProperties> = {
 
   empty:        { color: '#6B6B6B', textAlign: 'center', padding: '60px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E4E8' },
   grid:         { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' },
-  card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', textAlign: 'left', font: 'inherit' },
-  cardIcon:     { fontSize: '18px', flexShrink: 0, width: '40px', height: '40px', background: '#F5F5F5', color: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  cardBody:     { flex: 1, minWidth: 0 },
-  cardName:     { color: '#111111', fontWeight: '600', fontSize: '14px', margin: 0 },
-  cardSub:      { color: '#6B6B6B', fontSize: '12px', margin: '3px 0 0' },
-  saldoBadge:   { fontWeight: '800', fontSize: '14px', flexShrink: 0 },
+  card:         { background: '#FFFFFF', border: '1px solid #E2E4E8', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', textAlign: 'left', font: 'inherit', minWidth: 0 },
+  cardIcon:     { fontSize: '18px', flexShrink: 0, width: '40px', height: '40px', background: '#111111', color: '#F5C400', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  cardBody:     { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' },
+  cardName:     { color: '#111111', fontWeight: '700', fontSize: '14px', margin: 0, lineHeight: 1.3, overflowWrap: 'anywhere', maxWidth: '100%' },
+  cardSub:      { color: '#6B6B6B', fontSize: '12px', margin: 0, fontFamily: 'ui-monospace, Consolas, monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' },
+  saldoChip:    { marginTop: '6px' },
   chevron:      { color: '#9A9A9A', fontSize: '12px' },
 
   btnPrimary:   { background: '#F5C400', color: '#111111', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' },
