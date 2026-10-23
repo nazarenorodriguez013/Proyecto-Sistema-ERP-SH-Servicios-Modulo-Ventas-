@@ -81,12 +81,14 @@ export const login = async (correo: string, contrasena: string, ip: string | nul
 };
 
 // Con verificación en dos pasos, ni la contraseña ni Google alcanzan solos: falta el código que llega por mail
+// o el de Google Authenticator
 const pedirSegundoPaso = async (usuario: Usuario, ip: string | null) => {
   if (!usuario.dosPasos) return iniciarSesion(usuario.id, ip);
+  if (usuario.totpSecreto) return { requiere2fa: true, metodo: 'app', desafio: emitirDesafio(usuario.id) };
   // Si ya se mandó un código hace menos de un minuto (por ejemplo al probar con contraseña y enseguida con Google)
   // ese sigue vigente: se muestra igual la pantalla del código en vez de un error
   await enviarCodigo(usuario, 'login').catch((err) => { if (err.status !== 429) throw err; });
-  return { requiere2fa: true, desafio: emitirDesafio(usuario.id), correo: enmascarar(usuario.correo) };
+  return { requiere2fa: true, metodo: 'correo', desafio: emitirDesafio(usuario.id), correo: enmascarar(usuario.correo) };
 };
 
 // El desafío identifica a quien ya pasó la contraseña; usa otra clave para que no sirva como token de sesión
@@ -97,8 +99,25 @@ const leerDesafio = (desafio: string): number => {
 };
 const enmascarar = (correo: string) => correo.replace(/^(.).*(@.*)$/, '$1***$2');
 
+// El código de la app se puede probar sin límite de tiempo, así que los errores cuentan como contraseñas
+// incorrectas: a los 5 la cuenta se bloquea un rato (igual que con la contraseña)
+const verificarCodigoApp = async (usuarioId: number, codigo: string) => {
+  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+  if (!usuario?.totpSecreto) throw httpError(401, 'La verificación venció. Iniciá sesión de nuevo');
+  verificarBloqueo(usuario);
+  const paso = totp.verificar(totp.descifrar(usuario.totpSecreto), codigo, usuario.totpUltimoPaso);
+  if (paso === null) {
+    await registrarFallo(usuario);
+    throw httpError(400, 'Código incorrecto');
+  }
+  await prisma.usuario.update({ where: { id: usuarioId }, data: { totpUltimoPaso: paso } });
+  return usuario;
+};
+
 export const verificarDosPasos = async (desafio: string, codigo: string, ip: string | null) => {
-  const usuario = await verificarCodigo(leerDesafio(desafio), codigo, 'login');
+  const id = leerDesafio(desafio);
+  const conApp = (await prisma.usuario.findUnique({ where: { id }, select: { totpSecreto: true } }))?.totpSecreto;
+  const usuario = conApp ? await verificarCodigoApp(id, codigo) : await verificarCodigo(id, codigo, 'login');
   if (!usuario.activo) throw httpError(401, 'Tu usuario está desactivado. Consultá con el administrador');
   return iniciarSesion(usuario.id, ip);
 };
@@ -106,6 +125,7 @@ export const verificarDosPasos = async (desafio: string, codigo: string, ip: str
 export const reenviarCodigo = async (desafio: string) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: leerDesafio(desafio) } });
   if (!usuario?.activo || !usuario.dosPasos) throw httpError(401, 'La verificación venció. Iniciá sesión de nuevo');
+  if (usuario.totpSecreto) throw httpError(400, 'Tu código está en la app Google Authenticator del celular');
   await enviarCodigo(usuario, 'login');
 };
 
