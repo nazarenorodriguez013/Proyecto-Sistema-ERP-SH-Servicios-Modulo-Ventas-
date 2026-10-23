@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as movementService from '../services/movement.service';
-import { mensajeSeguro } from '../utils/http';
+import { mensajeSeguro, responder } from '../utils/http';
 import { auditar } from '../utils/auditoria';
 
 const pesos = (n: number) => `$${n.toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
@@ -22,7 +22,7 @@ export const createPago = async (req: AuthRequest, res: Response): Promise<void>
 export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const movementId = Number(req.params.movementId);
-    const m = await movementService.remove(Number(req.params.id), movementId, req.user!, req.body?.motivo);
+    const m = await movementService.remove(Number(req.params.id), movementId, req.user!, typeof req.body?.motivo === 'string' ? req.body.motivo : undefined);
     auditar(req, {
       accion: 'delete', seccion: 'clientes', entidad: 'movimiento', entidadId: movementId,
       descripcion: `Eliminó un pago de ${pesos(m.monto)} de la cuenta corriente de ${m.cliente.nombre}`,
@@ -37,3 +37,6 @@ export const remove = async (req: AuthRequest, res: Response): Promise<void> => 
     res.status(err.message === 'Movimiento no encontrado' ? 404 : 400).json({ message: mensajeSeguro(err) });
   }
 };
+
+export const eliminados = (req: AuthRequest, res: Response) =>
+  responder(res, () => movementService.eliminados(String(req.query.q ?? ''), Number(req.query.pagina) || 1));

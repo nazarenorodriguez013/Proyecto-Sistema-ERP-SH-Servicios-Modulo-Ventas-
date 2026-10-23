@@ -42,6 +42,30 @@ export const remove = async (clienteId: number, movementId: number, usuario: { i
   });
 };
 
+// Pagos eliminados, del más reciente al más viejo. A diferencia de la auditoría (7 días) no se borran nunca
+const POR_PAGINA = 50;
+export const eliminados = async (q: string, pagina: number) => {
+  const texto = q.trim();
+  const where: Prisma.MovimientoCuentaWhereInput = {
+    eliminadoEn: { not: null },
+    ...(texto ? { OR: [
+      { cliente: { nombre: { contains: texto, mode: 'insensitive' } } },
+      { eliminadoPorNombre: { contains: texto, mode: 'insensitive' } },
+      { registradoPorNombre: { contains: texto, mode: 'insensitive' } },
+      { motivoEliminacion: { contains: texto, mode: 'insensitive' } },
+    ] } : {}),
+  };
+  pagina = Math.max(1, pagina);
+  const [total, pagos] = await Promise.all([
+    prisma.movimientoCuenta.count({ where }),
+    prisma.movimientoCuenta.findMany({
+      where, orderBy: { eliminadoEn: 'desc' }, skip: (pagina - 1) * POR_PAGINA, take: POR_PAGINA,
+      include: { cliente: { select: { id: true, nombre: true } } },
+    }),
+  ]);
+  return { total, pagina, paginas: Math.max(1, Math.ceil(total / POR_PAGINA)), pagos };
+};
+
 // Registra en la cuenta del cliente el cargo de una venta o servicio y devuelve cuánto saldo a favor se usó.
 // A cuenta corriente se carga el total (el saldo a favor se descuenta solo); con otro medio de pago
 // solo se carga la parte cubierta por el saldo a favor, y el resto lo paga el cliente en el momento.
