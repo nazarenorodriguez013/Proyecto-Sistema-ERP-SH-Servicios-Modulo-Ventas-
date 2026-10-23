@@ -223,11 +223,18 @@ model MovimientoCuenta {
   ventaId    Int?           @map("venta_id")
   servicioId Int?           @map("servicio_id")
   creadoEn   DateTime       @default(now()) @map("creado_en")
+  // Un pago eliminado no se borra: queda guardado con quién y por qué lo eliminó, pero ya no figura
+  // en la cuenta del cliente ni cuenta para el saldo
+  eliminadoEn        DateTime? @map("eliminado_en")
+  eliminadoPorId     Int?      @map("eliminado_por_id")
+  eliminadoPorNombre String?   @map("eliminado_por_nombre")
+  motivoEliminacion  String?   @map("motivo_eliminacion")
 
   cliente  Cliente          @relation(fields: [clienteId], references: [id])
   venta    Venta?           @relation(fields: [ventaId], references: [id])
   servicio ServicioTecnico? @relation(fields: [servicioId], references: [id])
 
+  @@index([clienteId, eliminadoEn])
   @@map("movimientos_cuenta")
 }
 
