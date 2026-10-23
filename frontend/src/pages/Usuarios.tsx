@@ -13,7 +13,7 @@ interface Usuario {
 }
 interface Form {
   nombre: string; correo: string; contrasena: string; repetir: string; rolId: string; telefono: string; puesto: string
-  activo: boolean; debeCambiarContrasena: boolean; desbloquear: boolean
+  activo: boolean; debeCambiarContrasena: boolean; desbloquear: boolean; quitarDosPasos: boolean
 }
 
 const fecha = (iso: string | null) => iso ? new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Nunca'
@@ -50,7 +50,7 @@ export default function Usuarios({ user }: { user: User }) {
   const rolesAsignables = roles.filter(r => soyAdmin || r.slug !== SLUG_ADMIN)
   const formVacio = (): Form => ({
     nombre: '', correo: '', contrasena: '', repetir: '', rolId: String(rolesAsignables.find(r => r.slug !== SLUG_ADMIN && r.activo)?.id ?? ''),
-    telefono: '', puesto: '', activo: true, debeCambiarContrasena: false, desbloquear: false,
+    telefono: '', puesto: '', activo: true, debeCambiarContrasena: false, desbloquear: false, quitarDosPasos: false,
   })
 
   const cargar = () => Promise.all([
@@ -75,7 +75,7 @@ export default function Usuarios({ user }: { user: User }) {
     setErrorAlta('')
     if (nuevo.contrasena !== nuevo.repetir) { setErrorAlta('Las contraseñas no coinciden'); return }
     try {
-      const { repetir: _r, desbloquear: _d, ...datos } = nuevo
+      const { repetir: _r, desbloquear: _d, quitarDosPasos: _q, ...datos } = nuevo
       await llamar('POST', '', { ...datos, rolId: Number(nuevo.rolId) })
       setNuevo(formVacio()); setAviso('Usuario creado'); cargar()
     } catch (err) { setErrorAlta((err as Error).message) }
@@ -85,7 +85,7 @@ export default function Usuarios({ user }: { user: User }) {
     setError('')
     setForm({
       nombre: u.nombre, correo: u.correo, contrasena: '', repetir: '', rolId: String(u.rolId), telefono: u.telefono ?? '', puesto: u.puesto ?? '',
-      activo: u.activo, debeCambiarContrasena: u.debeCambiarContrasena, desbloquear: false,
+      activo: u.activo, debeCambiarContrasena: u.debeCambiarContrasena, desbloquear: false, quitarDosPasos: false,
     })
     setEditando(u)
   }
@@ -95,8 +95,8 @@ export default function Usuarios({ user }: { user: User }) {
     if (!editando || !form) return
     setError('')
     try {
-      const { repetir: _r, contrasena, ...resto } = form
-      await llamar('PUT', `/${editando.id}`, { ...resto, rolId: Number(form.rolId), ...(contrasena ? { contrasena } : {}) })
+      const { repetir: _r, contrasena, quitarDosPasos, ...resto } = form
+      await llamar('PUT', `/${editando.id}`, { ...resto, rolId: Number(form.rolId), ...(contrasena ? { contrasena } : {}), ...(quitarDosPasos ? { dosPasos: false } : {}) })
       setEditando(null); setAviso('Usuario actualizado'); cargar()
     } catch (err) { setError((err as Error).message) }
   }
@@ -265,6 +265,9 @@ export default function Usuarios({ user }: { user: User }) {
                   <label className="filter-check"><input type="checkbox" checked={form.activo} disabled={editando.id === user.id} onChange={e => setForm({ ...form, activo: e.target.checked })} /> Cuenta activa</label>
                   <label className="filter-check"><input type="checkbox" checked={form.debeCambiarContrasena} onChange={e => setForm({ ...form, debeCambiarContrasena: e.target.checked })} /> Debe cambiar la contraseña al entrar</label>
                   <label className="filter-check"><input type="checkbox" checked={form.desbloquear} onChange={e => setForm({ ...form, desbloquear: e.target.checked })} /> Desbloquear intentos fallidos{bloqueado(editando) ? ' (está bloqueado)' : ''}</label>
+                  {editando.dosPasos && (
+                    <label className="filter-check"><input type="checkbox" checked={form.quitarDosPasos} onChange={e => setForm({ ...form, quitarDosPasos: e.target.checked })} /> Quitar la verificación en dos pasos (perdió el celular o el acceso al mail)</label>
+                  )}
                 </div>
                 {error && <p className="form-error">{error}</p>}
               </div>
