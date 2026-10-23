@@ -357,7 +357,7 @@ fieldset.form-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display
 
 /* ---------------------------------------------------------------------
    6. Gestión y Seguridad (Importar, Exportar, Configuración, Usuarios,
-      Roles, Auditoría, Novedades) — mismas clases que admin.css del catálogo
+      Roles, Auditoría) — mismas clases que admin.css del catálogo
    --------------------------------------------------------------------- */
 .small-text { font-size: .84rem; }
 .text-ok { color: #1E7A45; font-weight: 600; font-size: .88rem; }
@@ -434,15 +434,6 @@ fieldset.form-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display
   display: inline-flex; align-items: center; gap: 8px;
 }
 .settings-nav button.is-active { background: var(--black); border-color: var(--black); color: var(--yellow); }
-
-/* Novedades */
-.card-admin--news { border-color: var(--yellow); box-shadow: 0 0 0 3px #FFF6D6; }
-.card-admin--news .card-admin__head { background: #FFFDF3; }
-.news-body { color: var(--dark); line-height: 1.65; }
-.news-body h3 { margin: 18px 0 6px; font-size: .95rem; text-transform: uppercase; letter-spacing: .03em; color: var(--black); }
-.news-body h3:first-child { margin-top: 0; }
-.news-body ul { margin: 6px 0 12px; padding-left: 20px; }
-.news-body li { margin-bottom: 4px; }
 
 @media (max-width: 767px) { .ocultar-movil { display: none; } }
 
