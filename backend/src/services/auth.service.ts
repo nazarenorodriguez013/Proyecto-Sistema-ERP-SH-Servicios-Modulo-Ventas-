@@ -138,7 +138,7 @@ export const solicitarActivacion = async (id: number) => {
 
 export const confirmarActivacion = async (id: number, codigo: string) => {
   await verificarCodigo(id, codigo, 'activar');
-  await prisma.usuario.update({ where: { id }, data: { dosPasos: true } });
+  await prisma.usuario.update({ where: { id }, data: { dosPasos: true, ...SIN_TOTP } });
   return emitirSesion(id);
 };
 

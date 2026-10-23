@@ -82,8 +82,9 @@ export const update = async (id: number, actor: Actor, data: Record<string, unkn
   if (id === actor.id && !activo) throw httpError(400, 'No podés desactivar tu propio usuario');
 
   const cambios: Prisma.UsuarioUncheckedUpdateInput = { rolId: rol.id, activo };
-  // El administrador solo puede apagarla (por ejemplo si perdieron el acceso al mail); activarla lo decide cada usuario
-  if (data.dosPasos === false) cambios.dosPasos = false;
+  // El administrador solo puede apagarla (por ejemplo si perdieron el acceso al mail o el celular con Google Authenticator);
+  // activarla lo decide cada usuario. Al apagarla se olvida el secreto de la app: para volver a usarla hay que escanear un QR nuevo
+  if (data.dosPasos === false) Object.assign(cambios, { dosPasos: false, totpSecreto: null, totpPendiente: null, totpUltimoPaso: null });
   if (data.nombre !== undefined) {
     if (typeof data.nombre !== 'string' || !data.nombre.trim()) throw httpError(400, 'El nombre es obligatorio');
     cambios.nombre = data.nombre.trim().slice(0, 120);
