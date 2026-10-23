@@ -34,6 +34,12 @@ model Usuario {
   codigoExpira  DateTime? @map("codigo_expira")
   codigoIntentos Int     @default(0) @map("codigo_intentos")
   codigoProposito String? @map("codigo_proposito")
+  // Verificación en dos pasos con Google Authenticator (u otra app TOTP): si hay secreto, el código sale de la app y no del mail.
+  // El secreto se guarda cifrado; el pendiente es el que se está configurando hasta que el usuario confirma con un código
+  totpSecreto   String?  @map("totp_secreto")
+  totpPendiente String?  @map("totp_pendiente")
+  // Último intervalo de 30 s usado, para que un mismo código de la app no sirva dos veces
+  totpUltimoPaso Int?    @map("totp_ultimo_paso")
   // Recuperación de contraseña: se guarda solo el hash del token que se mandó por mail
   resetTokenHash String?  @map("reset_token_hash")
   resetExpira   DateTime? @map("reset_expira")
