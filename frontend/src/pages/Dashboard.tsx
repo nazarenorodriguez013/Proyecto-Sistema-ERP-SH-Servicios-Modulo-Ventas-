@@ -14,7 +14,6 @@ import Clientes from './Clientes'
 import ServiciosTecnicos from './ServiciosTecnicos'
 import HistorialServicios from './HistorialServicios'
 import Tecnicos from './Tecnicos'
-import Novedades from './Novedades'
 import Importar from './Importar'
 import Exportar from './Exportar'
 import Configuracion from './Configuracion'
@@ -53,7 +52,6 @@ const NAV: NavEntry[] = [
   { id: 'retiros',             label: 'Retiro de repuestos',    icon: 'bi-box-arrow-up-right',   path: '/retiros',             permisos: ['retiros.gestionar'] },
 
   { section: 'Gestión' },
-  { id: 'novedades',           label: 'Novedades',              icon: 'bi-megaphone-fill',       path: '/novedades',           permisos: [] },
   { id: 'importar',            label: 'Importar',               icon: 'bi-upload',               path: '/importar',            permisos: ['datos.importar'] },
   { id: 'exportar',            label: 'Exportar',               icon: 'bi-download',             path: '/exportar',            permisos: ['datos.exportar'] },
   { id: 'configuracion',       label: 'Configuración',          icon: 'bi-gear-fill',            path: '/configuracion',       permisos: ['configuracion.gestionar'] },
@@ -169,7 +167,6 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
       case 'servicios':           return <ServiciosTecnicos key={claveNavegacion} user={user} />
       case 'tecnicos':            return <Tecnicos />
       case 'historial-servicios': return <HistorialServicios />
-      case 'novedades':           return <Novedades />
       case 'importar':            return <Importar />
       case 'exportar':            return <Exportar user={user} />
       case 'configuracion':       return <Configuracion />
