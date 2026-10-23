@@ -56,6 +56,7 @@ export const update = async (id: number, data: ClienteData) => {
   return prisma.cliente.update({ where: { id }, data }).catch(traducirError);
 };
 
+// Los pagos eliminados también cuentan: borrar el cliente se llevaría el registro de quién los eliminó
 export const remove = async (id: number) => {
   const [ventas, movimientos, servicios] = await Promise.all([
     prisma.venta.count({ where: { clienteId: id } }),
