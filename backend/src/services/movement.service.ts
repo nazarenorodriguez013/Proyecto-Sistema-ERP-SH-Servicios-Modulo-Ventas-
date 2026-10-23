@@ -36,6 +36,7 @@ export const remove = async (clienteId: number, movementId: number, usuario: { i
       eliminadoEn: new Date(), eliminadoPorId: usuario.id, eliminadoPorNombre: usuario.nombre,
       motivoEliminacion: motivo?.trim().slice(0, 255) || null,
     },
+    include: { cliente: { select: { nombre: true } } },
   });
 };
 

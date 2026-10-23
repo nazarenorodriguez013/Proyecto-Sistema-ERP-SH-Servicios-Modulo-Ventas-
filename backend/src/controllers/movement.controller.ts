@@ -22,8 +22,15 @@ export const createPago = async (req: AuthRequest, res: Response): Promise<void>
 export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const movementId = Number(req.params.movementId);
-    await movementService.remove(Number(req.params.id), movementId, req.user!, req.body?.motivo);
-    auditar(req, { accion: 'delete', seccion: 'clientes', entidad: 'movimiento', entidadId: movementId, descripcion: `Eliminó el movimiento #${movementId} de la cuenta corriente del cliente #${req.params.id}` });
+    const m = await movementService.remove(Number(req.params.id), movementId, req.user!, req.body?.motivo);
+    auditar(req, {
+      accion: 'delete', seccion: 'clientes', entidad: 'movimiento', entidadId: movementId,
+      descripcion: `Eliminó un pago de ${pesos(m.monto)} de la cuenta corriente de ${m.cliente.nombre}`,
+      datos: {
+        cliente: m.cliente.nombre, monto: m.monto, concepto: m.concepto, cargadoEl: m.creadoEn.toISOString(),
+        ...(m.motivoEliminacion ? { motivo: m.motivoEliminacion } : {}),
+      },
+    });
     res.status(204).send();
   } catch (err: any) {
     res.status(err.message === 'Movimiento no encontrado' ? 404 : 400).json({ message: mensajeSeguro(err) });
