@@ -33,6 +33,15 @@ const ultimoMail = () => { const l = fs.readFileSync(MAILS, 'utf8').trim().split
 const codigoDelMail = () => ultimoMail()?.text.match(/\n(\d{6})\n/)?.[1]
 const tokenDelMail = () => ultimoMail()?.text.match(/reset=([a-f0-9]+)/)?.[1]
 const paralelo = (n, fn) => Promise.all(Array.from({ length: n }, (_, i) => fn(i)))
+// Lo mismo que calcula Google Authenticator (TOTP, RFC 6238); desfase en intervalos de 30 s
+const codigoApp = (secreto, desfase = 0) => {
+  const A32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = ''
+  for (const c of secreto) bits += A32.indexOf(c).toString(2).padStart(5, '0')
+  const clave = Buffer.from(bits.match(/.{8}/g).map(b => parseInt(b, 2)))
+  const cont = Buffer.alloc(8); cont.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + desfase))
+  const h = require('crypto').createHmac('sha1', clave).update(cont).digest(); const o = h[h.length - 1] & 0xf
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0')
+}
 
 const CLAVE = 'Clave1234'
 let A, V, T, depo // tokens de admin, vendedor, técnico, inventario
@@ -414,6 +423,38 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     r = await api('PUT', '/users/' + b.id, A, { dosPasos: false }); ok('el admin puede apagarla', r.s === 200 && r.d.dosPasos === false, r.d)
     r = await api('PUT', '/users/' + b.id, A, { dosPasos: true }); ok('pero no encenderla', r.d.dosPasos === false, r.d)
     r = await api('POST', '/auth/login', null, { correo: b.correo, contrasena: CLAVE }); ok('tras apagarla entra directo', !!r.d.token, r.d)
+  })
+
+  await seccion('GOOGLE AUTHENTICATOR', async () => {
+    const u = await crearUsuario('VENDEDOR', 'App')
+    let r = await api('POST', '/auth/2fa/app', null); ok('configurar sin sesión → 401', r.s === 401, r.s)
+    r = await api('POST', '/auth/2fa/app/confirmar', u.token, { codigo: '123456' }); ok('confirmar sin haber escaneado el QR → 400', r.s === 400, r)
+    r = await api('POST', '/auth/2fa/app', u.token); ok('genera el QR y la clave', r.s === 200 && /^data:image\/png;base64,/.test(r.d.qr) && /^[A-Z2-7]{32}$/.test(r.d.secreto) && r.d.otpauth.includes(r.d.secreto), r.d && Object.keys(r.d))
+    const sec = r.d.secreto
+    r = await api('POST', '/auth/2fa/app/confirmar', u.token, { codigo: codigoApp(sec, 5) }); ok('código de otro momento → 400', r.s === 400, r)
+    r = await api('POST', '/auth/2fa/app/confirmar', u.token, { codigo: codigoApp(sec) }); ok('activar con el código de la app', r.s === 200 && r.d.user.dosPasos === true && r.d.user.dosPasosMetodo === 'app', r.d)
+    r = await api('POST', '/auth/2fa/app', u.token); ok('no se puede configurar dos veces → 400', r.s === 400, r)
+    const mails = fs.readFileSync(MAILS, 'utf8').trim().split('\n').length
+    r = await api('POST', '/auth/login', null, { correo: u.correo, contrasena: CLAVE }); ok('login pide el código de la app y no entrega token', r.s === 200 && r.d.requiere2fa && r.d.metodo === 'app' && !r.d.token && !r.d.correo, r.d)
+    ok('con la app no se manda mail', fs.readFileSync(MAILS, 'utf8').trim().split('\n').length === mails)
+    const des = r.d.desafio
+    r = await api('POST', '/auth/2fa/reenviar', null, { desafio: des }); ok('reenviar con la app → 400', r.s === 400, r)
+    r = await api('POST', '/auth/2fa', null, { desafio: des, codigo: codigoApp(sec, 5) }); ok('código equivocado → 400', r.s === 400, r)
+    const bueno = codigoApp(sec, 1)
+    r = await api('POST', '/auth/2fa', null, { desafio: des, codigo: bueno }); ok('código de la app entrega el token', r.s === 200 && !!r.d.token && r.d.user.dosPasosMetodo === 'app', r)
+    r = await api('POST', '/auth/2fa', null, { desafio: des, codigo: bueno }); ok('el mismo código no sirve dos veces', r.s === 400, r)
+    r = await api('GET', '/users', A); ok('la lista de usuarios no expone el secreto', r.s === 200 && !JSON.stringify(r.d).includes('totp'), r.s)
+    r = await api('POST', '/auth/2fa/desactivar', u.token, { contrasenaActual: CLAVE }); ok('desactivar con la contraseña', r.s === 200 && r.d.user.dosPasos === false && !r.d.user.dosPasosMetodo, r.d)
+    r = await api('POST', '/auth/login', null, { correo: u.correo, contrasena: CLAVE }); ok('tras desactivar entra directo', !!r.d.token, r.d)
+    // fuerza bruta con la app: cuenta como contraseñas fallidas
+    const b = await crearUsuario('VENDEDOR', 'AppBrute'); const sb = (await api('POST', '/auth/2fa/app', b.token)).d.secreto
+    await api('POST', '/auth/2fa/app/confirmar', b.token, { codigo: codigoApp(sb) })
+    r = await api('POST', '/auth/login', null, { correo: b.correo, contrasena: CLAVE }); const d2 = r.d.desafio
+    const intentos = []; for (let i = 0; i < 6; i++) intentos.push((await api('POST', '/auth/2fa', null, { desafio: d2, codigo: String(100000 + i) })).s)
+    ok('a los 5 códigos malos se bloquea (429)', intentos.slice(0, 5).every(s => s === 400) && intentos[5] === 429, intentos)
+    r = await api('POST', '/auth/2fa', null, { desafio: d2, codigo: codigoApp(sb, 1) }); ok('ni el código bueno sirve durante el bloqueo', r.s === 429, r)
+    r = await api('PUT', '/users/' + b.id, A, { dosPasos: false, desbloquear: true }); ok('el admin la apaga (celular perdido)', r.s === 200 && r.d.dosPasos === false, r.d)
+    r = await api('POST', '/auth/2fa/app/confirmar', b.token, { codigo: codigoApp(sb) }); ok('el QR viejo ya no sirve: hay que escanear uno nuevo', r.s === 400, r)
   })
 
   await seccion('MI CUENTA Y RECUPERAR CONTRASEÑA', async () => {
