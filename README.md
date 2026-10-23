@@ -17,7 +17,7 @@ Reemplazar los procesos manuales por una plataforma Full-Stack que elimine la de
 |---|---|
 | **Inventario** | ABM de productos y categorías, código autogenerado, stock mínimo, baja lógica. Lista con filtros *Activos*, *Para reponer* e *Inactivos*, orden por stock y exportación a CSV. |
 | **Punto de Venta** | Carrito con varios productos (Enter agrega una unidad), cliente opcional, medios de pago, comprobante imprimible. El total se calcula en el servidor; el stock se valida y descuenta de forma atómica. |
-| **Clientes y cuenta corriente** | ABM de clientes con historial de compras. Las ventas y servicios a cuenta suman deuda; los pagos y anticipos la restan. Un pago de más queda como **saldo a favor**, que se descuenta automáticamente (casilla "Usar saldo a favor"). El saldo se muestra como *Debe*, *A favor* o *Al día*. |
+| **Clientes y cuenta corriente** | ABM de clientes con historial de compras. Las ventas y servicios a cuenta suman deuda; los pagos y anticipos la restan. Un pago de más queda como **saldo a favor**, que se descuenta automáticamente (casilla "Usar saldo a favor"). El saldo se muestra como *Debe*, *A favor* o *Al día*. Cada pago guarda quién lo cargó; si se elimina (hay que indicar el motivo), deja de figurar en la cuenta y en el saldo pero queda registrado en *Auditoría → Pagos eliminados* con quién lo eliminó, cuándo, el monto y el motivo. |
 | **Servicio Técnico** | Solicitud de reparación → presupuesto (sin garantía) → asignación de técnico → carga de repuestos (descuentan stock) → reparación → entrega con cobro, próximo mantenimiento y recibo. |
 | **Técnicos** | Alta, edición y baja de técnicos (solo Administrador). |
 | **Tiempo real** | Socket.io actualiza stock y servicios en todas las terminales sin recargar. |
