@@ -30,6 +30,10 @@ Reemplazar los procesos manuales por una plataforma Full-Stack que elimine la de
 | **Vendedor** | Ventas, consulta de inventario, clientes, cobros y circuito de servicio técnico (registrar, presupuestar, asignar, entregar). |
 | **Técnico** | Solo ve sus servicios asignados, carga repuestos y marca la reparación como terminada. |
 
+### Verificación en dos pasos
+
+Cada usuario la activa desde **Mi perfil**. Con **Google Authenticator** escanea un código QR (o carga la clave a mano) y confirma con el primer código de la app; desde ahí, al iniciar sesión se pide el código de 6 dígitos que muestra la app. La otra opción es recibir el código por mail. Cinco códigos incorrectos bloquean la cuenta un rato, igual que con la contraseña. Si alguien pierde el celular, el administrador puede apagarla desde *Usuarios* y la persona vuelve a configurarla con un QR nuevo.
+
 ### Navegación
 
 | Pantalla | Roles |
@@ -52,7 +56,7 @@ Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se 
 | Backend | Node.js 20, Express 5, TypeScript, arquitectura en capas (rutas → controladores → servicios) |
 | Base de datos | PostgreSQL con Prisma ORM y migraciones |
 | Frontend | React 19, TypeScript, Vite, React Router |
-| Seguridad | JWT (8 h) + bcrypt, autorización por rol |
+| Seguridad | JWT (8 h) + bcrypt, autorización por rol, verificación en dos pasos opcional con **Google Authenticator** (TOTP, secreto cifrado) o código por mail |
 | Tiempo real | Socket.io |
 | Despliegue | Railway (Nixpacks) |
 
