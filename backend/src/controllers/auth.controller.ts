@@ -51,6 +51,16 @@ export const solicitarActivacion = (req: AuthRequest, res: Response) =>
 export const confirmarActivacion = (req: AuthRequest, res: Response) =>
   responder(res, () => authService.confirmarActivacion(req.user!.id, req.body.codigo));
 
+export const iniciarApp = (req: AuthRequest, res: Response) =>
+  responder(res, () => authService.iniciarApp(req.user!.id));
+
+export const confirmarApp = (req: AuthRequest, res: Response) =>
+  responder(res, async () => {
+    const sesion = await authService.confirmarApp(req.user!.id, req.body.codigo);
+    auditar(req, { accion: 'settings_change', seccion: 'seguridad', entidad: 'usuario', entidadId: req.user!.id, descripcion: 'Activó la verificación en dos pasos con Google Authenticator' });
+    return sesion;
+  });
+
 export const desactivarDosPasos = (req: AuthRequest, res: Response) =>
   responder(res, () => authService.desactivarDosPasos(req.user!.id, req.body.contrasenaActual));
 

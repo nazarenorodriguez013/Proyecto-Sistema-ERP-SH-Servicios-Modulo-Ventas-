@@ -6,10 +6,14 @@ import { PrismaClient, Usuario } from '@prisma/client';
 import { httpError } from '../utils/http';
 import { enviarMail } from './mail.service';
 import { enviarCodigo, verificarCodigo } from './dospasos.service';
+import * as totp from './totp.service';
 import { normalizarCorreo, validarContrasena } from './user.service';
 import { permisosDeRol } from '../utils/permisos';
 
 const prisma = new PrismaClient();
+
+// Con secreto de Google Authenticator el código sale de la app; si no, llega por mail
+const metodoDosPasos = (u: Usuario) => (!u.dosPasos ? null : u.totpSecreto ? 'app' : 'correo');
 
 // La sesión lleva el rol y sus permisos: el frontend arma el menú con eso (la API los vuelve a validar en cada pedido)
 const emitirSesion = async (id: number) => {
@@ -17,7 +21,7 @@ const emitirSesion = async (id: number) => {
   return {
     token: jwt.sign({ id: u.id }, process.env.JWT_SECRET as string, { expiresIn: '8h' }),
     user: {
-      id: u.id, nombre: u.nombre, correo: u.correo, dosPasos: u.dosPasos, debeCambiarContrasena: u.debeCambiarContrasena,
+      id: u.id, nombre: u.nombre, correo: u.correo, dosPasos: u.dosPasos, dosPasosMetodo: metodoDosPasos(u), debeCambiarContrasena: u.debeCambiarContrasena,
       rol: { id: u.rol.id, nombre: u.rol.nombre, slug: u.rol.slug }, permisos: permisosDeRol(u.rol),
     },
   };
@@ -121,7 +125,32 @@ export const confirmarActivacion = async (id: number, codigo: string) => {
 export const desactivarDosPasos = async (id: number, contrasenaActual: string) => {
   const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id } });
   if (!(await bcrypt.compare(String(contrasenaActual ?? ''), usuario.contrasena))) throw httpError(400, 'La contraseña actual no es correcta');
-  await prisma.usuario.update({ where: { id }, data: { dosPasos: false, codigoHash: null, codigoExpira: null, codigoProposito: null } });
+  await prisma.usuario.update({ where: { id }, data: { dosPasos: false, codigoHash: null, codigoExpira: null, codigoProposito: null, ...SIN_TOTP } });
+  return emitirSesion(id);
+};
+
+export const SIN_TOTP = { totpSecreto: null, totpPendiente: null, totpUltimoPaso: null };
+
+// Activar con Google Authenticator: se genera un secreto nuevo y se muestra como QR. Queda pendiente hasta que
+// el usuario lo escanea y escribe un código de la app, así se comprueba que quedó bien cargado antes de exigirlo
+export const iniciarApp = async (id: number) => {
+  const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id } });
+  if (usuario.dosPasos) throw httpError(400, 'La verificación en dos pasos ya está activada');
+  const secreto = totp.generarSecreto();
+  await prisma.usuario.update({ where: { id }, data: { totpPendiente: totp.cifrar(secreto) } });
+  return { secreto, qr: await totp.qr(secreto, usuario.correo), otpauth: totp.urlOtpauth(secreto, usuario.correo) };
+};
+
+export const confirmarApp = async (id: number, codigo: string) => {
+  const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id } });
+  if (usuario.dosPasos) throw httpError(400, 'La verificación en dos pasos ya está activada');
+  if (!usuario.totpPendiente) throw httpError(400, 'Primero escaneá el código QR');
+  const paso = totp.verificar(totp.descifrar(usuario.totpPendiente), codigo);
+  if (paso === null) throw httpError(400, 'Código incorrecto. Revisá que sea el de SH Servicios en Google Authenticator y que la hora del celular esté bien');
+  await prisma.usuario.update({
+    where: { id },
+    data: { dosPasos: true, totpSecreto: usuario.totpPendiente, totpPendiente: null, totpUltimoPaso: paso, codigoHash: null, codigoExpira: null, codigoProposito: null },
+  });
   return emitirSesion(id);
 };
 

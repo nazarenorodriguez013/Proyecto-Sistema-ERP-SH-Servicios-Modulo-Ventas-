@@ -15,6 +15,8 @@ router.post('/2fa', auth.verificarDosPasos);
 router.post('/2fa/reenviar', auth.reenviarCodigo);
 router.post('/2fa/activar', authenticate, auth.solicitarActivacion);
 router.post('/2fa/activar/confirmar', authenticate, auth.confirmarActivacion);
+router.post('/2fa/app', authenticate, auth.iniciarApp);
+router.post('/2fa/app/confirmar', authenticate, auth.confirmarApp);
 router.post('/2fa/desactivar', authenticate, auth.desactivarDosPasos);
 router.get('/me', authenticate, auth.sesionActual);
 router.put('/me', authenticate, auth.actualizarCuenta);
