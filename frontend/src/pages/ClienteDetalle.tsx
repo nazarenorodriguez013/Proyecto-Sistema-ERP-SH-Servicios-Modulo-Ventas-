@@ -20,6 +20,7 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
   const [confirmarBorrarVenta, setConfirmarBorrarVenta] = useState<number | null>(null)
   const [confirmarBorrarMovimiento, setConfirmarBorrarMovimiento] = useState<number | null>(null)
   const [confirmarBorrarServicio, setConfirmarBorrarServicio] = useState<number | null>(null)
+  const [motivoBorrado, setMotivoBorrado] = useState('')
   const [montoPago, setMontoPago] = useState('')
   const [error, setError] = useState('')
   // Eliminar clientes, movimientos y comprobantes es solo de quien tiene "clientes.eliminar"
@@ -70,12 +71,14 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
   }
 
   const handleDeleteMovimiento = async (movementId: number) => {
-    const res = await fetch(`${API}/clients/${clienteId}/movements/${movementId}`, { method: 'DELETE', headers })
+    const res = await fetch(`${API}/clients/${clienteId}/movements/${movementId}`, {
+      method: 'DELETE', headers, body: JSON.stringify({ motivo: motivoBorrado.trim() }),
+    })
     if (!res.ok) {
       const data = await res.json()
       setError(data.message || 'No se pudo eliminar el movimiento')
     }
-    setConfirmarBorrarMovimiento(null); fetchCliente()
+    setConfirmarBorrarMovimiento(null); setMotivoBorrado(''); fetchCliente()
   }
 
   const handleDeleteServicio = async (servicioId: number) => {
@@ -88,6 +91,8 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
   }
 
   if (!cliente) return <div style={s.loading}>Cargando cliente...</div>
+
+  const pagoABorrar = cliente.movimientos.find(m => m.id === confirmarBorrarMovimiento)
 
   return (
     <div className="page-container">
@@ -167,11 +172,21 @@ export default function ClienteDetalle({ clienteId, user, onBack }: { clienteId:
       {confirmarBorrarMovimiento !== null && (
         <div style={s.overlay}>
           <div className="page-modal">
-            <h3 style={s.modalTitle}>Eliminar movimiento</h3>
-            <p style={s.texto}>¿Estás seguro? Se recalcula el saldo de la cuenta sin este movimiento. No se puede deshacer.</p>
+            <h3 style={s.modalTitle}>Eliminar pago</h3>
+            {pagoABorrar && (
+              <p style={s.textoPago}>
+                {pagoABorrar.concepto} de <strong>${pagoABorrar.monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> del{' '}
+                {new Date(pagoABorrar.creadoEn).toLocaleDateString('es-AR')}{pagoABorrar.registradoPorNombre && <> · cargado por {pagoABorrar.registradoPorNombre}</>}
+              </p>
+            )}
+            <p style={s.texto}>Deja de figurar en la cuenta y se recalcula el saldo, pero queda registrado quién lo eliminó, cuándo y por qué.</p>
+            <label style={s.labelMotivo} htmlFor="motivo-borrado">Motivo</label>
+            <input id="motivo-borrado" style={s.inputMotivo} placeholder="Ej.: monto cargado por error" maxLength={255} autoFocus
+              value={motivoBorrado} onChange={e => setMotivoBorrado(e.target.value)} />
             <div style={s.modalActions}>
-              <button style={s.btnVolver} onClick={() => setConfirmarBorrarMovimiento(null)}>Cancelar</button>
-              <button style={s.btnDanger} onClick={() => handleDeleteMovimiento(confirmarBorrarMovimiento)}>Eliminar</button>
+              <button style={s.btnVolver} onClick={() => { setConfirmarBorrarMovimiento(null); setMotivoBorrado('') }}>Cancelar</button>
+              <button style={{ ...s.btnDanger, opacity: motivoBorrado.trim().length < 3 ? 0.5 : 1 }} disabled={motivoBorrado.trim().length < 3}
+                onClick={() => handleDeleteMovimiento(confirmarBorrarMovimiento)}>Eliminar</button>
             </div>
           </div>
         </div>
@@ -203,6 +218,9 @@ const s: Record<string, React.CSSProperties> = {
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modalTitle:   { color: '#111111', fontSize: '17px', fontWeight: '700', margin: '0 0 12px' },
   texto:        { color: '#6B6B6B', fontSize: '14px', margin: '0 0 24px' },
+  textoPago:    { color: '#111111', fontSize: '14px', margin: '0 0 10px' },
+  labelMotivo:  { display: 'block', color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: '-12px 0 6px' },
+  inputMotivo:  { width: '100%', boxSizing: 'border-box' as const, background: '#FFFFFF', border: '1px solid #D3D3D3', borderRadius: '8px', padding: '9px 12px', color: '#111111', fontSize: '13px', outline: 'none', marginBottom: '20px' },
   modalActions: { display: 'flex', gap: '10px', justifyContent: 'flex-end' },
   saldoBox:     { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' },
   saldoLabel:   { color: '#6B6B6B', fontSize: '11px', fontWeight: '700', letterSpacing: '1.5px' },

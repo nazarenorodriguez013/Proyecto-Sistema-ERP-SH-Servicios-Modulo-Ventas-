@@ -12,7 +12,7 @@ export interface VentaCliente {
 export type ServicioCliente = Omit<Servicio, 'cliente'>
 export interface MovimientoCliente {
   id: number; tipo: 'VENTA' | 'SERVICIO' | 'PAGO'; concepto: string; monto: number; creadoEn: string
-  ventaId: number | null; servicioId: number | null
+  ventaId: number | null; servicioId: number | null; registradoPorNombre?: string | null
 }
 interface Ficha extends ClienteComprobante { id: number; ventas: VentaCliente[]; servicios: ServicioCliente[]; movimientos: MovimientoCliente[] }
 
@@ -75,7 +75,7 @@ export default function HistorialCliente({ cliente, esAdmin, onBorrarVenta, onBo
     const m = ev.movimiento
     return {
       tag: 'Pago', titulo: m.concepto, sub: '', importe: `-$${fmt(m.monto)}`, color: '#2E9E5B',
-      borrar: !m.ventaId && !m.servicioId ? () => onBorrarMovimiento(m.id) : null, tituloBorrar: 'Eliminar movimiento',
+      borrar: !m.ventaId && !m.servicioId ? () => onBorrarMovimiento(m.id) : null, tituloBorrar: 'Eliminar pago',
     }
   }
 
@@ -119,7 +119,7 @@ export default function HistorialCliente({ cliente, esAdmin, onBorrarVenta, onBo
       )
     }
     const m = ev.movimiento
-    return <div style={s.datos}><Dato k="Fecha" v={fmtFechaHora(m.creadoEn)} /><Dato k="Importe" v={`$${fmt(m.monto)}`} /><Dato k="Concepto" v={m.concepto} /></div>
+    return <div style={s.datos}><Dato k="Fecha" v={fmtFechaHora(m.creadoEn)} /><Dato k="Importe" v={`$${fmt(m.monto)}`} /><Dato k="Concepto" v={m.concepto} />{m.registradoPorNombre && <Dato k="Cargado por" v={m.registradoPorNombre} />}</div>
   }
 
   return (
