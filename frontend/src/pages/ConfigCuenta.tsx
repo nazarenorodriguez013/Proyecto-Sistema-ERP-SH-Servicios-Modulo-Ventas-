@@ -6,7 +6,7 @@ import { campo as c } from './configEstilos'
 interface Sesion { token: string; user: User }
 
 // Cambio de nombre, correo y contraseña del usuario que está logueado
-type PasoDosPasos = 'inactivo' | 'codigo' | 'desactivar'
+type PasoDosPasos = 'inactivo' | 'codigo' | 'app' | 'desactivar'
 
 export default function ConfigCuenta({ user, onActualizado }: { user: User; onActualizado: (s: Sesion) => void }) {
   const [nombre, setNombre] = useState(user.nombre)
@@ -21,6 +21,7 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
   const [passDesactivar, setPassDesactivar] = useState('')
   const [errorDp, setErrorDp] = useState('')
   const [okDp, setOkDp] = useState('')
+  const [app, setApp] = useState<{ qr: string; secreto: string } | null>(null)
 
   const cambiaCredenciales = correo.trim().toLowerCase() !== user.correo || !!nueva
 
@@ -52,6 +53,15 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
     e.preventDefault()
     const data = await llamarDosPasos('activar/confirmar', { codigo })
     if (data) { onActualizado(data); setPaso('inactivo'); setOkDp('Verificación en dos pasos activada') }
+  }
+  const configurarApp = async () => {
+    const data = await llamarDosPasos('app')
+    if (data) { setApp(data); setPaso('app'); setCodigo('') }
+  }
+  const confirmarApp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const data = await llamarDosPasos('app/confirmar', { codigo })
+    if (data) { onActualizado(data); setPaso('inactivo'); setApp(null); setOkDp('Verificación en dos pasos con Google Authenticator activada') }
   }
   const desactivar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,8 +98,10 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
       <p style={c.seccion}>Verificación en dos pasos</p>
       <p style={{ color: '#6B6B6B', fontSize: '13px', margin: 0 }}>
         {user.dosPasos
-          ? `Activada: al iniciar sesión te pedimos además un código que llega a ${user.correo}.`
-          : 'Opcional. Si la activás, al iniciar sesión te pedimos además un código que te llega por mail.'}
+          ? user.dosPasosMetodo === 'app'
+            ? 'Activada con Google Authenticator: al iniciar sesión te pedimos además el código que muestra la app en tu celular.'
+            : `Activada por mail: al iniciar sesión te pedimos además un código que llega a ${user.correo}.`
+          : 'Opcional. Si la activás, al iniciar sesión te pedimos además un código de Google Authenticator o uno que te llega por mail.'}
       </p>
       {paso === 'codigo' && (
         <form onSubmit={confirmarActivacion} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -101,6 +113,28 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
           <button type="button" style={c.btnSecondary} onClick={() => { setPaso('inactivo'); setErrorDp(''); setOkDp('') }}>Cancelar</button>
         </form>
       )}
+      {paso === 'app' && app && (
+        <form onSubmit={confirmarApp} style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <img src={app.qr} alt="Código QR para Google Authenticator" width={180} height={180} style={{ border: '1px solid #E2E4E8', borderRadius: '10px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '240px' }}>
+            <ol style={{ color: '#333333', fontSize: '13px', margin: 0, paddingLeft: '18px', lineHeight: 1.6 }}>
+              <li>Instalá <strong>Google Authenticator</strong> en tu celular.</li>
+              <li>Tocá <strong>+</strong> → <strong>Escanear un código QR</strong> y apuntá a este código.</li>
+              <li>Escribí abajo el código de 6 dígitos que aparece en la app.</li>
+            </ol>
+            <p style={{ color: '#6B6B6B', fontSize: '12px', margin: 0, overflowWrap: 'anywhere' }}>
+              ¿No podés escanear? Elegí <em>Ingresar una clave de configuración</em> y cargá: <strong style={{ fontFamily: 'monospace', color: '#111111' }}>{app.secreto.match(/.{1,4}/g)?.join(' ')}</strong>
+            </p>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ ...c.field, width: '200px' }}><label style={c.label}>Código de la app</label>
+                <input style={{ ...c.input, letterSpacing: '4px', textAlign: 'center' }} inputMode="numeric" maxLength={6} autoFocus autoComplete="one-time-code" value={codigo}
+                  onChange={e => setCodigo(e.target.value.replace(/\D/g, ''))} required /></div>
+              <button type="submit" style={c.btnPrimary}>Confirmar y activar</button>
+              <button type="button" style={c.btnSecondary} onClick={() => { setPaso('inactivo'); setApp(null); setErrorDp(''); setOkDp('') }}>Cancelar</button>
+            </div>
+          </div>
+        </form>
+      )}
       {paso === 'desactivar' && (
         <form onSubmit={desactivar} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ ...c.field, width: '260px' }}><label style={c.label}>Contraseña actual para confirmar</label>
@@ -110,10 +144,13 @@ export default function ConfigCuenta({ user, onActualizado }: { user: User; onAc
         </form>
       )}
       {paso === 'inactivo' && (
-        <div style={c.acciones}>
+        <div style={{ ...c.acciones, flexWrap: 'wrap' }}>
           {user.dosPasos
             ? <button type="button" style={c.btnSecondary} onClick={() => { setPaso('desactivar'); setErrorDp(''); setOkDp('') }}>Desactivar verificación en dos pasos</button>
-            : <button type="button" style={c.btnPrimary} onClick={pedirCodigo}>Activar verificación en dos pasos</button>}
+            : <>
+              <button type="button" style={c.btnPrimary} onClick={configurarApp}><i className="bi bi-phone" /> Activar con Google Authenticator</button>
+              <button type="button" style={c.btnSecondary} onClick={pedirCodigo}><i className="bi bi-envelope" /> Activar por mail</button>
+            </>}
         </div>
       )}
       {errorDp && <p style={c.error}>{errorDp}</p>}
