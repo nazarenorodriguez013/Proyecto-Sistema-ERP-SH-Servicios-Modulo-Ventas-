@@ -22,14 +22,21 @@ export const createPago = async (clienteId: number, monto: number) => {
   return prisma.movimientoCuenta.create({ data: { clienteId, tipo: 'PAGO', concepto: 'Pago', monto } });
 };
 
-// Solo se puede borrar un movimiento suelto (un pago cargado a mano): el que viene de una venta o un
-// servicio se borra desde ahí, para no dejar la cuenta corriente desincronizada con esos registros
-export const remove = async (movementId: number) => {
-  const movimiento = await prisma.movimientoCuenta.findUnique({ where: { id: movementId } });
+// Solo se puede eliminar un movimiento suelto (un pago cargado a mano): el que viene de una venta o un
+// servicio se borra desde ahí, para no dejar la cuenta corriente desincronizada con esos registros.
+// No se borra de la base: queda guardado con quién lo eliminó, cuándo y por qué, aunque haya sido un error de carga
+export const remove = async (clienteId: number, movementId: number, usuario: { id: number; nombre: string }, motivo?: string) => {
+  const movimiento = await prisma.movimientoCuenta.findFirst({ where: { id: movementId, clienteId, ...VIGENTES } });
   if (!movimiento) throw new Error('Movimiento no encontrado');
   if (movimiento.ventaId) throw new Error('Este movimiento pertenece a una venta: eliminá la venta desde el historial de compras');
   if (movimiento.servicioId) throw new Error('Este movimiento pertenece a un servicio técnico: eliminalo desde el servicio');
-  await prisma.movimientoCuenta.delete({ where: { id: movementId } });
+  return prisma.movimientoCuenta.update({
+    where: { id: movementId },
+    data: {
+      eliminadoEn: new Date(), eliminadoPorId: usuario.id, eliminadoPorNombre: usuario.nombre,
+      motivoEliminacion: motivo?.trim().slice(0, 255) || null,
+    },
+  });
 };
 
 // Registra en la cuenta del cliente el cargo de una venta o servicio y devuelve cuánto saldo a favor se usó.

@@ -22,7 +22,7 @@ export const createPago = async (req: AuthRequest, res: Response): Promise<void>
 export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const movementId = Number(req.params.movementId);
-    await movementService.remove(movementId);
+    await movementService.remove(Number(req.params.id), movementId, req.user!, req.body?.motivo);
     auditar(req, { accion: 'delete', seccion: 'clientes', entidad: 'movimiento', entidadId: movementId, descripcion: `Eliminó el movimiento #${movementId} de la cuenta corriente del cliente #${req.params.id}` });
     res.status(204).send();
   } catch (err: any) {
