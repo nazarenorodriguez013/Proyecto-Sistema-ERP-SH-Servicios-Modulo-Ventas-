@@ -15,11 +15,13 @@ export const calcularSaldo = (movimientos: { tipo: string; monto: number }[]) =>
 export const saldoDeCliente = async (tx: Prisma.TransactionClient, clienteId: number) =>
   calcularSaldo(await tx.movimientoCuenta.findMany({ where: { clienteId, ...VIGENTES }, select: { tipo: true, monto: true } }));
 
-export const createPago = async (clienteId: number, monto: number) => {
+export const createPago = async (clienteId: number, monto: number, usuario: { id: number; nombre: string }) => {
   if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0');
   const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
   if (!cliente) throw new Error('Cliente no encontrado');
-  return prisma.movimientoCuenta.create({ data: { clienteId, tipo: 'PAGO', concepto: 'Pago', monto } });
+  return prisma.movimientoCuenta.create({
+    data: { clienteId, tipo: 'PAGO', concepto: 'Pago', monto, registradoPorId: usuario.id, registradoPorNombre: usuario.nombre },
+  });
 };
 
 // Solo se puede eliminar un movimiento suelto (un pago cargado a mano): el que viene de una venta o un

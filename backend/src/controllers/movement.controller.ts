@@ -11,7 +11,7 @@ export const createPago = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const clienteId = Number(req.params.id);
     const monto = Number(req.body.monto);
-    const movimiento = await movementService.createPago(clienteId, monto);
+    const movimiento = await movementService.createPago(clienteId, monto, req.user!);
     auditar(req, { accion: 'create', seccion: 'clientes', entidad: 'cliente', entidadId: clienteId, descripcion: `Registró un pago de ${pesos(monto)} en la cuenta corriente del cliente #${clienteId}` });
     res.status(201).json(movimiento);
   } catch (err: any) {
@@ -28,6 +28,7 @@ export const remove = async (req: AuthRequest, res: Response): Promise<void> => 
       descripcion: `Eliminó un pago de ${pesos(m.monto)} de la cuenta corriente de ${m.cliente.nombre}`,
       datos: {
         cliente: m.cliente.nombre, monto: m.monto, concepto: m.concepto, cargadoEl: m.creadoEn.toISOString(),
+        ...(m.registradoPorNombre ? { cargadoPor: m.registradoPorNombre } : {}),
         ...(m.motivoEliminacion ? { motivo: m.motivoEliminacion } : {}),
       },
     });

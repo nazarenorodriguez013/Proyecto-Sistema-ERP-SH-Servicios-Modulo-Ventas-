@@ -223,6 +223,9 @@ model MovimientoCuenta {
   ventaId    Int?           @map("venta_id")
   servicioId Int?           @map("servicio_id")
   creadoEn   DateTime       @default(now()) @map("creado_en")
+  // Quién cargó el pago a mano (las ventas y servicios ya guardan su usuario)
+  registradoPorId     Int?    @map("registrado_por_id")
+  registradoPorNombre String? @map("registrado_por_nombre")
   // Un pago eliminado no se borra: queda guardado con quién y por qué lo eliminó, pero ya no figura
   // en la cuenta del cliente ni cuenta para el saldo
   eliminadoEn        DateTime? @map("eliminado_en")
