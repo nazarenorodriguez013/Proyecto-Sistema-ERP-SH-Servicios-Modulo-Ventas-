@@ -24,6 +24,8 @@ export default function Login({ onLogin, resetToken }: Props) {
   const [desafio, setDesafio] = useState('')
   const [codigo, setCodigo]     = useState('')
   const [correoMask, setCorreoMask] = useState('')
+  // 'app': el código sale de Google Authenticator; 'correo': llega por mail
+  const [metodo, setMetodo] = useState<'app' | 'correo'>('correo')
   const googleRef = useRef<HTMLDivElement>(null)
 
   const post = async (path: string, body: object) => {
@@ -51,7 +53,7 @@ export default function Login({ onLogin, resetToken }: Props) {
           setError('')
           try {
             const data = await post('google', { credential })
-            if (data.requiere2fa) { setDesafio(data.desafio); setCorreoMask(data.correo); setCodigo(''); setModo('2fa') }
+            if (data.requiere2fa) { setDesafio(data.desafio); setCorreoMask(data.correo ?? ''); setMetodo(data.metodo === 'app' ? 'app' : 'correo'); setCodigo(''); setModo('2fa') }
             else ingresar(data)
           } catch (err) { setError((err as Error).message || 'No se pudo iniciar sesión con Google') }
         },
@@ -75,7 +77,7 @@ export default function Login({ onLogin, resetToken }: Props) {
     try {
       if (modo === 'login') {
         const data = await post('login', { correo: email, contrasena: password })
-        if (data.requiere2fa) { setDesafio(data.desafio); setCorreoMask(data.correo); setCodigo(''); setPassword(''); setModo('2fa') }
+        if (data.requiere2fa) { setDesafio(data.desafio); setCorreoMask(data.correo ?? ''); setMetodo(data.metodo === 'app' ? 'app' : 'correo'); setCodigo(''); setPassword(''); setModo('2fa') }
         else ingresar(data)
       } else if (modo === '2fa') {
         ingresar(await post('2fa', { desafio, codigo }))
@@ -103,7 +105,8 @@ export default function Login({ onLogin, resetToken }: Props) {
   const titulo = modo === 'login' ? 'Iniciar sesión' : modo === 'forgot' ? 'Recuperar contraseña' : modo === '2fa' ? 'Verificación en dos pasos' : 'Elegí una contraseña nueva'
   const subtitulo = modo === 'login' ? 'Ingresá tus credenciales para continuar'
     : modo === 'forgot' ? 'Te enviamos un link por mail para elegir una contraseña nueva'
-    : modo === '2fa' ? `Ingresá el código de 6 dígitos que te mandamos a ${correoMask}` : 'Mínimo 8 caracteres, una mayúscula y un número'
+    : modo === '2fa' ? (metodo === 'app' ? 'Abrí Google Authenticator en tu celular e ingresá el código de 6 dígitos de SH Servicios' : `Ingresá el código de 6 dígitos que te mandamos a ${correoMask}`)
+    : 'Mínimo 8 caracteres, una mayúscula y un número'
 
   return (
     <div className="login-page">
@@ -209,7 +212,7 @@ export default function Login({ onLogin, resetToken }: Props) {
             {modo === 'login' && (
               <button type="button" style={s.linkBtn} onClick={() => cambiarModo('forgot')}>¿Olvidaste tu contraseña?</button>
             )}
-            {modo === '2fa' && (
+            {modo === '2fa' && metodo === 'correo' && (
               <button type="button" style={s.linkBtn} onClick={reenviar}>Reenviar código</button>
             )}
             {modo !== 'login' && (
