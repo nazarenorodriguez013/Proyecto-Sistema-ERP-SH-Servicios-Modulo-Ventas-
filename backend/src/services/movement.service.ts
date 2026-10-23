@@ -4,13 +4,16 @@ const prisma = new PrismaClient();
 
 export const MEDIO_CUENTA_CORRIENTE = 'Cuenta Corriente';
 
+// Los movimientos que siguen vigentes: los pagos eliminados quedan guardados pero no cuentan ni se muestran
+export const VIGENTES = { eliminadoEn: null } satisfies Prisma.MovimientoCuentaWhereInput;
+
 // Las ventas y servicios a cuenta corriente suman deuda y los pagos la restan; un saldo negativo es saldo a favor
 export const calcularSaldo = (movimientos: { tipo: string; monto: number }[]) =>
   movimientos.reduce((saldo, m) => saldo + (m.tipo === 'PAGO' ? -m.monto : m.monto), 0);
 
 // Saldo de cuenta corriente del cliente en este momento (positivo = debe, negativo = a favor)
 export const saldoDeCliente = async (tx: Prisma.TransactionClient, clienteId: number) =>
-  calcularSaldo(await tx.movimientoCuenta.findMany({ where: { clienteId }, select: { tipo: true, monto: true } }));
+  calcularSaldo(await tx.movimientoCuenta.findMany({ where: { clienteId, ...VIGENTES }, select: { tipo: true, monto: true } }));
 
 export const createPago = async (clienteId: number, monto: number) => {
   if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0');
@@ -36,7 +39,7 @@ export const registrarCargo = async (tx: Prisma.TransactionClient, cargo: {
   clienteId: number; tipo: 'VENTA' | 'SERVICIO'; concepto: string; total: number
   medioPago: string; usarSaldo: boolean; ventaId?: number; servicioId?: number
 }) => {
-  const movimientos = await tx.movimientoCuenta.findMany({ where: { clienteId: cargo.clienteId }, select: { tipo: true, monto: true } });
+  const movimientos = await tx.movimientoCuenta.findMany({ where: { clienteId: cargo.clienteId, ...VIGENTES }, select: { tipo: true, monto: true } });
   const saldoAFavor = Math.max(0, -calcularSaldo(movimientos));
   const { clienteId, tipo, ventaId, servicioId } = cargo;
 

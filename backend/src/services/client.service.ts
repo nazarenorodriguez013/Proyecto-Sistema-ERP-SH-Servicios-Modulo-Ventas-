@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { calcularSaldo } from './movement.service';
+import { calcularSaldo, VIGENTES } from './movement.service';
 
 const prisma = new PrismaClient();
 
@@ -28,7 +28,7 @@ const validar = (data: ClienteData) => {
 export const getAll = async () => {
   const clientes = await prisma.cliente.findMany({
     orderBy: { nombre: 'asc' },
-    include: { movimientos: { select: { tipo: true, monto: true } } },
+    include: { movimientos: { where: VIGENTES, select: { tipo: true, monto: true } } },
   });
   return clientes.map(({ movimientos, ...cliente }) => ({ ...cliente, saldo: calcularSaldo(movimientos) }));
 };
@@ -40,7 +40,7 @@ export const getById = async (id: number) => {
     include: {
       ventas: { include: { detallesVenta: true, usuario: { select: { nombre: true } } }, orderBy: { creadoEn: 'desc' } },
       servicios: { include: { repuestos: { include: { producto: true } }, tecnico: { select: { id: true, nombre: true } } }, orderBy: { fechaIngreso: 'desc' } },
-      movimientos: { orderBy: { creadoEn: 'desc' } },
+      movimientos: { where: VIGENTES, orderBy: { creadoEn: 'desc' } },
     },
   });
   return { ...cliente, saldo: calcularSaldo(cliente.movimientos) };
