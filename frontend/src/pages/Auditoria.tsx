@@ -3,6 +3,7 @@ import type { User } from '../types'
 import { API } from '../config'
 import { puede } from '../permisos'
 import { descargar, generarXlsx, hoy } from '../archivos'
+import PagosEliminados from '../components/PagosEliminados'
 
 interface Evento {
   id: number; usuarioNombre: string | null; accion: string; seccion: string; descripcion: string
@@ -170,6 +171,8 @@ export default function Auditoria({ user }: { user: User }) {
           </div>
         )}
       </div>
+
+      <PagosEliminados />
 
       {detalle && (
         <div className="modal-admin-backdrop modal-admin-backdrop--center" onMouseDown={e => { if (e.target === e.currentTarget) setDetalle(null) }}>
