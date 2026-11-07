@@ -229,7 +229,7 @@ export default function Login({ onLogin, resetToken }: Props) {
 
           <div style={s.footer}>
             <p style={s.footerLabel}>Proyecto desarrollado por</p>
-            <p style={s.footerNames}>Rodríguez Nazareno · Jacobo Santiago · Mover Leonardo</p>
+            <p style={s.footerNames}>Rodríguez Nazareno · Jacobo Santiago · Mover Leonardo · Reboli Valentín</p>
           </div>
         </div>
       </div>

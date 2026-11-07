@@ -2,7 +2,7 @@
 
 Sistema de gestión web para **SH Servicios**, empresa de Concordia (Entre Ríos) dedicada a la venta y el servicio técnico de maquinaria y repuestos. Centraliza el catálogo de maquinaria y repuestos, las ventas con su comprobante, los clientes con su cuenta corriente y el servicio técnico, y mantiene el stock sincronizado en tiempo real entre todas las terminales.
 
-**Integrantes:** Rodriguez Nazareno, Mover Leonardo, Jacobo Santiago.
+**Integrantes:** Rodriguez Nazareno, Mover Leonardo, Jacobo Santiago, Reboli Valentín.
 
 - **Producción:** https://shservicios.up.railway.app
 - **Video demostrativo:** [ver video](https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing)

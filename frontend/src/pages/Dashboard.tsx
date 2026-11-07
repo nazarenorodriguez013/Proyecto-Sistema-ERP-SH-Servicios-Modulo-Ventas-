@@ -245,7 +245,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }: { user: User
         </div>
 
         <footer className="admin-footer">
-          <span>Proyecto desarrollado por <strong>Rodríguez Nazareno</strong> · <strong>Jacobo Santiago</strong> · <strong>Mover Leonardo</strong></span>
+          <span>Proyecto desarrollado por <strong>Rodríguez Nazareno</strong> · <strong>Jacobo Santiago</strong> · <strong>Mover Leonardo</strong> · <strong>Reboli Valentín</strong></span>
         </footer>
       </div>
 
