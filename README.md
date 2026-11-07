@@ -1,53 +1,61 @@
 # Sistema ERP – SH Servicios
 
-Sistema de gestión web para **SH Servicios**, empresa dedicada a la provisión de insumos y soluciones técnicas. Centraliza el inventario, las ventas, los clientes con su cuenta corriente y el servicio técnico, y mantiene el stock sincronizado en tiempo real entre todas las terminales.
+Sistema de gestión web para **SH Servicios**, empresa de Concordia (Entre Ríos) dedicada a la venta y el servicio técnico de maquinaria y repuestos. Centraliza el catálogo de maquinaria y repuestos, las ventas con su comprobante, los clientes con su cuenta corriente y el servicio técnico, y mantiene el stock sincronizado en tiempo real entre todas las terminales.
 
-**Grupo 4** – Rodriguez Nazareno, Mover Leonardo, Jacobo Santiago.
+**Integrantes:** Rodriguez Nazareno, Mover Leonardo, Jacobo Santiago.
 
 - **Producción:** https://shservicios.up.railway.app
 - **Video demostrativo:** [ver video](https://docs.google.com/videos/d/1ngwUMvq3eBCNWe08Jg4TMqS4w7DkrUHbVXDghk6yFb4/edit?usp=sharing)
 
 ## Objetivo
 
-Reemplazar los procesos manuales por una plataforma Full-Stack que elimine la desincronización del inventario, digitalice la venta y su comprobante, y dé trazabilidad a las deudas de los clientes y a las reparaciones.
+Reemplazar los procesos manuales por una plataforma Full-Stack que elimine la desincronización del inventario, digitalice la venta y su comprobante, comunique al taller con el depósito de repuestos y dé trazabilidad a las deudas de los clientes y a las reparaciones.
 
 ## Funcionalidades
 
 | Módulo | Qué hace |
 |---|---|
-| **Inventario** | ABM de productos y categorías, código autogenerado, stock mínimo, baja lógica. Lista con filtros *Activos*, *Para reponer* e *Inactivos*, orden por stock y exportación a CSV. |
-| **Punto de Venta** | Carrito con varios productos (Enter agrega una unidad), cliente opcional, medios de pago, comprobante imprimible. El total se calcula en el servidor; el stock se valida y descuenta de forma atómica. |
-| **Clientes y cuenta corriente** | ABM de clientes con historial de compras. Las ventas y servicios a cuenta suman deuda; los pagos y anticipos la restan. Un pago de más queda como **saldo a favor**, que se descuenta automáticamente (casilla "Usar saldo a favor"). El saldo se muestra como *Debe*, *A favor* o *Al día*. Cada pago guarda quién lo cargó; si se elimina (hay que indicar el motivo), deja de figurar en la cuenta y en el saldo pero queda registrado en *Auditoría → Pagos eliminados* con quién lo eliminó, cuándo, el monto y el motivo. |
-| **Servicio Técnico** | Solicitud de reparación → presupuesto (sin garantía) → asignación de técnico → carga de repuestos (descuentan stock) → reparación → entrega con cobro, próximo mantenimiento y recibo. |
-| **Técnicos** | Alta, edición y baja de técnicos (solo Administrador). |
-| **Tiempo real** | Socket.io actualiza stock y servicios en todas las terminales sin recargar. |
+| **Inicio** | Indicadores del día (maquinaria, repuestos, servicios en curso, ventas de hoy), pendientes para revisar, últimas ventas y accesos rápidos. |
+| **Catálogo** | Maquinaria y repuestos por separado, con categorías por tipo. Código autogenerado, precio de costo y de venta con su ganancia, stock mínimo y baja lógica. Filtros *Activos*, *Para reponer* e *Inactivos*. |
+| **Punto de Venta** | Carrito con varios productos (Enter agrega una unidad), cliente opcional, medios de pago (Efectivo, Débito, Crédito, Transferencia, Cuenta Corriente) y comprobante imprimible: **Factura**, **Remito** o **Presupuesto**. El total se calcula en el servidor y el stock se valida y descuenta de forma atómica. El presupuesto solo se imprime: no descuenta stock ni se guarda. Desde acá también se puede pedir un servicio técnico. |
+| **Historial de Ventas** | Listado de comprobantes con reimpresión. Anular una venta devuelve el stock y saca la deuda que había generado. |
+| **Clientes y cuenta corriente** | ABM de clientes (documento único, condición frente al IVA) con historial de compras y servicios. Las ventas y servicios a cuenta suman deuda; los pagos y anticipos la restan. Un pago de más queda como **saldo a favor**, que se descuenta automáticamente (casilla "Usar saldo a favor"). El saldo se muestra como *Debe*, *A favor* o *Al día*. Cada pago guarda quién lo cargó; si se elimina (hay que indicar el motivo), deja de figurar en la cuenta y en el saldo pero queda en *Auditoría → Pagos eliminados*. |
+| **Servicio Técnico** | Alta del servicio (cliente, equipo, falla, tareas, mano de obra estimada, garantía y fecha estimada), presupuesto imprimible, asignación de técnico, carga de repuestos, diagnóstico y trabajo realizado, y cierre con comprobante, cobro y próximo mantenimiento. Historial de servicios finalizados. |
+| **Retiro de repuestos** | Los repuestos de un servicio forman un pedido al depósito: `PENDIENTE` → `LISTO` (avisa a Servicios Técnicos) → `RETIRADO` (recién ahí se descuenta el stock). Un servicio no se puede finalizar con repuestos sin retirar. |
+| **Técnicos** | Alta, edición y baja de técnicos. |
+| **Importar / Exportar** | Importación de maquinaria y repuestos desde CSV con vista previa y errores por fila. Exportación de maquinaria, repuestos, lista de precios, clientes, ventas, servicios y auditoría. |
+| **Configuración** | Datos fiscales de la empresa que salen en los comprobantes (razón social, CUIT, condición frente al IVA, ingresos brutos, inicio de actividades, punto de venta). |
+| **Usuarios y roles** | Alta, edición, desactivación y baja de usuarios. Roles con permisos configurables por módulo. |
+| **Auditoría** | Registro de cada acción: quién, cuándo, desde qué IP, en qué sección y qué cambió (valor anterior y nuevo). Incluye los pagos eliminados. |
+| **Notificaciones** | Campana con avisos del circuito de servicio técnico: servicio sin técnico, servicio asignado, repuestos pedidos al depósito, repuestos listos para retirar y servicio finalizado. Cada usuario ve los de su área y los dirigidos a él. |
+| **Tiempo real** | Socket.io actualiza stock, servicios, notificaciones y permisos en todas las terminales sin recargar. |
 
-### Roles
+### Roles y permisos
+
+Cada usuario tiene un rol, y cada rol un conjunto de permisos que se edita desde **Roles**. El menú y la API usan esos permisos (la API los vuelve a validar en cada pedido). El sistema trae cuatro roles:
 
 | Rol | Alcance |
 |---|---|
-| **Administrador** | Acceso total, incluida la gestión de productos, categorías, técnicos y baja de clientes. |
-| **Vendedor** | Ventas, consulta de inventario, clientes, cobros y circuito de servicio técnico (registrar, presupuestar, asignar, entregar). |
-| **Técnico** | Solo ve sus servicios asignados, carga repuestos y marca la reparación como terminada. |
+| **Administrador** | Acceso total; siempre tiene todos los permisos. |
+| **Vendedor** | Punto de venta, historial de ventas, clientes y cobros, circuito de servicio técnico, retiros de repuestos y exportación. |
+| **Técnico** | Solo ve sus servicios asignados, carga repuestos y los finaliza. |
+| **Inventario** | Depósito: maquinaria, repuestos, categorías, stock, retiros de repuestos, importación y exportación. |
 
-### Verificación en dos pasos
+Se pueden crear roles nuevos combinando los permisos de cada módulo: Catálogo, Ventas y clientes, Servicio técnico, Gestión y Seguridad.
 
-Cada usuario la activa desde **Mi perfil**. Con **Google Authenticator** escanea un código QR (o carga la clave a mano) y confirma con el primer código de la app; desde ahí, al iniciar sesión se pide el código de 6 dígitos que muestra la app. La otra opción es recibir el código por mail. Cinco códigos incorrectos bloquean la cuenta un rato, igual que con la contraseña. Si alguien pierde el celular, el administrador puede apagarla desde *Usuarios* y la persona vuelve a configurarla con un QR nuevo.
+### Seguridad
 
-### Navegación
-
-| Pantalla | Roles |
-|---|---|
-| Punto de Venta | Administrador, Vendedor |
-| Servicios Técnicos (el Administrador ve además la pestaña *Técnicos*) | Todos |
-| Clientes | Administrador, Vendedor |
-| Inventario (con contador de productos para reponer) | Administrador, Vendedor |
+- Contraseñas con bcrypt y sesión con JWT de 8 h.
+- Cinco intentos fallidos bloquean la cuenta; si se sigue insistiendo, el bloqueo escala (5 min, 15 min, 1 h y 6 h).
+- Recuperación de contraseña por mail.
+- Inicio de sesión con Google (opcional), solo para correos que ya tienen usuario creado.
+- **Verificación en dos pasos** opcional, que cada usuario activa desde **Mi perfil**: con **Google Authenticator** (escanea un QR y confirma con el primer código) o con un código por mail. Los códigos incorrectos cuentan como contraseñas incorrectas. Si alguien pierde el celular, el administrador puede apagarla desde *Usuarios*.
 
 ### Estados del servicio técnico
 
-`PRESUPUESTADO` → `PENDIENTE` (o `RECHAZADO`) → `EN_REPARACION` → `REPARADO` → `ENTREGADO`
+`EN_CURSO` → `FINALIZADO`
 
-Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se cobra a *Cuenta Corriente*, el total queda como deuda del cliente.
+Al finalizar se genera el comprobante (Factura o Remito) y se cobra. Si el equipo está en garantía, no se le cobra al cliente. Si se cobra a *Cuenta Corriente*, el total queda como deuda del cliente. Eliminar un servicio devuelve los repuestos al depósito y saca la deuda que había generado.
 
 ## Tecnologías
 
@@ -56,15 +64,18 @@ Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se 
 | Backend | Node.js 20, Express 5, TypeScript, arquitectura en capas (rutas → controladores → servicios) |
 | Base de datos | PostgreSQL con Prisma ORM y migraciones |
 | Frontend | React 19, TypeScript, Vite, React Router |
-| Seguridad | JWT (8 h) + bcrypt, autorización por rol, verificación en dos pasos opcional con **Google Authenticator** (TOTP, secreto cifrado) o código por mail |
+| Seguridad | JWT + bcrypt, permisos por rol, verificación en dos pasos (TOTP o mail), inicio de sesión con Google |
 | Tiempo real | Socket.io |
+| Mail | Resend o SMTP (Nodemailer) |
 | Despliegue | Railway (Nixpacks) |
 
 ## Base de datos
 
 ![Diagrama Entidad-Relación](diagrama_Prog3_sh.png)
 
-Nueve tablas: `usuarios`, `categorias`, `productos`, `ventas`, `detalles_venta`, `clientes`, `movimientos_cuenta`, `servicios_tecnicos` y `servicio_repuestos`. El esquema completo está en [`backend/prisma/schema.prisma`](backend/prisma/schema.prisma).
+Quince tablas: `usuarios`, `roles`, `rol_permisos`, `auditoria`, `categorias`, `productos`, `correlativos`, `ventas`, `detalles_venta`, `clientes`, `movimientos_cuenta`, `servicios_tecnicos`, `servicio_repuestos`, `empresa` y `notificaciones`. El esquema completo está en [`backend/prisma/schema.prisma`](backend/prisma/schema.prisma).
+
+La numeración de los comprobantes (Factura, Remito y Presupuesto) es correlativa por tipo y compartida entre Ventas y Servicios Técnicos.
 
 ## Estructura del proyecto
 
@@ -73,15 +84,16 @@ backend/
 ├── prisma/            schema.prisma y migraciones
 ├── src/
 │   ├── controllers/   capa HTTP
-│   ├── routes/        endpoints y middlewares por ruta
+│   ├── routes/        endpoints y permisos por ruta
 │   ├── services/      reglas de negocio y acceso a datos
-│   ├── middlewares/   autenticación y roles
+│   ├── middlewares/   autenticación y permisos
+│   ├── utils/         catálogo de permisos y utilidades
 │   ├── socket.ts      instancia de Socket.io
 │   ├── seed.ts        datos iniciales
 │   └── index.ts
 └── .env.example
 frontend/
-└── src/               pages/, components/, config.ts, saldo.ts, servicios.ts, socket.ts, types.ts
+└── src/               pages/, components/, config.ts, permisos.ts, saldo.ts, servicios.ts, socket.ts, types.ts
 ```
 
 ## Instalación y ejecución local
@@ -100,12 +112,18 @@ cp .env.example .env      # completar DATABASE_URL y JWT_SECRET
 npm run db:migrate        # crea las tablas
 ```
 
-| Variable | Descripción |
-|---|---|
-| `DATABASE_URL` | Conexión a PostgreSQL, ej. `postgresql://postgres:postgres@localhost:5432/sh_servicios` |
-| `JWT_SECRET` | Clave con la que se firman los tokens |
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `DATABASE_URL` | Sí | Conexión a PostgreSQL, ej. `postgresql://postgres:postgres@localhost:5432/sh_servicios` |
+| `JWT_SECRET` | Sí | Clave con la que se firman los tokens |
+| `APP_URL` | No | URL pública del sistema, para los links de los mails |
+| `GOOGLE_CLIENT_ID` | No | Client ID de OAuth de Google; sin él no aparece el botón de Google |
+| `RESEND_API_KEY`, `MAIL_FROM` | No | Envío de mails con Resend |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | No | Envío de mails por SMTP (si no hay Resend) |
 
-Al iniciar el backend con la base vacía se cargan usuarios de prueba, 3 categorías y 9 productos.
+Sin proveedor de mail configurado, los mails no salen y su contenido queda en el log del servidor.
+
+Al iniciar el backend con la base vacía se cargan los usuarios de prueba, 4 categorías y 9 productos.
 
 En dos terminales:
 
@@ -133,47 +151,48 @@ cd frontend && npm run dev    # http://localhost:5173
 
 ## API
 
-Base URL: `https://shservicios.up.railway.app/api` (desarrollo: `http://localhost:3000/api`). Todas las rutas requieren `Authorization: Bearer <token>`, salvo `auth` y `/health`.
-
-Roles: **A** Administrador · **V** Vendedor · **T** Técnico.
+Base URL: `https://shservicios.up.railway.app/api` (desarrollo: `http://localhost:3000/api`). Todas las rutas requieren `Authorization: Bearer <token>`, salvo las de inicio de sesión y `/health`. Cada ruta exige el permiso indicado (el Administrador los tiene todos).
 
 ### Autenticación – `/api/auth`
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| POST | `/register` | Crea un usuario (rol Vendedor por defecto) |
-| POST | `/login` | Devuelve el token JWT y los datos del usuario |
+| POST | `/login` | Devuelve el token JWT y los datos del usuario, o un desafío si tiene verificación en dos pasos |
+| POST | `/2fa` | Completa el ingreso con el código de la app o del mail |
+| POST | `/2fa/reenviar` | Reenvía el código por mail |
+| GET | `/config` | Indica si está habilitado el ingreso con Google |
+| POST | `/google` | Ingreso con Google |
+| POST | `/forgot` | Envía el link para restablecer la contraseña |
+| POST | `/reset` | Restablece la contraseña |
+| GET | `/me` | Sesión actual con rol y permisos |
+| PUT | `/me` | Edita los datos propios (correo y contraseña piden la contraseña actual) |
+| POST | `/2fa/activar`, `/2fa/activar/confirmar` | Activa la verificación por mail |
+| POST | `/2fa/app`, `/2fa/app/confirmar` | Activa Google Authenticator |
+| POST | `/2fa/desactivar` | Desactiva la verificación en dos pasos |
 
-### Categorías – `/api/categories`
+### Catálogo – `/api/categories` y `/api/products`
 
-| Método | Ruta | Roles | Descripción |
+| Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| GET | `/` | Todos | Lista las categorías |
-| POST | `/` | A | Crea una categoría |
-| PUT | `/:id` | A | Edita una categoría |
-| DELETE | `/:id` | A | Elimina (falla si tiene productos) |
-
-### Productos – `/api/products`
-
-| Método | Ruta | Roles | Descripción |
-|---|---|---|---|
-| GET | `/` | Todos | Lista los productos con su categoría |
-| GET | `/low-stock` | Todos | Productos activos con stock ≤ mínimo |
-| GET | `/:id` | Todos | Obtiene un producto |
-| POST | `/` | A | Crea un producto (código automático) |
-| PUT | `/:id` | A | Edita un producto |
-| DELETE | `/:id` | A | Elimina; si tiene ventas o servicios responde 409 y conviene desactivarlo |
+| GET | `/categories` | `productos.ver` | Lista las categorías |
+| POST, PUT, DELETE | `/categories`, `/categories/:id` | `categorias.gestionar` | ABM de categorías (no se elimina si tiene productos) |
+| GET | `/products` | `productos.ver` | Lista los productos con su categoría |
+| GET | `/products/low-stock` | `productos.ver` | Productos activos con stock ≤ mínimo |
+| GET | `/products/:id` | `productos.ver` | Obtiene un producto |
+| POST, PUT, DELETE | `/products`, `/products/:id` | `productos.editar` | ABM de productos (código automático; si tiene ventas o servicios responde 409 y conviene desactivarlo) |
 
 ### Ventas – `/api/sales`
 
-| Método | Ruta | Roles | Descripción |
+| Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| GET | `/` | A, V | Lista las ventas con sus detalles |
-| POST | `/` | A, V | Registra una venta y descuenta el stock |
+| GET | `/` | `ventas.ver` | Lista las ventas con sus detalles |
+| POST | `/` | `ventas.crear` | Registra una venta y descuenta el stock |
+| DELETE | `/:id` | `ventas.anular` | Anula la venta: devuelve el stock y saca la deuda |
 
 ```json
 {
   "items": [{ "productoId": 4, "cantidad": 2 }],
+  "tipoComprobante": "FACTURA",
   "medioPago": "Efectivo",
   "montoRecibido": 120000,
   "clienteId": 1,
@@ -185,46 +204,76 @@ Precio y total se calculan en el servidor. La venta se rechaza completa si algú
 
 ### Clientes – `/api/clients`
 
-| Método | Ruta | Roles | Descripción |
+| Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| GET | `/` | A, V | Lista los clientes con su saldo |
-| GET | `/:id` | A, V | Ficha: datos, compras, movimientos y saldo |
-| POST | `/` | A, V | Crea un cliente (documento único) |
-| PUT | `/:id` | A, V | Edita un cliente |
-| DELETE | `/:id` | A | Elimina (falla si tiene compras, pagos o servicios) |
-| POST | `/:id/movements` | A, V | Registra un pago o anticipo: `{ "monto": 10000 }` |
+| GET | `/` | `clientes.gestionar` | Lista los clientes con su saldo |
+| GET | `/:id` | `clientes.gestionar` | Ficha: datos, compras, movimientos y saldo |
+| POST | `/` | `clientes.gestionar` | Crea un cliente (documento único) |
+| PUT | `/:id` | `clientes.gestionar` | Edita un cliente |
+| DELETE | `/:id` | `clientes.eliminar` | Elimina (falla si tiene compras, pagos o servicios) |
+| POST | `/:id/movements` | `clientes.gestionar` | Registra un pago o anticipo: `{ "monto": 10000 }` |
+| DELETE | `/:id/movements/:movementId` | `clientes.eliminar` | Elimina un pago indicando el motivo |
 
 ### Servicios técnicos – `/api/repairs`
 
-El técnico solo ve y modifica los servicios que tiene asignados.
+Quien no tiene `servicios.gestionar` (el técnico) solo ve y modifica los servicios que tiene asignados.
 
-| Método | Ruta | Roles | Descripción |
+| Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| GET | `/` | Todos | Lista los servicios |
-| GET | `/:id` | Todos | Servicio con cliente, técnico y repuestos |
-| POST | `/` | A, V | Registra la solicitud: `clienteId`, `equipo`, `descripcionFalla`, `repuestosSolicitados?`, `enGarantia`, `costoManoObra` |
-| PUT | `/:id/presupuesto` | A, V | Respuesta del cliente: `{ "aceptado": true }` |
-| PUT | `/:id/tecnico` | A, V | Asigna el técnico e inicia la reparación: `{ "tecnicoId" }` |
-| POST | `/:id/repuestos` | A, T | Carga un repuesto y descuenta stock: `{ "productoId", "cantidad" }` |
-| DELETE | `/:id/repuestos/:productoId` | A, T | Quita un repuesto y lo devuelve al stock |
-| PUT | `/:id/reparado` | A, T | Marca la reparación como terminada |
-| PUT | `/:id/entregar` | A, V | Entrega y cobro: `{ "medioPago", "proximoMantenimiento", "usarSaldo" }` |
+| GET | `/` | `servicios.gestionar` o `servicios.tecnico` | Lista los servicios |
+| GET | `/:id` | `servicios.gestionar` o `servicios.tecnico` | Servicio con cliente, técnico y repuestos |
+| POST | `/` | `servicios.gestionar` | Crea el servicio: `clienteId`, `tecnicoId?`, `equipo`, `descripcionFalla`, `tareas?`, `enGarantia`, `costoManoObra`, `fechaEstimadaFin?`, `repuestos?` |
+| POST | `/presupuesto` | `servicios.gestionar` | Calcula el presupuesto para imprimir (no guarda nada) |
+| PUT | `/:id` | `servicios.gestionar` o `servicios.tecnico` | Actualiza mano de obra, fecha estimada y notas |
+| PUT | `/:id/tecnico` | `servicios.gestionar` | Asigna o reasigna el técnico: `{ "tecnicoId" }` |
+| POST | `/:id/repuestos` | `servicios.repuestos` | Agrega un repuesto al pedido del depósito: `{ "productoId", "cantidad" }` |
+| DELETE | `/:id/repuestos/:productoId` | `servicios.repuestos` | Quita un repuesto (si ya se había retirado, vuelve al stock) |
+| PUT | `/:id/finalizar` | `servicios.gestionar` o `servicios.tecnico` | Cierra y cobra: `{ "tipoComprobante", "medioPago", "costoManoObra?", "diagnostico?", "trabajoRealizado?", "proximoMantenimiento?", "usarSaldo?" }` |
+| DELETE | `/:id` | `servicios.eliminar` | Elimina el servicio, devuelve los repuestos y saca la deuda |
+| GET | `/retiros` | `retiros.gestionar` | Cola de repuestos para retirar del depósito |
+| PUT | `/retiros/:id` | `retiros.gestionar` | Avanza el retiro: `{ "estado": "LISTO" \| "RETIRADO" }` |
 
 ### Técnicos – `/api/technicians`
 
-| Método | Ruta | Roles | Descripción |
+| Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| GET | `/` | A, V | Lista los técnicos con su cantidad de servicios |
-| POST | `/` | A | Crea un técnico: `{ "nombre", "correo", "contrasena" }` (mín. 6 caracteres) |
-| PUT | `/:id` | A | Edita; con `contrasena` vacía se mantiene la actual |
-| DELETE | `/:id` | A | Elimina (falla si tiene servicios asignados) |
+| GET | `/` | `tecnicos.ver` | Lista los técnicos con su cantidad de servicios |
+| POST | `/` | `tecnicos.gestionar` | Crea un técnico: `{ "nombre", "correo", "contrasena" }` (mín. 6 caracteres) |
+| PUT | `/:id` | `tecnicos.gestionar` | Edita; con `contrasena` vacía se mantiene la actual |
+| DELETE | `/:id` | `tecnicos.gestionar` | Elimina (falla si tiene servicios asignados) |
+
+### Usuarios, roles y auditoría
+
+| Método | Ruta | Permiso | Descripción |
+|---|---|---|---|
+| GET | `/users` | `usuarios.ver` | Lista los usuarios |
+| POST, PUT, DELETE | `/users`, `/users/:id` | `usuarios.gestionar` | ABM de usuarios |
+| GET | `/roles` | `roles.gestionar` o `usuarios.ver` | Lista los roles con sus permisos |
+| GET | `/roles/permisos` | `roles.gestionar` | Catálogo de permisos por módulo |
+| GET, POST, PUT, DELETE | `/roles`, `/roles/:id` | `roles.gestionar` | ABM de roles |
+| GET | `/audit` | `auditoria.ver` | Registro de auditoría |
+| GET | `/audit/pagos-eliminados` | `auditoria.ver` | Pagos eliminados con quién, cuándo y por qué |
+
+### Empresa, datos y notificaciones
+
+| Método | Ruta | Permiso | Descripción |
+|---|---|---|---|
+| GET | `/company` | Todos | Datos de la empresa |
+| PUT | `/company` | `configuracion.gestionar` | Edita los datos de la empresa |
+| POST | `/import/preview` | `datos.importar` | Previsualiza un archivo de productos |
+| POST | `/import/run` | `datos.importar` | Importa el archivo |
+| GET | `/export/:dataset` | `datos.exportar` | Exporta `maquinaria`, `repuestos`, `precios`, `clientes`, `ventas`, `servicios` o `auditoria` |
+| GET | `/notifications` | Todos | Notificaciones del usuario |
+| PUT | `/notifications/leidas` | Todos | Marca las notificaciones como leídas |
 
 ### Tiempo real (Socket.io)
 
 | Evento | Se emite cuando | Efecto |
 |---|---|---|
-| `stock-actualizado` | Se confirma una venta, se crea/edita/elimina un producto o se cargan/quitan repuestos | Punto de Venta, Inventario y contador de reposición se actualizan en todas las terminales |
-| `servicios-actualizados` | Cambia cualquier servicio técnico | Administración y taller ven el estado al instante |
+| `stock-actualizado` | Cambia el stock o un producto (venta, ABM, retiro de repuestos) | Punto de Venta, catálogo y contador de reposición se actualizan en todas las terminales |
+| `servicios-actualizados` | Cambia cualquier servicio técnico | Administración, taller y depósito ven el estado al instante |
+| `notificaciones-actualizadas` | Hay una notificación nueva | Se actualiza la campana |
+| `permisos-actualizados` | Cambian los permisos de un rol | El menú del usuario se actualiza sin volver a iniciar sesión |
 
 ### Health check
 
@@ -232,4 +281,4 @@ El técnico solo ve y modifica los servicios que tiene asignados.
 
 ## Despliegue
 
-Railway compila con Nixpacks (`nixpacks.toml`): genera el cliente Prisma, construye el frontend y compila el backend. Al arrancar aplica las migraciones (`prisma migrate deploy`) y el mismo servidor Express sirve el frontend compilado. Variables necesarias: `DATABASE_URL` y `JWT_SECRET`.
+Railway compila con Nixpacks (`nixpacks.toml`): genera el cliente Prisma, construye el frontend y compila el backend. Al arrancar aplica las migraciones (`prisma migrate deploy`) y el mismo servidor Express sirve el frontend compilado. Variables necesarias: `DATABASE_URL` y `JWT_SECRET` (las demás son opcionales, ver la tabla de variables).
