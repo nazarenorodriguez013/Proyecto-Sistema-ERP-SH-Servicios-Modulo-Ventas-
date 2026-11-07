@@ -5,6 +5,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css'
 import './index.css'
 import './catalogo.css'
 import App from './App.tsx'
+import { revisarPronto } from './socket'
 
 // Si el servidor invalida la sesión (usuario desactivado o borrado, token vencido) se vuelve al login en vez de dejar
 // la pantalla con errores sueltos. Las rutas de /auth devuelven 401 por contraseña o código incorrectos y no cuentan.
@@ -16,6 +17,9 @@ window.fetch = async (...args) => {
     localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('loginTime')
     window.location.assign('/')
   }
+  // Un cambio hecho desde acá: las demás pantallas abiertas de esta pestaña se enteran enseguida
+  const metodo = (args[1]?.method ?? (args[0] instanceof Request ? args[0].method : 'GET')).toUpperCase()
+  if (metodo !== 'GET' && res.ok && url.includes('/api/') && !url.includes('/api/auth/')) revisarPronto()
   return res
 }
 

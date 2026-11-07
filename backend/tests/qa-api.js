@@ -429,7 +429,7 @@ const stockDe = async id => (await api('GET', '/products/' + id, A)).d.stock
     const u = await crearUsuario('VENDEDOR', 'App')
     let r = await api('POST', '/auth/2fa/app', null); ok('configurar sin sesión → 401', r.s === 401, r.s)
     r = await api('POST', '/auth/2fa/app/confirmar', u.token, { codigo: '123456' }); ok('confirmar sin haber escaneado el QR → 400', r.s === 400, r)
-    r = await api('POST', '/auth/2fa/app', u.token); ok('genera el QR y la clave', r.s === 200 && /^data:image\/png;base64,/.test(r.d.qr) && /^[A-Z2-7]{32}$/.test(r.d.secreto) && r.d.otpauth.includes(r.d.secreto), r.d && Object.keys(r.d))
+    r = await api('POST', '/auth/2fa/app', u.token); ok('genera el QR y la clave', r.s === 200 && /^data:image\/(png|svg\+xml);base64,/.test(r.d.qr) && /^[A-Z2-7]{32}$/.test(r.d.secreto) && r.d.otpauth.includes(r.d.secreto), r.d && Object.keys(r.d))
     const sec = r.d.secreto
     r = await api('POST', '/auth/2fa/app/confirmar', u.token, { codigo: codigoApp(sec, 5) }); ok('código de otro momento → 400', r.s === 400, r)
     r = await api('POST', '/auth/2fa/app/confirmar', u.token, { codigo: codigoApp(sec) }); ok('activar con el código de la app', r.s === 200 && r.d.user.dosPasos === true && r.d.user.dosPasosMetodo === 'app', r.d)

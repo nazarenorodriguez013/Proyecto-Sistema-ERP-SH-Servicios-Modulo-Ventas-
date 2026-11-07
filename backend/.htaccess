@@ -1,0 +1,6 @@
+# Hostinger: si el proyecto queda dentro de public_html, todo se atiende desde la carpeta public/
+# (así .env, vendor/ y storage/ nunca son accesibles desde el navegador)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

@@ -20,7 +20,7 @@ Reemplazar los procesos manuales por una plataforma Full-Stack que elimine la de
 | **Clientes y cuenta corriente** | ABM de clientes con historial de compras. Las ventas y servicios a cuenta suman deuda; los pagos y anticipos la restan. Un pago de más queda como **saldo a favor**, que se descuenta automáticamente (casilla "Usar saldo a favor"). El saldo se muestra como *Debe*, *A favor* o *Al día*. Cada pago guarda quién lo cargó; si se elimina (hay que indicar el motivo), deja de figurar en la cuenta y en el saldo pero queda registrado en *Auditoría → Pagos eliminados* con quién lo eliminó, cuándo, el monto y el motivo. |
 | **Servicio Técnico** | Solicitud de reparación → presupuesto (sin garantía) → asignación de técnico → carga de repuestos (descuentan stock) → reparación → entrega con cobro, próximo mantenimiento y recibo. |
 | **Técnicos** | Alta, edición y baja de técnicos (solo Administrador). |
-| **Tiempo real** | Socket.io actualiza stock y servicios en todas las terminales sin recargar. |
+| **Tiempo real** | Stock y servicios se actualizan en todas las terminales sin recargar (cada pantalla consulta los cambios cada pocos segundos). |
 
 ### Roles
 
@@ -53,32 +53,32 @@ Con garantía se registra directamente como `PENDIENTE` y el total es $0. Si se 
 
 | Capa | Stack |
 |---|---|
-| Backend | Node.js 20, Express 5, TypeScript, arquitectura en capas (rutas → controladores → servicios) |
-| Base de datos | PostgreSQL con Prisma ORM y migraciones |
+| Backend | PHP 8.2, Laravel 12 (rutas → middlewares → controladores, modelos Eloquent) |
+| Base de datos | MySQL / MariaDB con migraciones de Laravel |
 | Frontend | React 19, TypeScript, Vite, React Router |
 | Seguridad | JWT (8 h) + bcrypt, autorización por rol, verificación en dos pasos opcional con **Google Authenticator** (TOTP, secreto cifrado) o código por mail |
-| Tiempo real | Socket.io |
-| Despliegue | Railway (Nixpacks) |
+| Tiempo real | Consulta periódica de eventos (`/api/eventos`) |
+| Despliegue | Hostinger (hosting compartido) |
 
 ## Base de datos
 
 ![Diagrama Entidad-Relación](diagrama_Prog3_sh.png)
 
-Nueve tablas: `usuarios`, `categorias`, `productos`, `ventas`, `detalles_venta`, `clientes`, `movimientos_cuenta`, `servicios_tecnicos` y `servicio_repuestos`. El esquema completo está en [`backend/prisma/schema.prisma`](backend/prisma/schema.prisma).
+Nueve tablas: `usuarios`, `categorias`, `productos`, `ventas`, `detalles_venta`, `clientes`, `movimientos_cuenta`, `servicios_tecnicos` y `servicio_repuestos`. El esquema completo está en [`backend/database/migrations`](backend/database/migrations).
 
 ## Estructura del proyecto
 
 ```
-backend/
-├── prisma/            schema.prisma y migraciones
-├── src/
-│   ├── controllers/   capa HTTP
-│   ├── routes/        endpoints y middlewares por ruta
-│   ├── services/      reglas de negocio y acceso a datos
-│   ├── middlewares/   autenticación y roles
-│   ├── socket.ts      instancia de Socket.io
-│   ├── seed.ts        datos iniciales
-│   └── index.ts
+backend/               Laravel
+├── app/
+│   ├── Http/Controllers/   Auth, Catálogo, Clientes, Ventas, Servicios, Seguridad, Gestión, Importación
+│   ├── Http/Middleware/    autenticación, permisos y formato de la API
+│   ├── Models/             modelos Eloquent
+│   └── Support/            permisos, auditoría, cuenta corriente, TOTP, correo
+├── database/          migraciones y datos de prueba
+├── routes/api.php     endpoints
+├── public/            punto de entrada (y el frontend compilado)
+├── tests/qa-api.js    pruebas de la API
 └── .env.example
 frontend/
 └── src/               pages/, components/, config.ts, saldo.ts, servicios.ts, socket.ts, types.ts
@@ -86,32 +86,25 @@ frontend/
 
 ## Instalación y ejecución local
 
-**Requisitos:** Node.js 20+, npm 9+ y PostgreSQL 14+ con una base creada (por ejemplo `sh_servicios`).
+**Requisitos:** PHP 8.2+ y MySQL (por ejemplo XAMPP), Composer, Node.js 20+ para el frontend.
 
 ```bash
 git clone https://github.com/nazarenorodriguez013/Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
 cd Proyecto-Sistema-ERP-SH-Servicios-Modulo-Ventas-
 
-cd backend && npm install && cd ..
-cd frontend && npm install && cd ..
-
 cd backend
-cp .env.example .env      # completar DATABASE_URL y JWT_SECRET
-npm run db:migrate        # crea las tablas
+composer install
+cp .env.example .env      # APP_ENV=local, datos de MySQL y JWT_SECRET
+php artisan key:generate
+php artisan migrate --seed    # crea las tablas y carga usuarios de prueba, 4 categorías y 9 productos
+cd ../frontend && npm install
 ```
-
-| Variable | Descripción |
-|---|---|
-| `DATABASE_URL` | Conexión a PostgreSQL, ej. `postgresql://postgres:postgres@localhost:5432/sh_servicios` |
-| `JWT_SECRET` | Clave con la que se firman los tokens |
-
-Al iniciar el backend con la base vacía se cargan usuarios de prueba, 3 categorías y 9 productos.
 
 En dos terminales:
 
 ```bash
-cd backend && npm run dev     # http://localhost:3000
-cd frontend && npm run dev    # http://localhost:5173
+cd backend && php artisan serve   # http://localhost:8000
+cd frontend && npm run dev        # http://localhost:5173
 ```
 
 ### Usuarios de prueba
@@ -122,18 +115,18 @@ cd frontend && npm run dev    # http://localhost:5173
 | Vendedor | vendedor@shservicios.com | vendedor123 |
 | Técnico | tecnico@shservicios.com | tecnico123 |
 
-### Scripts de base de datos (desde `backend/`)
+### Comandos de base de datos (desde `backend/`)
 
 | Comando | Acción |
 |---|---|
-| `npm run db:migrate` | Aplica las migraciones |
-| `npm run db:reset` | Borra todo, recrea las tablas y recarga los datos de prueba |
-| `npm run db:seed` | Carga los datos de prueba en una base vacía |
-| `npm run db:studio` | Abre la interfaz visual de Prisma |
+| `php artisan migrate` | Aplica las migraciones |
+| `php artisan migrate:fresh --seed` | Borra todo, recrea las tablas y recarga los datos de prueba |
+| `php artisan db:seed` | Carga los datos de prueba |
+| `php artisan erp:crear-admin` | Crea un administrador (para producción) |
 
 ## API
 
-Base URL: `https://shservicios.up.railway.app/api` (desarrollo: `http://localhost:3000/api`). Todas las rutas requieren `Authorization: Bearer <token>`, salvo `auth` y `/health`.
+Base URL: `/api` en el mismo dominio (desarrollo: `http://localhost:8000/api`). Todas las rutas requieren `Authorization: Bearer <token>`, salvo `auth` y `/health`.
 
 Roles: **A** Administrador · **V** Vendedor · **T** Técnico.
 
@@ -219,9 +212,11 @@ El técnico solo ve y modifica los servicios que tiene asignados.
 | PUT | `/:id` | A | Edita; con `contrasena` vacía se mantiene la actual |
 | DELETE | `/:id` | A | Elimina (falla si tiene servicios asignados) |
 
-### Tiempo real (Socket.io)
+### Tiempo real – `GET /api/eventos`
 
-| Evento | Se emite cuando | Efecto |
+Devuelve un contador por evento (`{ "stock-actualizado": 12, ... }`). Cada pantalla lo consulta cada 5 segundos y, si un contador cambió, recarga sus datos.
+
+| Evento | Sube cuando | Efecto |
 |---|---|---|
 | `stock-actualizado` | Se confirma una venta, se crea/edita/elimina un producto o se cargan/quitan repuestos | Punto de Venta, Inventario y contador de reposición se actualizan en todas las terminales |
 | `servicios-actualizados` | Cambia cualquier servicio técnico | Administración y taller ven el estado al instante |
@@ -232,4 +227,4 @@ El técnico solo ve y modifica los servicios que tiene asignados.
 
 ## Despliegue
 
-Railway compila con Nixpacks (`nixpacks.toml`): genera el cliente Prisma, construye el frontend y compila el backend. Al arrancar aplica las migraciones (`prisma migrate deploy`) y el mismo servidor Express sirve el frontend compilado. Variables necesarias: `DATABASE_URL` y `JWT_SECRET`.
+Hostinger (hosting compartido con PHP y MySQL). Laravel sirve la API y también el frontend compilado. Pasos completos en [`backend/README.md`](backend/README.md#publicar-en-hostinger).
